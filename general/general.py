@@ -5,6 +5,9 @@ import math
 def bits_gen(n):
     return [random.randint(0,1) for b in range(1,n+1)]
 
+def db_to_power(x):
+    return 10**(x/10)
+
 def upsample(input, factor):
     z_mat = np.zeros([factor-1, len(input[0])])
     aux = np.concatenate((input, z_mat), axis=0)

@@ -1,3 +1,6 @@
+import sys
+sys.path.insert(1, 'D:\\Dev\\sys-simulator-2')
+
 import numpy as np
 
 def pathloss_bs_users(d):

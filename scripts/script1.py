@@ -5,6 +5,7 @@ from general import general as gen
 from devices.devices import node, base_station, mobile_user, d2d_user, d2d_node_type
 from pathloss import pathloss
 from plots.plots import plot_positions
+from q_learning.environment import Environment, EnvironmentParameters
 
 import math
 
@@ -35,20 +36,13 @@ alpha = 0.5 # learning rate
 etta = 0.9  # discount factor
 epsilon = 0.1   # probability epsilon in epsilon-greedy
 C = 80  # C constant for the improved reward function
-# TODO: declarar ações e estados
+parameters = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold,
+                                        n_mues, n_d2d, n_rb, bs_radius)
+environment = Environment(parameters)
 
-# declaring the bs, mues and d2d pairs
-bs = base_station((0,0), radius = bs_radius)
-mues = [mobile_user(x) for x in range(n_mues)]
-d2d_txs = [d2d_user(x, d2d_node_type.TX) for x in range(n_d2d)]
-d2d_rxs = [d2d_user(x, d2d_node_type.RX) for x in range(n_d2d)]
 
-# distributing nodes in the bs radius
-gen.distribute_nodes(mues, bs)
-for i in range(n_d2d):
-    gen.distribute_pair_fixed_distance( list(zip(d2d_txs, d2d_rxs))[i], bs, d2d_pair_distance)
 
-plot_positions(bs, mues, d2d_txs, d2d_rxs)
+
 
 
 

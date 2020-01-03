@@ -1,6 +1,10 @@
 import sys
+import os
 # insert at 1, 0 is the script path (or '' in REPL)
-sys.path.insert(1, 'D:/Google Drive/trabalho/mestrado/dev/link-simulator')
+# sys.path.insert(1, 'D:\\Dev\\sys-simulator-2')
+lucas_path = os.environ['LUCAS_PATH']
+sys.path.insert(1, lucas_path)
+
 from enum import Enum
 import numpy as np
 import scipy.spatial as spatial
@@ -12,6 +16,7 @@ class node:
     radius: BS coverage radius in meters
     """
     def __init__(self, **kargs):                            
+        self.tx_power = 0
         pass
 
     def set_position(self, position):
@@ -25,6 +30,12 @@ class node:
     
     def set_tx_power(self, tx_power):
         self.tx_power = tx_power
+
+    def set_rb(self, rb):
+        self.rb = rb
+    
+    def set_sinr(self, sinr):
+        self.sinr = sinr
     
 
 class base_station(node):
@@ -48,18 +59,17 @@ class mobile_user(node):
         self.id = f'MUE:{id}'
 
 class d2d_node_type(Enum):
-    TX = 0
-    RX = 1
+    TX = 'TX'
+    RX = 'RX'
 
 class d2d_user(node):
     """
     class representing the d2d_user
     position: x,y tuple representing the device position coordinates    
     """
-    def __init__(self, id, **kwargs):
-        self.id = f'DUE.{type}:{id}',
-        if kwargs.get('type') is not None:
-            self.type = kwargs['type'].name
+    def __init__(self, id: int, d2d_type: d2d_node_type, **kwargs):        
+        self.type = d2d_type
+        self.id = f'DUE.{self.type.value}:{id}',
         
     def set_distance_d2d(self, distance):
         self.distance_d2d = distance

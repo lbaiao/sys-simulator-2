@@ -1,5 +1,10 @@
 import sys
-sys.path.insert(1, 'D:\\Dev\\sys-simulator-2')
+import os
+
+lucas_path = os.environ['LUCAS_PATH']
+sys.path.insert(1, lucas_path)
+
+# sys.path.insert(1, 'D:\\Dev\\sys-simulator-2')
 
 from general import general as gen
 from devices.devices import node, base_station, mobile_user, d2d_user, d2d_node_type

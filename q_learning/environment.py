@@ -3,6 +3,7 @@ sys.path.insert(1, 'D:\\Dev\\sys-simulator-2')
 
 from devices.devices import base_station, mobile_user, d2d_user, d2d_node_type
 from general import general as gen
+from sinr.sinr import sinr_d2d, sinr_mue
 
 
 class EnvironmentParameters:
@@ -18,7 +19,7 @@ class EnvironmentParameters:
         self.n_mues = n_mues
         self.n_d2d = n_d2d
         self.n_rb = n_rb
-        self.bs_radius = bs_radius
+        self.bs_radius = bs_radius        
 
 
 class Environment:
@@ -35,14 +36,14 @@ class Environment:
 
     def build_scenario(self):
         # declaring the bs, mues and d2d pairs
-        bs = base_station((0,0), radius = self.params.bs_radius)
-        mues = [mobile_user(x) for x in range(self.params.n_mues)]
-        d2d_pairs = [ (d2d_user(x, d2d_node_type.TX), d2d_user(x, d2d_node_type.RX)) for x in range(self.params.n_d2d) ]
+        self.bs = base_station((0,0), radius = self.params.bs_radius)
+        self.mues = [mobile_user(x) for x in range(self.params.n_mues)]
+        self.d2d_pairs = [ (d2d_user(x, d2d_node_type.TX), d2d_user(x, d2d_node_type.RX)) for x in range(self.params.n_d2d) ]
 
         # distributing nodes in the bs radius
-        gen.distribute_nodes(mues, bs)
-        for p in d2d_pairs:
-            gen.distribute_pair_fixed_distance( p, bs, self.params.d2d_pair_distance)
+        gen.distribute_nodes(self.mues, self.bs)
+        for p in self.d2d_pairs:
+            gen.distribute_pair_fixed_distance( p, self.bs, self.params.d2d_pair_distance)
 
         # plot nodes positions
         # plot_positions(bs, mues, d2d_txs, d2d_rxs)
@@ -50,13 +51,41 @@ class Environment:
         # rb allocation
         # TODO: definir um metodo de alocacao de RBs. Nesta primeira simulacao, estou alocando todos para o mesmo RB. 
         # alocarei aleatoriamente nas proximas simulações
-        for m in mues:
-            m.set_rb(1)
+        for i in range(len(self.mues)):
+            self.mues[i].set_rb(i)
 
-        for p in d2d_pairs:
+        for p in self.d2d_pairs:
             p[0].set_rb(1)
             p[1].set_rb(1)
 
         # TODO: como determinar a potencia de transmissao do mue? vou setar pmax por enquanto
-        for m in mues:
+        for m in self.mues:
             m.set_tx_power(self.params.p_max)
+
+
+    def get_state(self):
+        flag = 1
+        for m in self.mues:
+            sinr = sinr_mue(m, list(zip(*self.d2d_pairs)), self.bs, self.params.noise_power)
+            m.set_sinr(sinr)
+            if sinr < self.params.sinr_threshold:
+                flag = 0
+        return flag
+        
+
+
+
+    def reset(self):
+        self.build_scenario()
+
+
+    def get_actions(self):
+        return self.actions
+
+    
+
+
+
+
+
+        

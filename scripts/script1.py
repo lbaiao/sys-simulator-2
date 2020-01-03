@@ -6,6 +6,7 @@ from devices.devices import node, base_station, mobile_user, d2d_user, d2d_node_
 from pathloss import pathloss
 from plots.plots import plot_positions
 from q_learning.environment import Environment, EnvironmentParameters
+from q_learning.agent import Agent
 
 import math
 
@@ -32,13 +33,37 @@ user_gain = gen.db_to_power(user_gain)
 sinr_threshold = gen.db_to_power(sinr_threshold)
 
 # q-learning parameters
-alpha = 0.5 # learning rate
-etta = 0.9  # discount factor
-epsilon = 0.1   # probability epsilon in epsilon-greedy
+MAX_NUM_EPISODES = 20000
+STEPS_PER_EPISODE = 200 
+EPSILON_MIN = 0.1
+max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
+EPSILON_DECAY = 1000 * EPSILON_MIN / max_num_steps
+ALPHA = 0.5  # Learning rate
+GAMMA = 0.9  # Discount factor
 C = 80  # C constant for the improved reward function
 parameters = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold,
                                         n_mues, n_d2d, n_rb, bs_radius)
 environment = Environment(parameters)
+
+# training function
+# TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
+def train(agent: Agent, env: Environment):
+    best_reward = 0
+    for episode in range(agent.max_episodes):
+        # TODO: atualmente redistribuo os usuarios aleatoriamente a cada episodio. Isto é o melhor há se fazer? 
+        # Simular deslocamento dos usuários?
+        env.reset()
+        done = False
+        obs = env.get_state()
+        total_reward = 0.0
+        i = 0
+        while not done:
+            if i >= agent.max_steps:
+                break
+            else:
+                action = agent.get_action(obs)
+
+        
 
 
 

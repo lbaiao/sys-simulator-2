@@ -12,6 +12,7 @@ class node:
     radius: BS coverage radius in meters
     """
     def __init__(self, **kargs):                            
+        self.tx_power = 0
         pass
 
     def set_position(self, position):
@@ -28,6 +29,9 @@ class node:
 
     def set_rb(self, rb):
         self.rb = rb
+    
+    def set_sinr(self, sinr):
+        self.sinr = sinr
     
 
 class base_station(node):

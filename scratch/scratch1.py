@@ -1,5 +1,4 @@
 import sys
-# sys.path.insert(1, 'D:\\Dev\\sys-simulator-2')
 
 import os
 lucas_path = os.environ['LUCAS_PATH']

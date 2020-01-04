@@ -3,7 +3,6 @@ import os
 
 lucas_path = os.environ['LUCAS_PATH']
 sys.path.insert(1, lucas_path)
-# sys.path.insert(1, 'D:\\Dev\\sys-simulator-2')
 
 from typing import List
 import matplotlib.pyplot as plt

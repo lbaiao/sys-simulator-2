@@ -97,7 +97,7 @@ def distribute_pair_fixed_distance(nodes, base_station, pair_distance):
         nodes_bs_distance = spatial.distance.euclidean((x2,y2), base_station.position)        
         if nodes_bs_distance < radius:
             nodes[1].set_position((x2,y2))
-            print(spatial.distance.euclidean(nodes[0].position, nodes[1].position))
+            # print(spatial.distance.euclidean(nodes[0].position, nodes[1].position))
             is_node2_in_circle = True        
 
 def get_distances_table(nodes):

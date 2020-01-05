@@ -43,6 +43,7 @@ class base_station(node):
     radius: BS coverage radius in meters
     """
     def __init__(self, position, radius = 500):
+        super(base_station, self).__init__()
         self.position = position
         self.radius = radius
     def set_radius(self, radius):
@@ -54,6 +55,7 @@ class mobile_user(node):
     position: x,y tuple representing the device position coordinates    
     """
     def __init__(self, id):
+        super(mobile_user, self).__init__()
         self.id = f'MUE:{id}'
 
 class d2d_node_type(Enum):
@@ -66,6 +68,7 @@ class d2d_user(node):
     position: x,y tuple representing the device position coordinates    
     """
     def __init__(self, id: int, d2d_type: d2d_node_type, **kwargs):        
+        super(d2d_user, self).__init__()
         self.type = d2d_type
         self.id = f'DUE.{self.type.value}:{id}',
         

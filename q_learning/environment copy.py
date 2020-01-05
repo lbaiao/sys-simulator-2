@@ -1,3 +1,5 @@
+# multi rb - in progress
+
 import sys
 import os
 lucas_path = os.environ['LUCAS_PATH']
@@ -29,16 +31,14 @@ class RLEnvironment:
     def build_scenario(self, agents: List[Agent]):
         # declaring the bs, mues and d2d pairs
         self.bs = base_station((0,0), radius = self.params.bs_radius)
-        self.mue = mobile_user(0)
+        self.mues = [mobile_user(x) for x in range(self.params.n_mues)]
         self.d2d_pairs = [ (d2d_user(x, d2d_node_type.TX), d2d_user(x, d2d_node_type.RX)) for x in range(self.params.n_d2d) ]
-        self.rb = 1
+        self.rbs = [i for i in range(self.params.n_mues)]
 
-        # distributing nodes in the bs radius        
-        gen.distribute_nodes([self.mue], self.bs)
+        # distributing nodes in the bs radius
+        gen.distribute_nodes(self.mues, self.bs)
         for p in self.d2d_pairs:
             gen.distribute_pair_fixed_distance( p, self.bs, self.params.d2d_pair_distance)
-            for d in p:
-                d.set_distance_d2d(self.params.d2d_pair_distance)
 
         # plot nodes positions
         # plot_positions(bs, mues, d2d_txs, d2d_rxs)
@@ -46,48 +46,69 @@ class RLEnvironment:
         # rb allocation
         # TODO: definir um metodo de alocacao de RBs. Nesta primeira simulacao, estou alocando todos para o mesmo RB. 
         # alocarei aleatoriamente nas proximas simulações
-        self.mue.set_rb(self.rb)
+        for i in range(len(self.mues)):
+            self.mues[i].set_rb(i)
 
         for p in self.d2d_pairs:
-            p[0].set_rb(self.rb)
-            p[1].set_rb(self.rb)
+            p[0].set_rb(self.rbs[0])
+            p[1].set_rb(self.rbs[0])
 
         # TODO: como determinar a potencia de transmissao do mue? vou setar pmax por enquanto
-        self.mue.set_tx_power(self.params.p_max)
+        for m in self.mues:
+            m.set_tx_power(self.params.p_max)
 
         for i in range(self.params.n_d2d):
             agents[i].set_d2d_tx_id(self.d2d_pairs[i][0].id)
 
-        # print('SCENARIO BUILT')
+        print('SCENARIO BUILT')
 
 
     def get_state(self):
-        flag = 1
-        sinr = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power)
-        if sinr < self.params.sinr_threshold:            
-            flag = 0
-        return flag
-
-
+        flags = np.ones(self.params.n_mues)
+        for m in self.mues:
+            sinr = sinr_mue(m, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power)
+            m.set_sinr(sinr)
+            if sinr < self.params.sinr_threshold:
+                index = self.mues.index(m, 0)
+                flags[index] = 0            
+        return flags
+        
     def step(self, agents: List[Agent]):
         for agent in agents:
-            for device in list(zip(*self.d2d_pairs))[0]:
-                if agent.id == device.id:
-                    device.tx_power = agent.action
+            for pair in self.d2d_pairs:
+                for device in pair:
+                    if agent.id == device.id:
+                        device.tx_power = agent.action
 
-        sinr_m = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power)
-
+        sinr_mues = list()
         sinr_d2ds = list()
-        for d in list(zip(*self.d2d_pairs))[0]:                
-            if d.rb == self.rb:
-                sinr_d = sinr_d2d(d, list(zip(*self.d2d_pairs))[0], self.mue, self.params.noise_power)
-                sinr_d2ds.append(sinr_d)
+        rewards = list()
 
-        reward = centralized_reward(sinr_m, sinr_d2ds)
+        for r in self.rbs:                        
+            mue = mobile_user(-1)
+            for m in self.mues:
+                if m.rb == r:
+                    mue = m
+                    sinr_m = sinr_mue(m, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power)
+                    break
+
+            sinr_d2d_rb = list()
+            for d in list(zip(*self.d2d_pairs))[0]:                
+                if d.rb == r:
+                    sinr_d = sinr_d2d(d, list(zip(*self.d2d_pairs))[0], mue, self.params.noise_power)
+                    sinr_d2d_rb.append(sinr_d)
+
+            sinr_mues.append(sinr_m)                    
+            sinr_d2ds.append(sinr_d2d_rb)
+
+        for i in range(self.rbs):
+            reward = centralized_reward(sinr_mues[i], sinr_d2ds[i])
+            rewards.append(reward)
+
         state = self.get_state()
         done = not state
 
-        return state, reward, done
+        return state, re
 
 
     def reset(self, agents: List[Agent]):

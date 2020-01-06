@@ -11,7 +11,7 @@ class EnvironmentParameters:
         self.n_mues = n_mues
         self.n_d2d = n_d2d
         self.n_rb = n_rb
-        self.bs_radius = bs_radius       
+        self.bs_radius = bs_radius               
 
 
 class TrainingParameters:

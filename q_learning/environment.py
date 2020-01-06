@@ -24,6 +24,8 @@ class RLEnvironment:
         self.total_reward = 0
         self.reward = 0
         self.done = False        
+        self.mue_spectral_eff = list()
+        self.d2d_spectral_eff = list()
     
 
     def build_scenario(self, agents: List[Agent]):
@@ -63,7 +65,7 @@ class RLEnvironment:
 
     def get_state(self):
         flag = 1
-        sinr = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power)
+        sinr = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power, self.params.bs_gain, self.params.user_gain)
         if sinr < self.params.sinr_threshold:            
             flag = 0
         return flag
@@ -75,17 +77,20 @@ class RLEnvironment:
                 if agent.id == device.id:
                     device.tx_power = agent.action
 
-        sinr_m = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power)
+        sinr_m = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power, self.params.bs_gain, self.params.user_gain)
 
         sinr_d2ds = list()
         for d in list(zip(*self.d2d_pairs))[0]:                
             if d.rb == self.rb:
-                sinr_d = sinr_d2d(d, list(zip(*self.d2d_pairs))[0], self.mue, self.params.noise_power)
+                sinr_d = sinr_d2d(d, list(zip(*self.d2d_pairs))[0], self.mue, self.params.noise_power, self.params.user_gain)
                 sinr_d2ds.append(sinr_d)
 
-        reward = centralized_reward(sinr_m, sinr_d2ds)
+        reward, mue_se, d2d_se = centralized_reward(sinr_m, sinr_d2ds)
+        self.mue_spectral_eff.append(mue_se)
+        self.d2d_spectral_eff.append(d2d_se)
         state = self.get_state()
-        done = not state
+        # done = not state
+        done = False
 
         return state, reward, done
 

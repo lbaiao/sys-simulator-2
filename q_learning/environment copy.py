@@ -66,7 +66,7 @@ class RLEnvironment:
     def get_state(self):
         flags = np.ones(self.params.n_mues)
         for m in self.mues:
-            sinr = sinr_mue(m, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power)
+            sinr = sinr_mue(m, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power, self.params.bs_gain, self.params.user_gain)
             m.set_sinr(sinr)
             if sinr < self.params.sinr_threshold:
                 index = self.mues.index(m, 0)
@@ -89,13 +89,13 @@ class RLEnvironment:
             for m in self.mues:
                 if m.rb == r:
                     mue = m
-                    sinr_m = sinr_mue(m, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power)
+                    sinr_m = sinr_mue(m, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power, self.params.bs_gain, self.params.user_gain)
                     break
 
             sinr_d2d_rb = list()
             for d in list(zip(*self.d2d_pairs))[0]:                
                 if d.rb == r:
-                    sinr_d = sinr_d2d(d, list(zip(*self.d2d_pairs))[0], mue, self.params.noise_power)
+                    sinr_d = sinr_d2d(d, list(zip(*self.d2d_pairs))[0], mue, self.params.noise_power, self.params.user_gain)
                     sinr_d2d_rb.append(sinr_d)
 
             sinr_mues.append(sinr_m)                    
@@ -108,7 +108,7 @@ class RLEnvironment:
         state = self.get_state()
         done = not state
 
-        return state, re
+        return state
 
 
     def reset(self, agents: List[Agent]):

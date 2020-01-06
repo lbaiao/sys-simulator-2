@@ -37,4 +37,8 @@ class Agent:
             action = np.random.choice(self.actions)
             self.action = action
             self.action_index = self.actions.index(action, 0)
+
+    def set_action(self, action_index: int):
+        self.action_index = action_index
+        self.action = self.actions[action_index]
         

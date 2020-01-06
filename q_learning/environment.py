@@ -10,7 +10,7 @@ from q_learning.agent import Agent
 from typing import List
 from parameters.parameters import EnvironmentParameters
 from sinr.sinr import sinr_d2d, sinr_mue
-from q_learning.rewards import centralized_reward
+from q_learning.rewards import centralized_reward, mod_reward
 
 import numpy as np
 
@@ -85,12 +85,15 @@ class RLEnvironment:
                 sinr_d = sinr_d2d(d, list(zip(*self.d2d_pairs))[0], self.mue, self.params.noise_power, self.params.user_gain)
                 sinr_d2ds.append(sinr_d)
 
-        reward, mue_se, d2d_se = centralized_reward(sinr_m, sinr_d2ds)
-        self.mue_spectral_eff.append(mue_se)
-        self.d2d_spectral_eff.append(d2d_se)
         state = self.get_state()
         # done = not state
         done = False
+
+        # reward, mue_se, d2d_se = centralized_reward(sinr_m, sinr_d2ds)
+        reward, mue_se, d2d_se = mod_reward(sinr_m, sinr_d2ds, state)
+
+        self.mue_spectral_eff.append(mue_se)
+        self.d2d_spectral_eff.append(d2d_se)
 
         return state, reward, done
 

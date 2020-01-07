@@ -32,3 +32,9 @@ class LearningParameters:
     def __init__(self, alpha, gamma):
         self.alpha = alpha
         self.gamma = gamma
+
+class DistributedLearningParameters:
+    def __init__(self, alpha, gamma, C):
+        self.alpha = alpha
+        self.gamma = gamma
+        self.C = C

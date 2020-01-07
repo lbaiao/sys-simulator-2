@@ -7,7 +7,7 @@ sys.path.insert(1, lucas_path)
 from typing import List
 import matplotlib.pyplot as plt
 from devices.devices import base_station, mobile_user, d2d_user
-from q_learning.environment import RLEnvironment
+from q_learning.environments.environment import RLEnvironment
 
 def plot_positions(bs: base_station, mues: List[mobile_user], d2d_txs: List[d2d_user], d2d_rxs: List[d2d_user]):
     bs_x = bs.position[0]

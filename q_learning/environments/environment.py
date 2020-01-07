@@ -6,7 +6,7 @@ sys.path.insert(1, lucas_path)
 from devices.devices import base_station, mobile_user, d2d_user, d2d_node_type
 from general import general as gen
 from sinr.sinr import sinr_d2d, sinr_mue
-from q_learning.agent import Agent
+from q_learning.agents.agent import Agent
 from typing import List, Callable
 from parameters.parameters import EnvironmentParameters
 from sinr.sinr import sinr_d2d, sinr_mue

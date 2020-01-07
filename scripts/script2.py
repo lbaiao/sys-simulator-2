@@ -1,3 +1,8 @@
+# Simulation implemented for the Distributed-Q Learning Based Power Control algorithms found in 
+#     Nie, S., Fan, Z., Zhao, M., Gu, X. and Zhang, L., 2016, September. Q-learning based power control algorithm for D2D communication. 
+#     In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
+#     (PIMRC) (pp. 1-6). IEEE.
+
 import sys
 import os
 
@@ -8,10 +13,11 @@ from general import general as gen
 from devices.devices import node, base_station, mobile_user, d2d_user, d2d_node_type
 from pathloss import pathloss
 from plots.plots import plot_positions, plot_spectral_effs
-from q_learning.environment import RLEnvironment
-from q_learning.agent import Agent
-from q_learning.q_table import QTable
-from parameters.parameters import EnvironmentParameters, TrainingParameters, AgentParameters, LearningParameters
+from q_learning.environments.distributedEnvironment import DistributedEnvironment
+from q_learning.agents.agent import Agent
+from q_learning.q_table import DistributedQTable
+from q_learning import rewards
+from parameters.parameters import EnvironmentParameters, TrainingParameters, AgentParameters, DistributedLearningParameters
 from typing import List
 
 import math
@@ -58,17 +64,17 @@ env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise
                                         n_mues, n_d2d, n_rb, bs_radius)
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE, MAX_NUM_STEPS)
 agent_params = AgentParameters(EPSILON_MIN, EPSILON_DECAY, 1)
-learn_params = LearningParameters(ALPHA, GAMMA)
+learn_params = DistributedLearningParameters(ALPHA, GAMMA, C)
 
-environment = RLEnvironment(env_params)
 actions = [i*p_max/10 + 1e-9 for i in range(11)]
 agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-q_table = QTable(len(actions), learn_params)
-
+q_tables = [DistributedQTable(len(actions), learn_params) for a in agents]
+reward_function = rewards.dis_reward
+environment = DistributedEnvironment(env_params, reward_function)
 
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
-def train(agents: List[Agent], env: RLEnvironment, params: TrainingParameters, q_table: QTable):
+def train(agents: List[Agent], env: DistributedEnvironment, params: TrainingParameters, q_tables: List[DistributedQTable]):
     best_reward = -1e9
     for episode in range(params.max_episodes):
         # TODO: atualmente redistribuo os usuarios aleatoriamente a cada episodio. Isto é o melhor há se fazer? 
@@ -82,36 +88,37 @@ def train(agents: List[Agent], env: RLEnvironment, params: TrainingParameters, q
             if i >= params.max_steps:
                 break
             else:
-                for a in agents:
-                    a.get_action(obs, q_table)
-                next_obs, reward, done = env.step(agents)
+                for i in range(len(agents)):
+                    agents[i].get_action(obs, q_tables[i])                
+                next_obs, rewards, done = env.step(agents)
                 i += 1
-                for a in agents:                    
-                    q_table.learn(obs, a.action_index, reward, next_obs)
+                for i in range(len(agents)):
+                    q_tables[i].learn(obs, agents[i].action_index, rewards, next_obs)
                 obs = next_obs
-                total_reward += reward
+                total_reward += sum(rewards)
             if total_reward > best_reward:
                 best_reward = total_reward
-            print("Episode#:{} reward:{} best_reward:{} eps:{}".format(episode,
+            print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
                                      total_reward, best_reward, agents[0].epsilon))
     
     # Return the trained policy
-    policy = np.argmax(q_table.table, axis=1)
-    return policy
+    policies = [np.argmax(q.table, axis=1) for q in q_tables]
+    return policies
 
-def test(agents: List[Agent], env: RLEnvironment, policy, iterations: int):
+
+def test(agents: List[Agent], env: DistributedEnvironment, policies, iterations: int):
     env.build_scenario(agents)
     done = False
     obs = env.get_state()
     total_reward = 0.0
     i = 0
     while not done:        
-        action_index = policy[obs]
-        for agent in agents:
-            agent.set_action(action_index)
-        next_obs, reward, done = env.step(agents)
+        action_indexes = [policy[obs] for policy in policies]
+        for i in range(len(agents)):
+            agents[i].set_action(action_indexes[i])
+        next_obs, rewards, done = env.step(agents)
         obs = next_obs
-        total_reward += reward
+        total_reward += sum(rewards)
         i +=1
         if i >= iterations:
             break
@@ -120,13 +127,13 @@ def test(agents: List[Agent], env: RLEnvironment, policy, iterations: int):
 
 # SCRIPT EXEC
 # training
-learned_policy = train(agents, environment, train_params, q_table)
+learned_policies = train(agents, environment, train_params, q_tables)
 
 # testing
-t_env = RLEnvironment(env_params)
+t_env = DistributedEnvironment(env_params, reward_function)
 t_agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 for i in range(50):
-    total_reward = test(t_agents, t_env, learned_policy, 20)
+    total_reward = test(t_agents, t_env, learned_policies, 20)
     print(f'TEST #{i} REWARD: {total_reward}')
 
 plot_spectral_effs(environment)

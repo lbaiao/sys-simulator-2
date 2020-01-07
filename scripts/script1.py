@@ -1,3 +1,8 @@
+# Simulation implemented for the Team-Q Learning Based Power Control algorithms found in 
+#     Nie, S., Fan, Z., Zhao, M., Gu, X. and Zhang, L., 2016, September. Q-learning based power control algorithm for D2D communication. 
+#     In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
+#     (PIMRC) (pp. 1-6). IEEE.
+
 import sys
 import os
 
@@ -8,8 +13,8 @@ from general import general as gen
 from devices.devices import node, base_station, mobile_user, d2d_user, d2d_node_type
 from pathloss import pathloss
 from plots.plots import plot_positions, plot_spectral_effs
-from q_learning.environment import RLEnvironment
-from q_learning.agent import Agent
+from q_learning.environments.environment import RLEnvironment
+from q_learning.agents.agent import Agent
 from q_learning.q_table import QTable
 from q_learning import rewards
 from parameters.parameters import EnvironmentParameters, TrainingParameters, AgentParameters, LearningParameters

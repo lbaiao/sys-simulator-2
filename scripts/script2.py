@@ -11,7 +11,6 @@ from plots.plots import plot_positions, plot_spectral_effs
 from q_learning.environment import RLEnvironment
 from q_learning.agent import Agent
 from q_learning.q_table import QTable
-from q_learning import rewards
 from parameters.parameters import EnvironmentParameters, TrainingParameters, AgentParameters, LearningParameters
 from typing import List
 
@@ -61,11 +60,11 @@ train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE, MAX_NUM_S
 agent_params = AgentParameters(EPSILON_MIN, EPSILON_DECAY, 1)
 learn_params = LearningParameters(ALPHA, GAMMA)
 
+environment = RLEnvironment(env_params)
 actions = [i*p_max/10 + 1e-9 for i in range(11)]
 agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 q_table = QTable(len(actions), learn_params)
-reward_function = rewards.centralized_reward
-environment = RLEnvironment(env_params, reward_function)
+
 
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
@@ -124,7 +123,7 @@ def test(agents: List[Agent], env: RLEnvironment, policy, iterations: int):
 learned_policy = train(agents, environment, train_params, q_table)
 
 # testing
-t_env = RLEnvironment(env_params, reward_function)
+t_env = RLEnvironment(env_params)
 t_agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 for i in range(50):
     total_reward = test(t_agents, t_env, learned_policy, 20)

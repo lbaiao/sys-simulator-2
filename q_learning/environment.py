@@ -7,7 +7,7 @@ from devices.devices import base_station, mobile_user, d2d_user, d2d_node_type
 from general import general as gen
 from sinr.sinr import sinr_d2d, sinr_mue
 from q_learning.agent import Agent
-from typing import List
+from typing import List, Callable
 from parameters.parameters import EnvironmentParameters
 from sinr.sinr import sinr_d2d, sinr_mue
 from q_learning.rewards import centralized_reward, mod_reward
@@ -16,7 +16,13 @@ import numpy as np
 
 
 class RLEnvironment:
-    def __init__(self, params: EnvironmentParameters):
+    """
+    Environment implemented for the Q Learning Based Power Control algorithms found in 
+    Nie, S., Fan, Z., Zhao, M., Gu, X. and Zhang, L., 2016, September. Q-learning based power control algorithm for D2D communication. 
+    In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
+    (PIMRC) (pp. 1-6). IEEE.
+    """
+    def __init__(self, params: EnvironmentParameters, reward_function):
         self.params = params
         # TODO: há como tornar as ações contínuas? quais e quantos níveis de potência devem existir?
         # self.actions = [i*params.p_max/10 for i in range(11)]
@@ -26,6 +32,7 @@ class RLEnvironment:
         self.done = False        
         self.mue_spectral_eff = list()
         self.d2d_spectral_eff = list()
+        self.reward_function = reward_function
     
 
     def build_scenario(self, agents: List[Agent]):
@@ -90,7 +97,8 @@ class RLEnvironment:
         done = False
 
         # reward, mue_se, d2d_se = centralized_reward(sinr_m, sinr_d2ds)
-        reward, mue_se, d2d_se = mod_reward(sinr_m, sinr_d2ds, state)
+        # reward, mue_se, d2d_se = mod_reward(sinr_m, sinr_d2ds, state)
+        reward, mue_se, d2d_se = self.reward_function(sinr_m, sinr_d2ds, state)
 
         self.mue_spectral_eff.append(mue_se)
         self.d2d_spectral_eff.append(d2d_se)

@@ -53,7 +53,7 @@ STEPS_PER_EPISODE = 50
 EPSILON_MIN = 0.1
 # max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
 MAX_NUM_STEPS = 400
-EPSILON_DECAY = 2e-1 *  EPSILON_MIN / MAX_NUM_STEPS
+EPSILON_DECAY = 2e-1 * EPSILON_MIN / MAX_NUM_STEPS
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
 ALPHA = 0.5  # Learning rate
 GAMMA = 0.9  # Discount factor
@@ -62,7 +62,7 @@ C = 80  # C constant for the improved reward function
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold,
                                         n_mues, n_d2d, n_rb, bs_radius)
-train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE, MAX_NUM_STEPS)
+train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = AgentParameters(EPSILON_MIN, EPSILON_DECAY, 1)
 learn_params = LearningParameters(ALPHA, GAMMA)
 
@@ -85,7 +85,7 @@ def train(agents: List[Agent], env: RLEnvironment, params: TrainingParameters, q
         total_reward = 0.0
         i = 0
         while not done:
-            if i >= params.max_steps:
+            if i >= params.steps_per_episode:
                 break
             else:
                 for a in agents:

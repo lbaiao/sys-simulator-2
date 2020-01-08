@@ -3,7 +3,7 @@ import os
 lucas_path = os.environ['LUCAS_PATH']
 sys.path.insert(1, lucas_path)
 
-from parameters.parameters import LearningParameters, DistributedLearningParameters
+from parameters.parameters import LearningParameters
 import numpy as np
 
 class QTable:
@@ -19,7 +19,7 @@ class QTable:
 
 
 class DistributedQTable:
-    def __init__(self, num_actions: int, params: DistributedLearningParameters):
+    def __init__(self, num_actions: int, params: LearningParameters):
         self.table = np.zeros((2, num_actions))
         self.gamma = params.gamma
         self.alpha = params.alpha

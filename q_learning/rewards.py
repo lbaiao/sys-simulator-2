@@ -23,7 +23,7 @@ def dis_reward(sinr_mue: float, sinr_d2ds: List[float], state: int, C: float, *a
     mue_contrib = np.log2(1 + sinr_mue)
     d2d_contrib = sum([np.log2(1 + s) for s in sinr_d2ds])
     rewards = -1 * np.ones(len(sinr_d2ds))    
-    for i in range(len(sinr_d2ds)):
-        if state:
+    if state:
+        for i in range(len(sinr_d2ds)):
             rewards[i] = 1/C * np.log2(1 + sinr_d2ds[i])        
     return rewards, mue_contrib, d2d_contrib

@@ -6,6 +6,7 @@ sys.path.insert(1, lucas_path)
 
 from typing import List
 import matplotlib.pyplot as plt
+import numpy as np
 from devices.devices import base_station, mobile_user, d2d_user
 from q_learning.environments.environment import RLEnvironment
 
@@ -39,10 +40,12 @@ def plot_positions(bs: base_station, mues: List[mobile_user], d2d_txs: List[d2d_
 
 
 def plot_spectral_effs(env: RLEnvironment):
+    threshold_eff = np.log2(1 + env.params.sinr_threshold) * np.ones(len(env.d2d_spectral_eff))
     plt.figure()
     x_axis = range(len(env.d2d_spectral_eff))
     plt.plot(x_axis, env.d2d_spectral_eff, label='D2D')
     plt.plot(x_axis, env.mue_spectral_eff, label='MUE')
+    plt.plot(x_axis, threshold_eff, label='Threshold')    
     plt.title('Total spectral efficiencies')
     plt.legend()
     plt.show()

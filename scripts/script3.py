@@ -46,15 +46,14 @@ user_gain = gen.db_to_power(user_gain)
 sinr_threshold = gen.db_to_power(sinr_threshold)
 
 # q-learning parameters
-# MAX_NUM_EPISODES = 1e5
-MAX_NUM_EPISODES = 1000
-# STEPS_PER_EPISODE = 400
-STEPS_PER_EPISODE = 200 
+MAX_NUM_EPISODES = 20000
+# MAX_NUM_EPISODES = 100
+STEPS_PER_EPISODE = 80
+# STEPS_PER_EPISODE = 200 
 EPSILON_MIN = 0.05
 # max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
 # MAX_NUM_STEPS = 50
-# EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
-EPSILON_DECAY = 5e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
+EPSILON_DECAY = 1e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
 ALPHA = 0.5  # Learning rate
 GAMMA = 0.9  # Discount factor
@@ -72,6 +71,7 @@ agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d 
 q_tables = [DistributedQTable(len(actions), learn_params) for a in agents]
 reward_function = rewards.dis_reward
 environment = DistributedEnvironment(env_params, reward_function)
+environment.build_scenario(agents)
 
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
@@ -80,7 +80,7 @@ def train(agents: List[Agent], env: DistributedEnvironment, params: TrainingPara
     for episode in range(params.max_episodes):
         # TODO: atualmente redistribuo os usuarios aleatoriamente a cada episodio. Isto é o melhor há se fazer? 
         # Simular deslocamento dos usuários?
-        env.build_scenario(agents)
+        # env.build_scenario(agents)
         done = False
         obs = env.get_state()
         total_reward = 0.0
@@ -108,7 +108,7 @@ def train(agents: List[Agent], env: DistributedEnvironment, params: TrainingPara
 
 
 def test(agents: List[Agent], env: DistributedEnvironment, policies, iterations: int):
-    env.build_scenario(agents)
+    # env.build_scenario(agents)
     done = False
     obs = env.get_state()
     total_reward = 0.0

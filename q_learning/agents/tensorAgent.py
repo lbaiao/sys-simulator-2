@@ -4,7 +4,7 @@ lucas_path = os.environ['LUCAS_PATH']
 sys.path.insert(1, lucas_path)
 
 import numpy as np
-from q_learning.q_table import QTable
+from q_learning.q_table import DistributedQTensor
 from parameters.parameters import AgentParameters
 
 class Agent:
@@ -17,8 +17,8 @@ class Agent:
         self.epsilon = params.start_epsilon
         self.actions = actions
 
-    def set_q_table(self, q_table: QTable):
-        self.q_table = q_table
+    def set_q_tensor(self, q_tensor: DistributedQTensor):
+        self.q_tensor = q_tensor
 
     def set_d2d_tx_id(self, id: str):
         self.id = id
@@ -26,11 +26,11 @@ class Agent:
     def set_actions(self, actions):
         self.actions = actions
 
-    def get_action(self, obs, q_table):
+    def get_action(self, obs, q_tensor: DistributedQTensor):
         if self.epsilon > self.epsilon_min:
             self.epsilon -= self.epsilon_decay
         if np.random.random() > self.epsilon:
-            action_index = np.argmax(q_table.table[obs,:])
+            action_index = np.argmax(q_tensor.tensor[obs[0], obs[1], :])
             self.action = self.actions[action_index]
             self.action_index = action_index
         else:

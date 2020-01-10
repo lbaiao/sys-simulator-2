@@ -37,14 +37,14 @@ class DistributedQTensor:
     table is now a tensor. obs is a now a two-element-tuple
     """
     def __init__(self, num_actions: int, num_mue_states: int, params: LearningParameters):
-        self.cube = np.zeros((2, num_mue_states, num_actions))
+        self.tensor = np.zeros((num_actions, num_mue_states, num_actions))
         self.gamma = params.gamma
         self.alpha = params.alpha
 
     # calculates Q-table values
     def learn(self, obs, action_index, reward, next_obs):
-        deltaQ = reward + self.gamma*np.max(self.cube[next_obs]) - self.cube[obs, action_index]
-        q_value = self.cube[obs,action_index] + self.alpha*deltaQ
-        if q_value > self.cube[obs, action_index]:
-            self.cube[obs, action_index] = q_value
+        deltaQ = reward + self.gamma*np.max(self.tensor[next_obs]) - self.tensor[(obs[0], obs[1], action_index)]
+        q_value = self.tensor[(obs[0], obs[1], action_index)] + self.alpha*deltaQ
+        if q_value > self.tensor[(obs[0], obs[1], action_index)]:
+            self.tensor[(obs[0], obs[1], action_index)] = q_value
         

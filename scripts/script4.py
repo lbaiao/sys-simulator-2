@@ -13,8 +13,8 @@ from general import general as gen
 from devices.devices import node, base_station, mobile_user, d2d_user, d2d_node_type
 from pathloss import pathloss
 from plots.plots import plot_positions, plot_spectral_effs
-from q_learning.environments.tensorTensorDistributedEnvironment import TensorDistributedEnvironment
-from q_learning.agents.agent import Agent
+from q_learning.environments.tensorDistributedEnvironment import TensorDistributedEnvironment
+from q_learning.agents.tensorAgent import Agent
 from q_learning.q_table import DistributedQTensor
 from q_learning import rewards
 from parameters.parameters import EnvironmentParameters, TrainingParameters, AgentParameters, LearningParameters
@@ -71,11 +71,11 @@ actions = [i*p_max/10 + 1e-9 for i in range(11)]
 agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 q_tensors = [DistributedQTensor(len(actions), 2, learn_params) for a in agents]
 reward_function = rewards.dis_reward
-environment = TensorDistributedEnvironment(env_params, reward_function)
+environment = TensorDistributedEnvironment(env_params, reward_function, actions)
 
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
-def train(agents: List[Agent], env: TensorDistributedEnvironment, params: TrainingParameters, q_tables: List[DistributedQTensor]):
+def train(agents: List[Agent], env: TensorDistributedEnvironment, params: TrainingParameters, q_tensors: List[DistributedQTensor]):
     best_reward = -1e9
     for episode in range(params.max_episodes):
         # TODO: atualmente redistribuo os usuarios aleatoriamente a cada episodio. Isto é o melhor há se fazer? 
@@ -90,11 +90,11 @@ def train(agents: List[Agent], env: TensorDistributedEnvironment, params: Traini
                 break
             else:
                 for j in range(len(agents)):
-                    agents[j].get_action(obs, q_tables[j])                
+                    agents[j].get_action(obs[j], q_tensors[j])                
                 next_obs, rewards, done = env.step(agents)
                 i += 1
                 for m in range(len(agents)):
-                    q_tables[m].learn(obs, agents[m].action_index, rewards[m], next_obs)
+                    q_tensors[m].learn(obs[m], agents[m].action_index, rewards[m], next_obs[m])
                 obs = next_obs
                 total_reward += sum(rewards)
             if total_reward > best_reward:
@@ -103,7 +103,7 @@ def train(agents: List[Agent], env: TensorDistributedEnvironment, params: Traini
                                      total_reward, best_reward, agents[0].epsilon))
     
     # Return the trained policy
-    policies = [np.argmax(q.table, axis=1) for q in q_tables]
+    policies = [np.argmax(q.tensor, axis=2) for q in q_tensors]
     return policies
 
 
@@ -114,7 +114,9 @@ def test(agents: List[Agent], env: TensorDistributedEnvironment, policies, itera
     total_reward = 0.0
     i = 0
     while not done:        
-        action_indexes = [policy[obs] for policy in policies]
+        action_indexes = np.zeros(len(agents))
+        for k in range(len(agents)):
+            action_indexes[k] = policies[k][obs[k]]
         for j in range(len(agents)):
             agents[j].set_action(action_indexes[j])
         next_obs, rewards, done = env.step(agents)
@@ -131,7 +133,7 @@ def test(agents: List[Agent], env: TensorDistributedEnvironment, policies, itera
 learned_policies = train(agents, environment, train_params, q_tensors)
 
 # testing
-t_env = TensorDistributedEnvironment(env_params, reward_function)
+t_env = TensorDistributedEnvironment(env_params, reward_function, actions)
 t_agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 for i in range(50):
     total_reward = test(t_agents, t_env, learned_policies, 20)

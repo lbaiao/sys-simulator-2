@@ -23,7 +23,7 @@ class TensorDistributedEnvironment(RLEnvironment):
     In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
     (PIMRC) (pp. 1-6). IEEE.
     """
-    def __init__(self, params: EnvironmentParameters, reward_function):
+    def __init__(self, params: EnvironmentParameters, reward_function, actions: List[float]):
         self.params = params
         # TODO: há como tornar as ações contínuas? quais e quantos níveis de potência devem existir?
         # self.actions = [i*params.p_max/10 for i in range(11)]
@@ -34,6 +34,7 @@ class TensorDistributedEnvironment(RLEnvironment):
         self.mue_spectral_eff = list()
         self.d2d_spectral_eff = list()
         self.reward_function = reward_function
+        self.actions = actions
     
 
     def build_scenario(self, agents: List[Agent]):
@@ -78,7 +79,8 @@ class TensorDistributedEnvironment(RLEnvironment):
         if sinr < self.params.sinr_threshold:            
             flag = 0
         for d in list(zip(*self.d2d_pairs))[0]:
-            states.append( (d.tx_power, flag) )                  
+            index = self.actions.index(d.tx_power, 0)
+            states.append( (index, flag) )                  
         return states
 
 
@@ -97,10 +99,10 @@ class TensorDistributedEnvironment(RLEnvironment):
                 sinr_d2ds.append(sinr_d)
 
         states = self.get_state()
-        done = not states[0][0][0]
+        done = not states[0][1]
         # done = False
 
-        rewards, mue_se, d2d_se = self.reward_function(sinr_m, sinr_d2ds, states[0][0][0], self.params.c_param)
+        rewards, mue_se, d2d_se = self.reward_function(sinr_m, sinr_d2ds, states[0][1], self.params.c_param)
 
         self.mue_spectral_eff.append(mue_se)
         self.d2d_spectral_eff.append(d2d_se)

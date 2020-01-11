@@ -1,7 +1,12 @@
-# Simulation implemented for the Distributed-Q Learning Based Power Control algorithms found in 
+# Simulation implemented for the Distributed-Q Learning Based Power Control algorithm based in the algorithms found on  
 #     Nie, S., Fan, Z., Zhao, M., Gu, X. and Zhang, L., 2016, September. Q-learning based power control algorithm for D2D communication. 
 #     In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
 #     (PIMRC) (pp. 1-6). IEEE.
+#  and 
+#  TOUMI, Salwa; HAMDI, Monia; ZAIED, Mourad. An adaptive Q-learning approach to power control for D2D communications. 
+#  In: 2018 International Conference on Advanced Systems and Electric Technologies (IC_ASET). IEEE, 2018. p. 206-209.
+#  In this simulation, the agent state is based on its transmissino power level and the MUE sinr
+#  An approach with tensor was tried, but it is too complex and unecessary.
 
 import sys
 import os
@@ -103,6 +108,13 @@ def train(agents: List[Agent], env: TensorDistributedEnvironment, params: Traini
                                      total_reward, best_reward, agents[0].epsilon))
     
     # Return the trained policy
+    policies = [np.array([2, len(actions)]) for a in agents]
+    # for a in range(len(agents)):
+    #     for i in range (policies[a].shape()[0]):
+    #         for j in range(policies[a].shape()[1]):
+    #             policies[a][i,j]
+        
+    #     pass
     policies = [np.argmax(q.tensor, axis=2) for q in q_tensors]
     return policies
 

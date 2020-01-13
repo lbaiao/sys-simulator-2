@@ -17,7 +17,7 @@ from general import general as gen
 from devices.devices import node, base_station, mobile_user, d2d_user, d2d_node_type
 from pathloss import pathloss
 from plots.plots import plot_positions, plot_spectral_effs
-from q_learning.environments.distributedEnvironment import DistributedEnvironment
+from q_learning.environments.actionEnvironment import ActionEnvironment
 from q_learning.agents.agent import Agent
 from q_learning.q_table import DistributedQTable
 from q_learning import rewards
@@ -51,7 +51,8 @@ sinr_threshold = gen.db_to_power(sinr_threshold)
 
 # q-learning parameters
 # MAX_NUM_EPISODES = 1e5
-MAX_NUM_EPISODES = 1000
+# MAX_NUM_EPISODES = 1000
+MAX_NUM_EPISODES = 100
 # STEPS_PER_EPISODE = 400
 STEPS_PER_EPISODE = 200 
 EPSILON_MIN = 0.05
@@ -73,20 +74,21 @@ learn_params = LearningParameters(ALPHA, GAMMA)
 
 actions = [i*p_max/10 + 1e-9 for i in range(11)]
 agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-q_tables = [DistributedQTable(len(actions), learn_params) for a in agents]
+q_tables = [DistributedQTable(len(actions)*2, len(actions), learn_params) for a in agents]
 reward_function = rewards.dis_reward
-environment = DistributedEnvironment(env_params, reward_function)
+environment = ActionEnvironment(env_params, reward_function)
+
 
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
-def train(agents: List[Agent], env: DistributedEnvironment, params: TrainingParameters, q_tables: List[DistributedQTable]):
+def train(agents: List[Agent], env: ActionEnvironment, params: TrainingParameters, q_tables: List[DistributedQTable]):
     best_reward = -1e9
     for episode in range(params.max_episodes):
         # TODO: atualmente redistribuo os usuarios aleatoriamente a cada episodio. Isto é o melhor há se fazer? 
         # Simular deslocamento dos usuários?
         env.build_scenario(agents)
         done = False
-        obs = env.get_state()
+        obs = [env.get_state(a) for a in agents] 
         total_reward = 0.0
         i = 0
         while not done:
@@ -94,11 +96,11 @@ def train(agents: List[Agent], env: DistributedEnvironment, params: TrainingPara
                 break
             else:
                 for j in range(len(agents)):
-                    agents[j].get_action(obs, q_tables[j])                
+                    agents[j].get_action(obs[j], q_tables[j])                
                 next_obs, rewards, done = env.step(agents)
                 i += 1
                 for m in range(len(agents)):
-                    q_tables[m].learn(obs, agents[m].action_index, rewards[m], next_obs)
+                    q_tables[m].learn(obs[m], agents[m].action_index, rewards[m], next_obs)
                 obs = next_obs
                 total_reward += sum(rewards)
             if total_reward > best_reward:
@@ -111,16 +113,17 @@ def train(agents: List[Agent], env: DistributedEnvironment, params: TrainingPara
     return policies
 
 
-def test(agents: List[Agent], env: DistributedEnvironment, policies, iterations: int):
+def test(agents: List[Agent], env: ActionEnvironment, policies, iterations: int):
     env.build_scenario(agents)
     done = False
-    obs = env.get_state()
+    obs = [env.get_state(a) for a in agents] 
     total_reward = 0.0
     i = 0
-    while not done:        
-        action_indexes = [policy[obs] for policy in policies]
-        for j in range(len(agents)):
-            agents[j].set_action(action_indexes[j])
+    while not done:
+        actions_indexes = np.zeros(2, dtype=int)        
+        for m in range(len(agents)):
+            actions_indexes[m] = policies[m][obs[m]]
+            agents[m].set_action(actions_indexes[m])
         next_obs, rewards, done = env.step(agents)
         obs = next_obs
         total_reward += sum(rewards)
@@ -128,17 +131,24 @@ def test(agents: List[Agent], env: DistributedEnvironment, policies, iterations:
         if i >= iterations:
             break
     return total_reward
-            
 
+
+def state_aux(env_state: bool, agent: Agent):
+    if env_state:
+        return agent.action_index + len(agent.actions)
+    else:
+        return agent.action_index
+
+            
 # SCRIPT EXEC
 # training
 learned_policies = train(agents, environment, train_params, q_tables)
 
 # testing
-t_env = DistributedEnvironment(env_params, reward_function)
+t_env = ActionEnvironment   (env_params, reward_function)
 t_agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 for i in range(50):
-    total_reward = test(t_agents, t_env, learned_policies, 20)
+    total_reward = test(t_agents, t_env, learned_policies, 100)
     print(f'TEST #{i} REWARD: {total_reward}')
 
 plot_spectral_effs(environment)

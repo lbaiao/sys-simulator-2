@@ -68,7 +68,7 @@ learn_params = LearningParameters(ALPHA, GAMMA)
 
 actions = [i*p_max/10 + 1e-9 for i in range(11)]
 agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-q_table = QTable(len(actions), learn_params)
+q_table = QTable(2, len(actions), learn_params)
 reward_function = rewards.centralized_reward
 environment = RLEnvironment(env_params, reward_function)
 

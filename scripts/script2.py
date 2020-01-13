@@ -69,7 +69,7 @@ learn_params = LearningParameters(ALPHA, GAMMA)
 
 actions = [i*p_max/10 + 1e-9 for i in range(11)]
 agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-q_tables = [DistributedQTable(len(actions), learn_params) for a in agents]
+q_tables = [DistributedQTable(2, len(actions), learn_params) for a in agents]
 reward_function = rewards.dis_reward
 environment = DistributedEnvironment(env_params, reward_function)
 

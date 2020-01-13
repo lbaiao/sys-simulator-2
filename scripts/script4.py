@@ -5,7 +5,7 @@
 #  and 
 #  TOUMI, Salwa; HAMDI, Monia; ZAIED, Mourad. An adaptive Q-learning approach to power control for D2D communications. 
 #  In: 2018 International Conference on Advanced Systems and Electric Technologies (IC_ASET). IEEE, 2018. p. 206-209.
-#  In this simulation, the agent state is based on its transmissino power level and the MUE sinr
+#  In this simulation, the agent state is based on its transmission power level and the MUE sinr
 #  An approach with tensor was tried, but it is too complex and unecessary.
 
 import sys

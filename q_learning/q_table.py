@@ -7,8 +7,8 @@ from parameters.parameters import LearningParameters
 import numpy as np
 
 class QTable:
-    def __init__(self, num_actions: int, params: LearningParameters):
-        self.table = np.zeros((2, num_actions))
+    def __init__(self, num_states: int, num_actions: int, params: LearningParameters):
+        self.table = np.zeros((num_states, num_actions))
         self.gamma = params.gamma
         self.alpha = params.alpha
 
@@ -18,11 +18,9 @@ class QTable:
         self.table[obs, action_index] = self.table[obs,action_index] + self.alpha*deltaQ
 
 
-class DistributedQTable:
-    def __init__(self, num_actions: int, params: LearningParameters):
-        self.table = np.zeros((2, num_actions))
-        self.gamma = params.gamma
-        self.alpha = params.alpha
+class DistributedQTable(QTable):
+    def __init__(self, num_states: int, num_actions: int, params: LearningParameters):
+        super(DistributedQTable, self).__init__(num_states, num_actions, params)
 
     # calculates Q-table values
     def learn(self, obs, action_index, reward, next_obs):

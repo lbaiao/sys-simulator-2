@@ -50,16 +50,16 @@ user_gain = gen.db_to_power(user_gain)
 sinr_threshold = gen.db_to_power(sinr_threshold)
 
 # q-learning parameters
-# MAX_NUM_EPISODES = 1e5
+MAX_NUM_EPISODES = 1e4
 # MAX_NUM_EPISODES = 1000
-MAX_NUM_EPISODES = 100
-# STEPS_PER_EPISODE = 400
-STEPS_PER_EPISODE = 200 
+# MAX_NUM_EPISODES = 100
+STEPS_PER_EPISODE = 400
+# STEPS_PER_EPISODE = 200 
 EPSILON_MIN = 0.05
 # max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
 # MAX_NUM_STEPS = 50
-# EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
-EPSILON_DECAY = 5e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
+EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
+# EPSILON_DECAY = 5e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
 ALPHA = 0.5  # Learning rate
 GAMMA = 0.9  # Discount factor
@@ -144,11 +144,14 @@ def state_aux(env_state: bool, agent: Agent):
 # training
 learned_policies = train(agents, environment, train_params, q_tables)
 
+filename = 'model5'
+np.save(f'D:\Dev\sys-simulator-2\models\{filename}', learned_policies)
+
 # testing
 t_env = ActionEnvironment   (env_params, reward_function)
 t_agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 for i in range(50):
-    total_reward = test(t_agents, t_env, learned_policies, 100)
+    total_reward = test(t_agents, t_env, learned_policies, 400)
     print(f'TEST #{i} REWARD: {total_reward}')
 
 plot_spectral_effs(environment)

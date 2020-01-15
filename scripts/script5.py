@@ -145,7 +145,7 @@ def state_aux(env_state: bool, agent: Agent):
 learned_policies = train(agents, environment, train_params, q_tables)
 
 filename = 'model5'
-np.save(f'D:\Dev\sys-simulator-2\models\{filename}', learned_policies)
+np.save(f'{lucas_path}/models/{filename}', learned_policies)
 
 # testing
 t_env = ActionEnvironment   (env_params, reward_function)

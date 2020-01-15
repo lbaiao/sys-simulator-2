@@ -130,6 +130,9 @@ def test(agents: List[Agent], env: DistributedEnvironment, policies, iterations:
 # training
 learned_policies = train(agents, environment, train_params, q_tables)
 
+filename = 'model2'
+np.save(f'{lucas_path}/models/{filename}', learned_policies)
+
 # testing
 t_env = DistributedEnvironment(env_params, reward_function)
 t_agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx

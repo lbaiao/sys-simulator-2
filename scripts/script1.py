@@ -46,10 +46,10 @@ user_gain = gen.db_to_power(user_gain)
 sinr_threshold = gen.db_to_power(sinr_threshold)
 
 # q-learning parameters
-MAX_NUM_EPISODES = 70
-# MAX_NUM_EPISODES = 100
-STEPS_PER_EPISODE = 50
-# STEPS_PER_EPISODE = 200 
+# MAX_NUM_EPISODES = 70
+MAX_NUM_EPISODES = 120
+# STEPS_PER_EPISODE = 50
+STEPS_PER_EPISODE = 200 
 EPSILON_MIN = 0.1
 # max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
 MAX_NUM_STEPS = 400

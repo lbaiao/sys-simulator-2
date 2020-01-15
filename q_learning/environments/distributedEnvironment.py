@@ -88,9 +88,9 @@ class DistributedEnvironment(RLEnvironment):
         sinr_m = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power, self.params.bs_gain, self.params.user_gain)
 
         sinr_d2ds = list()
-        for d in list(zip(*self.d2d_pairs))[0]:                
-            if d.rb == self.rb:
-                sinr_d = sinr_d2d(d, list(zip(*self.d2d_pairs))[0], self.mue, self.params.noise_power, self.params.user_gain)
+        for p in self.d2d_pairs:                
+            if p[0].rb == self.rb:
+                sinr_d = sinr_d2d(p[0], p[1], list(zip(*self.d2d_pairs))[0], self.mue, self.params.noise_power, self.params.user_gain)
                 sinr_d2ds.append(sinr_d)
 
         state = self.get_state()

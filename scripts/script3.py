@@ -47,9 +47,9 @@ user_gain = gen.db_to_power(user_gain)
 sinr_threshold = gen.db_to_power(sinr_threshold)
 
 # q-learning parameters
-MAX_NUM_EPISODES = 20000
+MAX_NUM_EPISODES = 50000
 # MAX_NUM_EPISODES = 100
-STEPS_PER_EPISODE = 80
+STEPS_PER_EPISODE = 200
 # STEPS_PER_EPISODE = 200 
 EPSILON_MIN = 0.05
 # max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
@@ -130,9 +130,11 @@ def test(agents: List[Agent], env: DistributedEnvironment, policies, iterations:
 # SCRIPT EXEC
 # training
 learned_policies = train(agents, environment, train_params, q_tables)
+filename = 'model3'
+np.save(f'{lucas_path}/models/{filename}', learned_policies)
 
 # testing
-t_env = DistributedEnvironment(env_params, reward_function)
+t_env = environment
 t_agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 for i in range(50):
     total_reward = test(t_agents, t_env, learned_policies, 20)

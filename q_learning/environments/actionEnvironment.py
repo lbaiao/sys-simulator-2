@@ -23,7 +23,7 @@ class ActionEnvironment(RLEnvironment):
     In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
     (PIMRC) (pp. 1-6). IEEE.
     """
-    def __init__(self, params: EnvironmentParameters, reward_function):
+    def __init__(self, params: EnvironmentParameters, reward_function, **kwargs):
         self.params = params
         # TODO: há como tornar as ações contínuas? quais e quantos níveis de potência devem existir?
         # self.actions = [i*params.p_max/10 for i in range(11)]
@@ -34,6 +34,10 @@ class ActionEnvironment(RLEnvironment):
         self.mue_spectral_eff = list()
         self.d2d_spectral_eff = list()
         self.reward_function = reward_function
+        self.done_disable = False
+
+        if 'done_disable' in kwargs:
+            self.done_disable = kwargs['done_disable']
     
 
     def build_scenario(self, agents: List[Agent]):
@@ -102,8 +106,9 @@ class ActionEnvironment(RLEnvironment):
         if sinr_m < self.params.sinr_threshold:     
             flag = False
 
-        done = not flag
-        # done = False
+        done = False
+        if not self.done_disable:
+            done = not flag
 
         rewards, mue_se, d2d_se = self.reward_function(sinr_m, sinr_d2ds, flag, self.params.c_param)
 

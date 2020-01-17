@@ -23,7 +23,7 @@ class DistributedEnvironment(RLEnvironment):
     In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
     (PIMRC) (pp. 1-6). IEEE.
     """
-    def __init__(self, params: EnvironmentParameters, reward_function):
+    def __init__(self, params: EnvironmentParameters, reward_function, **kwargs):
         self.params = params
         # TODO: há como tornar as ações contínuas? quais e quantos níveis de potência devem existir?
         # self.actions = [i*params.p_max/10 for i in range(11)]
@@ -34,6 +34,10 @@ class DistributedEnvironment(RLEnvironment):
         self.mue_spectral_eff = list()
         self.d2d_spectral_eff = list()
         self.reward_function = reward_function
+        self.done_disable = False
+
+        if 'done_disable' in kwargs:
+            self.done_disable = kwargs['done_disable']
     
 
     def build_scenario(self, agents: List[Agent]):
@@ -94,8 +98,10 @@ class DistributedEnvironment(RLEnvironment):
                 sinr_d2ds.append(sinr_d)
 
         state = self.get_state()
-        done = not state
-        # done = False
+
+        done = False    
+        if not self.done_disable:
+            done = not state
 
         rewards, mue_se, d2d_se = self.reward_function(sinr_m, sinr_d2ds, state, self.params.c_param)
 

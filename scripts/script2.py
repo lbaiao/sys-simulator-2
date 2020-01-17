@@ -1,4 +1,4 @@
-# Simulation implemented for the Distributed-Q Learning Based Power Control algorithms found in 
+# Simulation implemented for the Distributed-Q Learning Based Power Control algorithm found in 
 #     Nie, S., Fan, Z., Zhao, M., Gu, X. and Zhang, L., 2016, September. Q-learning based power control algorithm for D2D communication. 
 #     In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
 #     (PIMRC) (pp. 1-6). IEEE.
@@ -47,14 +47,14 @@ sinr_threshold = gen.db_to_power(sinr_threshold)
 
 # q-learning parameters
 # MAX_NUM_EPISODES = 1e5
-MAX_NUM_EPISODES = 1000
+MAX_NUM_EPISODES = 10000
 # STEPS_PER_EPISODE = 400
 STEPS_PER_EPISODE = 200 
-EPSILON_MIN = 0.05
+EPSILON_MIN = 0.005
 # max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
 # MAX_NUM_STEPS = 50
 # EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
-EPSILON_DECAY = 5e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
+EPSILON_DECAY = 0.2 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
 ALPHA = 0.5  # Learning rate
 GAMMA = 0.9  # Discount factor

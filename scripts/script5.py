@@ -3,8 +3,8 @@
 #     In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
 #     (PIMRC) (pp. 1-6). IEEE.
 #  and 
-#  TOUMI, Salwa; HAMDI, Monia; ZAIED, Mourad. An adaptive Q-learning approach to power control for D2D communications. 
-#  In: 2018 International Conference on Advanced Systems and Electric Technologies (IC_ASET). IEEE, 2018. p. 206-209.
+#     TOUMI, Salwa; HAMDI, Monia; ZAIED, Mourad. An adaptive Q-learning approach to power control for D2D communications. 
+#     In: 2018 International Conference on Advanced Systems and Electric Technologies (IC_ASET). IEEE, 2018. p. 206-209.
 #  In this simulation, the agent state is based on its transmission power level and the MUE sinr
 
 import sys
@@ -51,20 +51,20 @@ sinr_threshold = gen.db_to_power(sinr_threshold)
 
 # q-learning parameters
 # MAX_NUM_EPISODES = 2500
-MAX_NUM_EPISODES = 1000
+MAX_NUM_EPISODES = 130
 # MAX_NUM_EPISODES = 100
 # STEPS_PER_EPISODE = 400
-STEPS_PER_EPISODE = 200 
+STEPS_PER_EPISODE = 1000
 EPSILON_MIN = 0.05
 # max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
 # MAX_NUM_STEPS = 50
 # EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
-EPSILON_DECAY = 1.5e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
+EPSILON_DECAY = 2e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 5e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
 ALPHA = 0.5  # Learning rate
 GAMMA = 0.9  # Discount factor
-C = 80  # C constant for the improved reward function
+C = 800  # C constant for the improved reward function
 
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold,
@@ -77,7 +77,7 @@ actions = [i*p_max/10 + 1e-9 for i in range(11)]
 agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 q_tables = [DistributedQTable(len(actions)*2, len(actions), learn_params) for a in agents]
 reward_function = rewards.dis_reward
-environment = ActionEnvironment(env_params, reward_function)
+environment = ActionEnvironment(env_params, reward_function, done_disable='True')
 
 
 # training function

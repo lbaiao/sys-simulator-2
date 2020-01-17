@@ -1,4 +1,4 @@
-# Simulation implemented for the Team-Q Learning Based Power Control algorithms found in 
+# Simulation implemented for the Team-Q Learning Based Power Control algorithm found in 
 #     Nie, S., Fan, Z., Zhao, M., Gu, X. and Zhang, L., 2016, September. Q-learning based power control algorithm for D2D communication. 
 #     In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
 #     (PIMRC) (pp. 1-6). IEEE.
@@ -47,13 +47,13 @@ sinr_threshold = gen.db_to_power(sinr_threshold)
 
 # q-learning parameters
 # MAX_NUM_EPISODES = 70
-MAX_NUM_EPISODES = 120
+MAX_NUM_EPISODES = 5000
 # STEPS_PER_EPISODE = 50
 STEPS_PER_EPISODE = 200 
-EPSILON_MIN = 0.1
-# max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
+EPSILON_MIN = 0.05
+# max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODEfidtri
 MAX_NUM_STEPS = 400
-EPSILON_DECAY = 2e-1 * EPSILON_MIN / MAX_NUM_STEPS
+EPSILON_DECAY = 0.09 * EPSILON_MIN / MAX_NUM_STEPS
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
 ALPHA = 0.5  # Learning rate
 GAMMA = 0.9  # Discount factor
@@ -127,6 +127,9 @@ def test(agents: List[Agent], env: RLEnvironment, policy, iterations: int):
 # SCRIPT EXEC
 # training
 learned_policy = train(agents, environment, train_params, q_table)
+
+filename = 'model1'
+np.save(f'{lucas_path}/models/{filename}', learned_policy)
 
 # testing
 t_env = RLEnvironment(env_params, reward_function)

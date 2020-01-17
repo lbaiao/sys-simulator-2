@@ -47,7 +47,7 @@ sinr_threshold = gen.db_to_power(sinr_threshold)
 
 # q-learning parameters
 # MAX_NUM_EPISODES = 1e5
-MAX_NUM_EPISODES = 10000
+MAX_NUM_EPISODES = 120
 # STEPS_PER_EPISODE = 400
 STEPS_PER_EPISODE = 200 
 EPSILON_MIN = 0.005
@@ -58,7 +58,7 @@ EPSILON_DECAY = 0.2 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
 ALPHA = 0.5  # Learning rate
 GAMMA = 0.9  # Discount factor
-C = 80  # C constant for the improved reward function
+C = 800  # C constant for the improved reward function
 
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold,
@@ -71,7 +71,7 @@ actions = [i*p_max/10 + 1e-9 for i in range(11)]
 agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 q_tables = [DistributedQTable(2, len(actions), learn_params) for a in agents]
 reward_function = rewards.dis_reward
-environment = DistributedEnvironment(env_params, reward_function)
+environment = DistributedEnvironment(env_params, reward_function, done_disable='false')
 
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?

@@ -113,6 +113,8 @@ class RLEnvironment:
 
 
     def reset(self, agents: List[Agent]):
+        self.d2d_spectral_eff = list()
+        self.mue_spectral_eff = list()
         self.build_scenario(agents)
 
 

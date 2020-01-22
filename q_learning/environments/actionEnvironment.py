@@ -116,8 +116,4 @@ class ActionEnvironment(RLEnvironment):
         self.d2d_spectral_eff.append(d2d_se)
 
         return states, rewards, done
-
-
-    def reset(self, agents: List[Agent]):
-        self.build_scenario(agents)
         

@@ -6,17 +6,18 @@ sys.path.insert(1, lucas_path)
 from devices.devices import base_station, mobile_user, d2d_user, d2d_node_type
 from general import general as gen
 from sinr.sinr import sinr_d2d, sinr_mue
-from q_learning.agents.agent import Agent
+from q_learning.agents.distanceAgent import DistanceAgent
 from q_learning.environments.environment import RLEnvironment
 from typing import List, Callable
 from parameters.parameters import LearningParameters, EnvironmentParameters
 from sinr.sinr import sinr_d2d, sinr_mue
 from q_learning.rewards import centralized_reward, mod_reward
+from scipy.spatial.distance import euclidean
 
 import numpy as np
 
 
-class DistributedEnvironment(RLEnvironment):
+class DistanceEnvironment(RLEnvironment):
     """
     Environment implemented for the Q Learning Based Power Control algorithms found in 
     Nie, S., Fan, Z., Zhao, M., Gu, X. and Zhang, L., 2016, September. Q-learning based power control algorithm for D2D communication. 
@@ -40,12 +41,13 @@ class DistributedEnvironment(RLEnvironment):
             self.done_disable = kwargs['done_disable']
     
 
-    def build_scenario(self, agents: List[Agent]):
+    def build_scenario(self, agents: List[DistanceAgent]):
         # declaring the bs, mues and d2d pairs
         self.bs = base_station((0,0), radius = self.params.bs_radius)
         self.mue = mobile_user(0)
         self.d2d_pairs = [ (d2d_user(x, d2d_node_type.TX), d2d_user(x, d2d_node_type.RX)) for x in range(self.params.n_d2d) ]
         self.rb = 1
+        self.distances = [1/10*i*self.bs.radius for i in range(11)]
 
         # distributing nodes in the bs radius        
         gen.distribute_nodes([self.mue], self.bs)
@@ -75,17 +77,32 @@ class DistributedEnvironment(RLEnvironment):
         # print('SCENARIO BUILT')
 
 
-    def get_state(self):
+    def get_state(self, agent: DistanceAgent):
         flag = 1
         sinr = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power, self.params.bs_gain, self.params.user_gain)
+        distance_index = 0
+
+        for i in range(self.params.n_d2d):
+            if agent.id == self.d2d_pairs[i][0].id:
+                agent.set_distance_to_bs(self.d2d_pairs[i][0].distance_to_bs)
+                break
+
+        for i in range(len(self.distances)-1):
+            if agent.distance_to_bs >= self.distances[i] and agent.distance_to_bs < self.distances[i+1]:
+                distance_index = i
+                break
+
         if sinr < self.params.sinr_threshold:            
             flag = 0
-        return flag
+        if flag: 
+            return distance_index + len(self.distances)
+        else:
+            return distance_index
 
 
-    def step(self, agents: List[Agent]):
+    def step(self, agents: List[DistanceAgent]):
         for agent in agents:
-            for device in list(zip(*self.d2d_pairs))[0]:
+            for device in self.d2d_pairs[0]:
                 if agent.id == device.id:
                     device.tx_power = agent.action
 
@@ -97,15 +114,19 @@ class DistributedEnvironment(RLEnvironment):
                 sinr_d = sinr_d2d(p[0], p[1], list(zip(*self.d2d_pairs))[0], self.mue, self.params.noise_power, self.params.user_gain)
                 sinr_d2ds.append(sinr_d)
 
-        state = self.get_state()
+        states = [self.get_state(a) for a in agents]
+        
+        flag = True
+        if sinr_m < self.params.sinr_threshold:     
+            flag = False
 
-        done = False    
+        done = False
         if not self.done_disable:
-            done = not state
+            done = not flag
 
-        rewards, mue_se, d2d_se = self.reward_function(sinr_m, sinr_d2ds, state, self.params.c_param)
+        rewards, mue_se, d2d_se = self.reward_function(sinr_m, sinr_d2ds, flag, self.params.c_param)
 
         self.mue_spectral_eff.append(mue_se)
         self.d2d_spectral_eff.append(d2d_se)
 
-        return state, rewards, done
+        return states, rewards, done

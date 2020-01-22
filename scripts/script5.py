@@ -51,20 +51,19 @@ sinr_threshold = gen.db_to_power(sinr_threshold)
 
 # q-learning parameters
 # MAX_NUM_EPISODES = 2500
+# MAX_NUM_EPISODES = 8000
 MAX_NUM_EPISODES = 130
-# MAX_NUM_EPISODES = 100
-# STEPS_PER_EPISODE = 400
-STEPS_PER_EPISODE = 1000
-EPSILON_MIN = 0.05
-# max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
+STEPS_PER_EPISODE = 400
+# STEPS_PER_EPISODE = 1000
+EPSILON_MIN = 0.01
 # MAX_NUM_STEPS = 50
 # EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
-EPSILON_DECAY = 2e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
-# EPSILON_DECAY = 5e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
+# EPSILON_DECAY = 2e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
+EPSILON_DECAY = 8e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
 ALPHA = 0.5  # Learning rate
 GAMMA = 0.9  # Discount factor
-C = 800  # C constant for the improved reward function
+C = 80000  # C constant for the improved reward function
 
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold,

@@ -62,7 +62,7 @@ def distribute_nodes(nodes, base_station):
         n.set_position((x,y))       
         n.set_distance_to_bs(spatial.distance.euclidean(n.position, base_station.position))
 
-def distribute_pair_fixed_distance_multiple(nodes_tx, nodes_rx, base_station):
+def distribute_pair_fixed_distance_multiple(nodes_tx: List[d2d_user], nodes_rx: List[d2d_user], base_station):
     """
     Distribute d2d pairs. Nodes_tx and nodes_rx should be lists with the length
     """    
@@ -73,7 +73,7 @@ def distribute_pair_fixed_distance_multiple(nodes_tx, nodes_rx, base_station):
         x1 = (np.random.rand()-0.5)*2*radius+center[0]
         y1 = (np.random.rand()-0.5)*2*(1-np.sqrt(radius**2-x1**2))+center[1]
         nodes_tx[i].set_position((x1,y1))           
-        nodes_tx[i]
+        nodes_tx[i].set_distance_to_bs(spatial.distance.euclidean(center, nodes_tx[i].position))
         while(not is_node2_in_circle):
             angle = np.random.rand()*2*np.pi
             x2 = (np.random.rand()-0.5)*2*nodes_tx[i].distance_d2d+x1
@@ -81,6 +81,7 @@ def distribute_pair_fixed_distance_multiple(nodes_tx, nodes_rx, base_station):
             nodes_bs_distance = spatial.distance.euclidean((x2,y2), base_station.position)        
             if nodes_bs_distance < radius:
                 nodes_rx[i].set_position((x2,y2))
+                nodes_rx[i].set_distance_to_bs(nodes_bs_distance)
                 is_node2_in_circle = True        
 
 def distribute_pair_fixed_distance(nodes, base_station, pair_distance):
@@ -90,6 +91,7 @@ def distribute_pair_fixed_distance(nodes, base_station, pair_distance):
     x1 = (np.random.rand()-0.5)*2*radius+center[0]
     y1 = (np.random.rand()-0.5)*2*(1-np.sqrt(radius**2-x1**2))+center[1]
     nodes[0].set_position((x1,y1))           
+    nodes[0].set_distance_to_bs(spatial.distance.euclidean(center, nodes[0].position))
     while(not is_node2_in_circle):
         angle = np.random.rand()*2*np.pi
         x2 = pair_distance*np.cos(angle) + x1
@@ -97,6 +99,7 @@ def distribute_pair_fixed_distance(nodes, base_station, pair_distance):
         nodes_bs_distance = spatial.distance.euclidean((x2,y2), base_station.position)        
         if nodes_bs_distance < radius:
             nodes[1].set_position((x2,y2))
+            nodes[1].set_distance_to_bs(nodes_bs_distance)
             # print(spatial.distance.euclidean(nodes[0].position, nodes[1].position))
             is_node2_in_circle = True        
 

@@ -7,7 +7,9 @@ sys.path.insert(1, lucas_path)
 from q_learning.environments.distributedEnvironment import DistributedEnvironment
 from q_learning.environments.actionEnvironment import ActionEnvironment
 from q_learning.environments.environment import RLEnvironment
+from q_learning.environments.distanceEnvironment import DistanceEnvironment
 from q_learning.agents.agent import Agent
+from q_learning.agents.distanceAgent import DistanceAgent
 from q_learning.rewards import dis_reward, centralized_reward
 from parameters.parameters import EnvironmentParameters, TrainingParameters, AgentParameters, LearningParameters
 from general import general as gen
@@ -22,7 +24,7 @@ def test1(agents: List[Agent], env: RLEnvironment, policy: np.array, num_episode
     d2d_spectral_effs = list()
     for _ in range(num_episodes):        
         i = 0    
-        env.build_scenario(agents)
+        env.reset(agents)
         done = False
         obs = env.get_state()
         total_reward = 0.0
@@ -44,7 +46,7 @@ def test2(agents: List[Agent], env: DistributedEnvironment, policies, num_episod
     mue_spectral_effs = list()
     d2d_spectral_effs = list()    
     for _ in range(num_episodes):
-        env.build_scenario(agents)
+        env.reset(agents)
         done = False
         obs = env.get_state()
         total_reward = 0.0
@@ -68,7 +70,7 @@ def test5(agents: List[Agent], env: ActionEnvironment, policies: np.array, num_e
     d2d_spectral_effs = list()    
     done = False
     for _ in range(num_episodes):
-        env.build_scenario(agents)
+        env.reset(agents)
         done = False
         obs = [env.get_state(a) for a in agents] 
         total_reward = 0.0
@@ -141,28 +143,28 @@ reward_function5 = dis_reward
 environment1 = RLEnvironment(env_params, reward_function1, done_disable=True)
 environment2 = DistributedEnvironment(env_params, reward_function2, done_disable=True)
 environment5 = ActionEnvironment(env_params, reward_function5, done_disable=True)
+environment6 = DistanceEnvironment(env_params, reward_function5, done_disable=True)
 
 learned_policies_1 = np.load(f'D:/Dev/sys-simulator-2/models/model1.npy')
 learned_policies_2 = np.load(f'D:/Dev/sys-simulator-2/models/model2.npy')
 learned_policies_5 = np.load(f'D:/Dev/sys-simulator-2/models/model5.npy')
+learned_policies_6 = np.load(f'D:/Dev/sys-simulator-2/models/model6.npy')
+
 
 # policy 1 test
 t_agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-for i in range(1):
-    total_reward, mue_spectral_effs1, d2d_spectral_effs1 = test1(t_agents, environment1, learned_policies_1, 5, 100)
-    print(f'TEST #{i} REWARD: {total_reward}')
+total_reward, mue_spectral_effs1, d2d_spectral_effs1 = test1(t_agents, environment1, learned_policies_1, 1000, 5)
     
 # policy 2 test
 t_agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-for i in range(1):
-    total_reward, mue_spectral_effs2, d2d_spectral_effs2 = test2(t_agents, environment2, learned_policies_2, 5, 100)
-    print(f'TEST #{i} REWARD: {total_reward}')
+total_reward, mue_spectral_effs2, d2d_spectral_effs2 = test2(t_agents, environment2, learned_policies_2, 1000, 5)
 
 # policy 5 test
 t_agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-for i in range(1):
-    total_reward, mue_spectral_effs5, d2d_spectral_effs5 = test5(t_agents, environment5, learned_policies_5, 5, 100)
-    print(f'TEST #{i} REWARD: {total_reward}')
+total_reward, mue_spectral_effs5, d2d_spectral_effs5 = test5(t_agents, environment5, learned_policies_5, 1000, 5)
+
+t_agents = [DistanceAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
+total_reward, mue_spectral_effs6, d2d_spectral_effs6 = test5(t_agents, environment6, learned_policies_6, 1000, 5)
 
 
 mue_spectral_effs1 = np.array(mue_spectral_effs1)
@@ -171,6 +173,8 @@ mue_spectral_effs2 = np.array(mue_spectral_effs2)
 mue_spectral_effs2 = np.reshape(mue_spectral_effs2, np.prod(mue_spectral_effs2.shape))
 mue_spectral_effs5 = np.array(mue_spectral_effs5)
 mue_spectral_effs5 = np.reshape(mue_spectral_effs5, np.prod(mue_spectral_effs5.shape))
+mue_spectral_effs6 = np.array(mue_spectral_effs6)
+mue_spectral_effs6 = np.reshape(mue_spectral_effs6, np.prod(mue_spectral_effs6.shape))
 
 d2d_spectral_effs1 = np.array(d2d_spectral_effs1)
 d2d_spectral_effs1 = np.reshape(d2d_spectral_effs1, np.prod(d2d_spectral_effs1.shape))
@@ -178,20 +182,24 @@ d2d_spectral_effs2 = np.array(d2d_spectral_effs2)
 d2d_spectral_effs2 = np.reshape(d2d_spectral_effs2, np.prod(d2d_spectral_effs2.shape))
 d2d_spectral_effs5 = np.array(d2d_spectral_effs5)
 d2d_spectral_effs5 = np.reshape(d2d_spectral_effs5, np.prod(d2d_spectral_effs5.shape))
+d2d_spectral_effs6 = np.array(d2d_spectral_effs6)
+d2d_spectral_effs6 = np.reshape(d2d_spectral_effs6, np.prod(d2d_spectral_effs6.shape))
+
 
 plt.figure(1)
-plt.plot(list(range(len(d2d_spectral_effs1))), d2d_spectral_effs1, '.',label='Script 1')
-plt.plot(list(range(len(d2d_spectral_effs2))), d2d_spectral_effs2, '.',label='Script 2')
-plt.plot(list(range(len(d2d_spectral_effs5))), d2d_spectral_effs5, '.',label='Script 5')
+plt.plot(list(range(len(d2d_spectral_effs1))), d2d_spectral_effs1, '.', label='Script 1')
+plt.plot(list(range(len(d2d_spectral_effs2))), d2d_spectral_effs2, '.', label='Script 2')
+plt.plot(list(range(len(d2d_spectral_effs5))), d2d_spectral_effs5, '.', label='Script 5')
+plt.plot(list(range(len(d2d_spectral_effs6))), d2d_spectral_effs6, '.', label='Script 6')
 plt.title('D2D spectral efficiencies')
 plt.legend()
 
-
 plt.figure(2)
 threshold_eff = np.log2(1 + sinr_threshold) * np.ones(len(mue_spectral_effs5))
-plt.plot(list(range(len(mue_spectral_effs1))), mue_spectral_effs1, '.',label='Script 1')
-plt.plot(list(range(len(mue_spectral_effs2))), mue_spectral_effs2, '.',label='Script 2')
-plt.plot(list(range(len(mue_spectral_effs5))), mue_spectral_effs5, '.',label='Script 5')
+plt.plot(list(range(len(mue_spectral_effs1))), mue_spectral_effs1, '.', label='Script 1')
+plt.plot(list(range(len(mue_spectral_effs2))), mue_spectral_effs2, '.', label='Script 2')
+plt.plot(list(range(len(mue_spectral_effs5))), mue_spectral_effs5, '.', label='Script 5')
+plt.plot(list(range(len(mue_spectral_effs6))), mue_spectral_effs6, '.', label='Script 6')
 plt.plot(list(range(len(mue_spectral_effs5))), threshold_eff, label='Threshold')    
 
 plt.title('MUE spectral efficiencies')

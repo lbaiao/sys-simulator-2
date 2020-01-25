@@ -185,6 +185,31 @@ d2d_spectral_effs5 = np.reshape(d2d_spectral_effs5, np.prod(d2d_spectral_effs5.s
 d2d_spectral_effs6 = np.array(d2d_spectral_effs6)
 d2d_spectral_effs6 = np.reshape(d2d_spectral_effs6, np.prod(d2d_spectral_effs6.shape))
 
+d2d_speffs_avg1 = np.average(d2d_spectral_effs1)
+d2d_speffs_avg2 = np.average(d2d_spectral_effs2)
+d2d_speffs_avg5 = np.average(d2d_spectral_effs5)
+d2d_speffs_avg6 = np.average(d2d_spectral_effs6)
+
+mue_success_rate1 = np.average(mue_spectral_effs1 > sinr_threshold)
+mue_success_rate2 = np.average(mue_spectral_effs2 > sinr_threshold)
+mue_success_rate5 = np.average(mue_spectral_effs5 > sinr_threshold)
+mue_success_rate6 = np.average(mue_spectral_effs6 > sinr_threshold)
+
+log = list()
+log.append(f'D2D SPECTRAL EFFICIENCY - SCRIPT 1: {d2d_speffs_avg1}')
+log.append(f'D2D SPECTRAL EFFICIENCY - SCRIPT 2: {d2d_speffs_avg2}')
+log.append(f'D2D SPECTRAL EFFICIENCY - SCRIPT 5: {d2d_speffs_avg5}')
+log.append(f'D2D SPECTRAL EFFICIENCY - SCRIPT 6: {d2d_speffs_avg6}')
+log.append(f'MUE SUCCESS RATE - SCRIPT 1: {mue_success_rate1}')
+log.append(f'MUE SUCCESS RATE - SCRIPT 2: {mue_success_rate2}')
+log.append(f'MUE SUCCESS RATE - SCRIPT 5: {mue_success_rate5}')
+log.append(f'MUE SUCCESS RATE - SCRIPT 6: {mue_success_rate6}')
+
+filename = f'{lucas_path}/logs/scratch3.txt'
+file = open(filename, 'w')
+for l in log:
+    file.write(f'{l}\n')
+file.close()
 
 plt.figure(1)
 plt.plot(list(range(len(d2d_spectral_effs1))), d2d_spectral_effs1, '.', label='Script 1')

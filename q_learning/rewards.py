@@ -15,7 +15,7 @@ def mod_reward(sinr_mue: float, sinr_d2ds: List[float], state: int, *args, **kwa
     if state:
         reward = mue_contrib + d2d_contrib    
     else:
-        reward = -100
+        reward = -1
     return reward, mue_contrib, d2d_contrib
 
 

@@ -7,17 +7,21 @@ sys.path.insert(1, lucas_path)
 import numpy as np
 import random
 import math
+import ntpath
 
 from typing import List
 import math
 import scipy.spatial as spatial
 from devices.devices import d2d_user, mobile_user, base_station
 
+
 def bits_gen(n):
     return [random.randint(0,1) for b in range(1,n+1)]
 
+
 def db_to_power(x):
     return 10**(x/10)
+
 
 def upsample(input, factor):
     z_mat = np.zeros([factor-1, len(input[0])])
@@ -26,6 +30,7 @@ def upsample(input, factor):
     output = np.reshape(aux2, (1, len(input[0])*factor))
     return output
 
+
 def downsample(input, factor):
     output = []
     for i in range(0, len(input)):
@@ -33,13 +38,16 @@ def downsample(input, factor):
             output.append(input[i])           
     return output
 
+
 def ber(tx_signal, rx_signal):
     return np.sum(np.abs(tx_signal - rx_signal))/len(tx_signal)
+
 
 def bpsk_theoric(snr):
     #snr in dB    
     snr_mag = [10**(x/10) for x in snr]        
     return [0.5*math.erfc(np.sqrt(i)) for i in snr_mag]
+
 
 def distribute_users(mobile_users: List[mobile_user], d2d_users: List[d2d_user], base_station: base_station):
     center = base_station.position
@@ -53,6 +61,7 @@ def distribute_users(mobile_users: List[mobile_user], d2d_users: List[d2d_user],
         y = (np.random.rand()-0.5)*2*(1-np.sqrt(radius**2-x**2))+center[1]
         d.set_position((x,y))   
 
+
 def distribute_nodes(nodes, base_station):
     center = base_station.position
     radius = base_station.radius
@@ -61,6 +70,7 @@ def distribute_nodes(nodes, base_station):
         y = (np.random.rand()-0.5)*2*(1-np.sqrt(radius**2-x**2))+center[1]
         n.set_position((x,y))       
         n.set_distance_to_bs(spatial.distance.euclidean(n.position, base_station.position))
+
 
 def distribute_pair_fixed_distance_multiple(nodes_tx: List[d2d_user], nodes_rx: List[d2d_user], base_station):
     """
@@ -84,6 +94,7 @@ def distribute_pair_fixed_distance_multiple(nodes_tx: List[d2d_user], nodes_rx: 
                 nodes_rx[i].set_distance_to_bs(nodes_bs_distance)
                 is_node2_in_circle = True        
 
+
 def distribute_pair_fixed_distance(nodes, base_station, pair_distance):
     center = base_station.position
     radius = base_station.radius
@@ -103,9 +114,11 @@ def distribute_pair_fixed_distance(nodes, base_station, pair_distance):
             # print(spatial.distance.euclidean(nodes[0].position, nodes[1].position))
             is_node2_in_circle = True        
 
+
 def get_distances_table(nodes):
     distances_table = [ [spatial.distance.euclidean(node.position, i.position) for i in nodes] for node in nodes]
     return np.array(distances_table)
+
 
 def get_d2d_links(d2d_nodes_distances_table, d2d_nodes, channel):
     it_index = [i for i in range(d2d_nodes_distances_table.shape[0])]
@@ -131,3 +144,8 @@ def get_d2d_links(d2d_nodes_distances_table, d2d_nodes, channel):
     for i in d2d_pairs_table.keys():
         d2d_pairs_pathloss_table[i] = channel.calculate_pathloss(d2d_pairs_table[i][1])
     return d2d_pairs_table, d2d_pairs_pathloss_table
+
+
+def path_leaf(path):
+    head, tail = ntpath.split(path)
+    return tail or ntpath.basename(head)

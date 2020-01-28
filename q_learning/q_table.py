@@ -29,6 +29,16 @@ class DistributedQTable(QTable):
         if q_value > self.table[obs, action_index]:
             self.table[obs, action_index] = q_value
 
+class ModDistributedQTable(QTable):
+    def __init__(self, num_states: int, num_actions: int, params: LearningParameters):
+        super(ModDistributedQTable, self).__init__(num_states, num_actions, params)
+
+    # calculates Q-table values
+    def learn(self, obs, action_index, reward, next_obs):
+        deltaQ = reward + self.gamma*np.max(self.table[next_obs]) - self.table[obs, action_index]
+        q_value = self.table[obs,action_index] + self.alpha*deltaQ
+        self.table[obs, action_index] = q_value
+
 
 class DistributedQTensor:
     """

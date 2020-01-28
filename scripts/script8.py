@@ -2,7 +2,7 @@
 #     Nie, S., Fan, Z., Zhao, M., Gu, X. and Zhang, L., 2016, September. Q-learning based power control algorithm for D2D communication. 
 #     In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
 #     (PIMRC) (pp. 1-6). IEEE.
-#  In this simulation, the agent state is based on its poistion and the MUE sinr. The reward function is the Distributed Reward.
+#  In this simulation, the agent state is based on its poistion, the MUE sinr and the MUE's distance to the BS. The reward function is the Distributed Reward.
 
 import sys
 import os
@@ -14,9 +14,9 @@ from general import general as gen
 from devices.devices import node, base_station, mobile_user, d2d_user, d2d_node_type
 from pathloss import pathloss
 from plots.plots import plot_positions, plot_spectral_effs
-from q_learning.environments.distanceEnvironment import DistanceEnvironment
+from q_learning.environments.mueDistanceEnvironment import MUEDistanceEnvironment
 from q_learning.agents.distanceAgent import DistanceAgent
-from q_learning.q_table import DistributedQTable
+from q_learning.q_table import ModDistributedQTable
 from q_learning import rewards
 from parameters.parameters import EnvironmentParameters, TrainingParameters, AgentParameters, LearningParameters
 from typing import List
@@ -61,7 +61,7 @@ EPSILON_DECAY = 8e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
 ALPHA = 0.5  # Learning rate
 GAMMA = 0.9  # Discount factor
-C = 8000 # C constant for the improved reward function
+C = 8000  # C constant for the improved reward function
 
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold,
@@ -72,14 +72,15 @@ learn_params = LearningParameters(ALPHA, GAMMA)
 
 actions = [i*p_max/10 + 1e-9 for i in range(11)]
 agents = [DistanceAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-q_tables = [DistributedQTable(len(actions)*2, len(actions), learn_params) for a in agents]
 reward_function = rewards.dis_reward
-environment = DistanceEnvironment(env_params, reward_function, done_disable='True')
+environment = MUEDistanceEnvironment(env_params, reward_function, done_disable='True')
+states_num = 10**2*2
+q_tables = [ModDistributedQTable(states_num, len(actions), learn_params) for a in agents]
 
 
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
-def train(agents: List[DistanceAgent], env: DistanceEnvironment, params: TrainingParameters, q_tables: List[DistributedQTable]):
+def train(agents: List[DistanceAgent], env: MUEDistanceEnvironment, params: TrainingParameters, q_tables: List[ModDistributedQTable]):
     best_reward = -1e9
     for episode in range(params.max_episodes):
         # TODO: atualmente redistribuo os usuarios aleatoriamente a cada episodio. Isto é o melhor há se fazer? 
@@ -111,7 +112,7 @@ def train(agents: List[DistanceAgent], env: DistanceEnvironment, params: Trainin
     return policies
 
 
-def test(agents: List[DistanceAgent], env: DistanceEnvironment, policies: np.array, num_episodes: int, episode_steps: int):
+def test(agents: List[DistanceAgent], env: MUEDistanceEnvironment, policies: np.array, num_episodes: int, episode_steps: int):
     mue_spectral_effs = list()
     d2d_spectral_effs = list()    
     done = False
@@ -146,7 +147,7 @@ filename =  filename.split('.')[0]
 np.save(f'{lucas_path}/models/{filename}', learned_policies)
 
 # testing
-t_env = DistanceEnvironment(env_params, reward_function)
+t_env = MUEDistanceEnvironment(env_params, reward_function)
 t_agents = [DistanceAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 total_reward, mue_spectral_effs, d2d_spectral_effs = test(t_agents, environment, learned_policies, 5, 100)
 

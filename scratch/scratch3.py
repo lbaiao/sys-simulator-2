@@ -142,11 +142,11 @@ reward_function5 = dis_reward
 reward_function6 = dis_reward
 reward_function7 = dis_reward
 
-environment1 = RLEnvironment(env_params, reward_function1, done_disable=True)
-environment2 = DistributedEnvironment(env_params, reward_function2, done_disable=True)
-environment5 = ActionEnvironment(env_params, reward_function5, done_disable=True)
-environment6 = DistanceEnvironment(env_params, reward_function6, done_disable=True)
-environment7 = DistanceEnvironment(env_params, reward_function7, done_disable=True)
+environment1 = RLEnvironment(env_params, reward_function1)
+environment2 = DistributedEnvironment(env_params, reward_function2)
+environment5 = ActionEnvironment(env_params, reward_function5)
+environment6 = DistanceEnvironment(env_params, reward_function6)
+environment7 = DistanceEnvironment(env_params, reward_function7)
 
 
 learned_policies_1 = np.load(f'D:/Dev/sys-simulator-2/models/model1.npy')
@@ -157,23 +157,23 @@ learned_policies_7 = np.load(f'D:/Dev/sys-simulator-2/models/script7.npy')
 
 # policy 1 test
 t_agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-total_reward, mue_spectral_effs1, d2d_spectral_effs1 = test1(t_agents, environment1, learned_policies_1, 1000, 5)
+total_reward, mue_spectral_effs1, d2d_spectral_effs1 = test1(t_agents, environment1, learned_policies_1, 10000, 5)
     
 # policy 2 test
 t_agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-total_reward, mue_spectral_effs2, d2d_spectral_effs2 = test2(t_agents, environment2, learned_policies_2, 1000, 5)
+total_reward, mue_spectral_effs2, d2d_spectral_effs2 = test2(t_agents, environment2, learned_policies_2, 10000, 5)
 
 # policy 5 test
 t_agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-total_reward, mue_spectral_effs5, d2d_spectral_effs5 = test5(t_agents, environment5, learned_policies_5, 1000, 5)
+total_reward, mue_spectral_effs5, d2d_spectral_effs5 = test5(t_agents, environment5, learned_policies_5, 10000, 5)
 
 # policy 6 test
 t_agents = [DistanceAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-total_reward, mue_spectral_effs6, d2d_spectral_effs6 = test5(t_agents, environment6, learned_policies_6, 1000, 5)
+total_reward, mue_spectral_effs6, d2d_spectral_effs6 = test5(t_agents, environment6, learned_policies_6, 10000, 5)
 
 # policy 7 test
 t_agents = [DistanceAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-total_reward, mue_spectral_effs7, d2d_spectral_effs7 = test5(t_agents, environment7, learned_policies_7, 1000, 5)
+total_reward, mue_spectral_effs7, d2d_spectral_effs7 = test5(t_agents, environment7, learned_policies_7, 10000, 5)
 
 
 mue_spectral_effs1 = np.array(mue_spectral_effs1)

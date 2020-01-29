@@ -14,30 +14,38 @@ from q_learning.rewards import centralized_reward, mod_reward
 
 import numpy as np
 
-
 class RLEnvironment:
     """
     Environment implemented for the Q Learning Based Power Control algorithms found in 
     Nie, S., Fan, Z., Zhao, M., Gu, X. and Zhang, L., 2016, September. Q-learning based power control algorithm for D2D communication. 
     In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
-    (PIMRC) (pp. 1-6). IEEE.
+    (PIMRC) (pp. 1-6). IEEE.    
     """
     def __init__(self, params: EnvironmentParameters, reward_function, **kwargs):
+        """
+        done_disable: 'early_stop'
+        """
         self.params = params
         # TODO: há como tornar as ações contínuas? quais e quantos níveis de potência devem existir?
         # self.actions = [i*params.p_max/10 for i in range(11)]
         self.states = [0,1]
         self.total_reward = 0
         self.reward = 0
+        self.old_reward = 0
         self.done = False        
         self.mue_spectral_eff = list()
         self.d2d_spectral_eff = list()
-        self.reward_function = reward_function
-        self.done_disable = False
+        self.reward_function = reward_function        
+        self.early_stop = False
+        self.tolerance = 0  
+        self.tolerance_count = 0              
 
-        if 'done_disable' in kwargs:
-            self.done_disable = kwargs['done_disable']
-    
+        if 'early_stop' in kwargs:            
+            self.early_stop = True
+            self.change_tolerance = kwargs['early_stop']
+            if 'tolerance' in kwargs:
+                self.tolerance = kwargs['tolerance']                
+
 
     def build_scenario(self, agents: List[Agent]):
         # declaring the bs, mues and d2d pairs
@@ -96,11 +104,7 @@ class RLEnvironment:
                 sinr_d = sinr_d2d(p[0], p[1], list(zip(*self.d2d_pairs))[0], self.mue, self.params.noise_power, self.params.user_gain)
                 sinr_d2ds.append(sinr_d)
 
-        state = self.get_state()
-
-        done = False
-        if not self.done_disable:
-            done = not state        
+        state = self.get_state() 
 
         # reward, mue_se, d2d_se = centralized_reward(sinr_m, sinr_d2ds)
         # reward, mue_se, d2d_se = mod_reward(sinr_m, sinr_d2ds, state)
@@ -108,6 +112,16 @@ class RLEnvironment:
 
         self.mue_spectral_eff.append(mue_se)
         self.d2d_spectral_eff.append(d2d_se)
+
+        done = False
+        if self.early_stop:                        
+            if abs(reward - self.reward) <= self.change_tolerance:                
+                self.tolerance_count += 1
+                if self.tolerance_count >= self.tolerance:
+                    done = True
+                    self.tolerance_count = 0
+            
+        self.old_reward = reward
 
         return state, reward, done
 

@@ -95,9 +95,9 @@ reward_function5 = dis_reward
 reward_function6 = dis_reward
 reward_function8 = dis_reward
 
-environment5 = ActionEnvironment(env_params, reward_function5, done_disable=True)
-environment6 = DistanceEnvironment(env_params, reward_function6, done_disable=True)
-environment8 = DistanceEnvironment(env_params, reward_function8, done_disable=True)
+environment5 = ActionEnvironment(env_params, reward_function5)
+environment6 = DistanceEnvironment(env_params, reward_function6)
+environment8 = DistanceEnvironment(env_params, reward_function8)
 
 learned_policies_5 = np.load(f'D:/Dev/sys-simulator-2/models/model5.npy')
 learned_policies_6 = np.load(f'D:/Dev/sys-simulator-2/models/model6.npy')

@@ -2,7 +2,8 @@
 #     Nie, S., Fan, Z., Zhao, M., Gu, X. and Zhang, L., 2016, September. Q-learning based power control algorithm for D2D communication. 
 #     In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
 #     (PIMRC) (pp. 1-6). IEEE.
-#  In this simulation, the agent state is based on its poistion and the MUE sinr. The reward function is the Centralized Reward
+#  In this simulation, the agent state is based on its position and the MUE sinr. The reward function is the Distributed Reward.
+#  Good results were obtained with the ModQTable
 
 import sys
 import os
@@ -16,7 +17,7 @@ from pathloss import pathloss
 from plots.plots import plot_positions, plot_spectral_effs
 from q_learning.environments.distanceEnvironment import DistanceEnvironment
 from q_learning.agents.distanceAgent import DistanceAgent
-from q_learning.q_table import ModDistributedQTable
+from q_learning.q_table import QTable
 from q_learning import rewards
 from parameters.parameters import EnvironmentParameters, TrainingParameters, AgentParameters, LearningParameters
 from typing import List
@@ -50,14 +51,15 @@ sinr_threshold = gen.db_to_power(sinr_threshold)
 # q-learning parameters
 # MAX_NUM_EPISODES = 2500
 # MAX_NUM_EPISODES = 8000
-MAX_NUM_EPISODES = 130
-STEPS_PER_EPISODE = 400
+MAX_NUM_EPISODES = int(1.2e4)
+STEPS_PER_EPISODE = 4000
 # STEPS_PER_EPISODE = 1000
 EPSILON_MIN = 0.01
 # MAX_NUM_STEPS = 50
 # EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 2e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
-EPSILON_DECAY = 8e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
+# EPSILON_DECAY = 8e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
+EPSILON_DECAY = 10 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
 ALPHA = 0.5  # Learning rate
 GAMMA = 0.9  # Discount factor
@@ -72,14 +74,14 @@ learn_params = LearningParameters(ALPHA, GAMMA)
 
 actions = [i*p_max/10 + 1e-9 for i in range(11)]
 agents = [DistanceAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-q_tables = [ModDistributedQTable(len(actions)*2, len(actions), learn_params) for a in agents]
+q_tables = [QTable(len(actions)*2, len(actions), learn_params) for a in agents]
 reward_function = rewards.dis_reward
-environment = DistanceEnvironment(env_params, reward_function, done_disable='True')
+environment = DistanceEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
 
 
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
-def train(agents: List[DistanceAgent], env: DistanceEnvironment, params: TrainingParameters, q_tables: List[ModDistributedQTable]):
+def train(agents: List[DistanceAgent], env: DistanceEnvironment, params: TrainingParameters, q_tables: List[QTable]):
     best_reward = -1e9
     for episode in range(params.max_episodes):
         # TODO: atualmente redistribuo os usuarios aleatoriamente a cada episodio. Isto é o melhor há se fazer? 

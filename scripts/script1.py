@@ -22,9 +22,10 @@ from typing import List
 
 import math
 import numpy as np
+from pprint import pprint
 
 n_mues = 1 # number of mues
-n_d2d = 3  # number of d2d pairs
+n_d2d = 2  # number of d2d pairs
 n_rb = n_mues   # number of RBs
 bs_radius = 500 #   bs radius in m
 
@@ -49,7 +50,7 @@ sinr_threshold = gen.db_to_power(sinr_threshold)
 # MAX_NUM_EPISODES = 70
 MAX_NUM_EPISODES = 5000
 # STEPS_PER_EPISODE = 50
-STEPS_PER_EPISODE = 200 
+STEPS_PER_EPISODE = 4000
 EPSILON_MIN = 0.05
 # max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODEfidtri
 MAX_NUM_STEPS = 400
@@ -70,7 +71,7 @@ actions = [i*p_max/10 + 1e-9 for i in range(11)]
 agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 q_table = QTable(2, len(actions), learn_params)
 reward_function = rewards.centralized_reward
-environment = RLEnvironment(env_params, reward_function)
+environment = RLEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
 
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?

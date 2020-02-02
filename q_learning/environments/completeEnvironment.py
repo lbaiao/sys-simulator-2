@@ -15,6 +15,7 @@ from q_learning.rewards import centralized_reward, mod_reward
 from scipy.spatial.distance import euclidean
 
 import numpy as np
+import pandas as pd
 
 
 class CompleteEnvironment(RLEnvironment):
@@ -74,7 +75,7 @@ class CompleteEnvironment(RLEnvironment):
         distance_index = 0
         mue_distance_index = 0
 
-        (d2d_tx, index) = [(index, p[0]) for index, p in enumerate(self.d2d_pairs) if p[0].id == agent.id][0]                
+        (index, d2d_tx) = [(index, p[0]) for index, p in enumerate(self.d2d_pairs) if p[0].id == agent.id][0]                
         d2d_rx = self.d2d_pairs[index][1]
 
         number_of_d2d_pairs = len(self.d2d_pairs)
@@ -85,14 +86,15 @@ class CompleteEnvironment(RLEnvironment):
         d2d_tx_distance_to_nearest = 1e9
         for i, p in enumerate(self.d2d_pairs):
             if i != index:
-                dist = euclidean(d2d_tx.position, p[1])
+                dist = euclidean(d2d_tx.position, p[1].position)
                 if dist < d2d_tx_distance_to_nearest:
                     d2d_tx_distance_to_nearest = dist
              
         interference_indicator = int(sinr < self.params.sinr_threshold)
-
-        state = (number_of_d2d_pairs, d2d_tx_distance_to_bs, d2d_rx_distance_to_mue, mue_distance_to_bs, interference_indicator)        
         
+        state = np.array([[number_of_d2d_pairs, d2d_tx_distance_to_bs, d2d_rx_distance_to_mue, mue_distance_to_bs, interference_indicator]])
+        state = pd.DataFrame(state, columns=['number_of_d2d_pairs', 'd2d_tx_distance_to_bs', 'd2d_rx_distance_to_mue', 'mue_distance_to_bs', 'interference_indicator'])        
+
         return state
 
 

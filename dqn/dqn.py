@@ -4,6 +4,9 @@ import torch
 import numpy as np
 from pprint import pprint
 from collections import namedtuple
+from dqnAgent import DQNAgent
+from parameters.parameters import AgentParameters
+from typing import List
 
 # see: https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
 
@@ -57,17 +60,11 @@ class DQN(torch.nn.Module):
 
 
 class Agent:
-    def __init__(self, env, maxNumEpisodes, stepPerEpisode, epsilonMin, epsilonDecay, alpha, gamma, replayMemorySize, batchSize):
-        self.env = env
-        self.maxNumEpisodes = maxNumEpisodes
-        self.stepPerEpisode = stepPerEpisode
-        self.maxNumSteps = self.maxNumEpisodes * self.stepPerEpisode
+    def __init__(self, params: AgentParameters, actions: List[int]):
         self.epsilonMin = epsilonMin
         self.epsilonDecay = epsilonDecay
         self.epsilon = 1
-        self.alpha = alpha
-        self.gamma = gamma
-        self.actionVector = env.getActionVector()    
+        self.actions = actions 
         self.replayMemory = ReplayMemory(replayMemorySize)
         self.batchSize = int(batchSize)
 

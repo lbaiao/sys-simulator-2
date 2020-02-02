@@ -14,7 +14,7 @@ from general import general as gen
 from devices.devices import node, base_station, mobile_user, d2d_user, d2d_node_type
 from pathloss import pathloss
 from plots.plots import plot_positions, plot_spectral_effs
-from q_learning.environments.CompleteEnvironment import CompleteEnvironment
+from q_learning.environments.completeEnvironment import CompleteEnvironment
 from q_learning.agents.dqnAgent import DQNAgent
 from q_learning.q_table import DistributedQTable
 from q_learning import rewards

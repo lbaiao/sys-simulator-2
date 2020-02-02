@@ -6,12 +6,13 @@ sys.path.insert(1, lucas_path)
 import numpy as np
 from q_learning.q_table import QTable
 from parameters.parameters import AgentParameters
+from typing import List
 
 class Agent:
     """
     don't forget to set the agent actions with the set_actions method
     """
-    def __init__(self, params: AgentParameters, actions):
+    def __init__(self, params: AgentParameters, actions: List[int]):
         self.epsilon_min = params.epsilon_min
         self.epsilon_decay = params.epsilon_decay
         self.epsilon = params.start_epsilon

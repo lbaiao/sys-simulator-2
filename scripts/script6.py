@@ -36,7 +36,8 @@ p_max = 23  # max tx power in dBm
 noise_power = -116  # noise power per RB in dBm
 bs_gain = 17    # macro bs antenna gain in dBi
 user_gain = 4   # user antenna gain in dBi
-sinr_threshold = 6  # mue sinr threshold in dB
+sinr_threshold_train = 84  # mue sinr threshold in dB for training
+sinr_threshold_mue = 6  # true mue sinr threshold in dB
 
 # conversions from dB to pow
 p_max = p_max - 30
@@ -45,7 +46,7 @@ noise_power = noise_power - 30
 noise_power = gen.db_to_power(noise_power)
 bs_gain = gen.db_to_power(bs_gain)
 user_gain = gen.db_to_power(user_gain)
-sinr_threshold = gen.db_to_power(sinr_threshold)
+sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
 
 # q-learning parameters
 # MAX_NUM_EPISODES = 2500
@@ -65,7 +66,7 @@ GAMMA = 0.98  # Discount factor
 C = 8000 # C constant for the improved reward function
 
 # more parameters
-env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold,
+env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_train,
                                         n_mues, n_d2d, n_rb, bs_radius, c_param=C)
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = AgentParameters(EPSILON_MIN, EPSILON_DECAY, 1)
@@ -158,7 +159,7 @@ mue_spectral_effs = np.reshape(mue_spectral_effs, np.prod(mue_spectral_effs.shap
 d2d_spectral_effs = np.array(d2d_spectral_effs)
 d2d_spectral_effs = np.reshape(d2d_spectral_effs, np.prod(d2d_spectral_effs.shape))
 
-threshold_eff = np.log2(1 + sinr_threshold) * np.ones(len(mue_spectral_effs))
+threshold_eff = np.log2(1 + sinr_threshold_train) * np.ones(len(mue_spectral_effs))
 
 plt.figure(1)
 plt.plot(list(range(len(d2d_spectral_effs))), d2d_spectral_effs, '.',label='D2D')

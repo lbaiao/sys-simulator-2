@@ -4,7 +4,6 @@ import torch
 import numpy as np
 from pprint import pprint
 from collections import namedtuple
-from dqnAgent import DQNAgent
 from parameters.parameters import AgentParameters
 from typing import List
 

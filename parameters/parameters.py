@@ -29,9 +29,9 @@ class AgentParameters:
         self.epsilon_decay = epsilon_decay
         self.start_epsilon = start_epsilon
 
-class DQNAgentParameters:
+class DQNAgentParameters(AgentParameters):
     def __init__(self, epsilon_min, epsilon_decay, start_epsilon, batchsize, gamma):
-        super(DQNAgentParameters, self).__init__(self, epsilon_min, epsilon_decay, start_epsilon)
+        super(DQNAgentParameters, self).__init__(epsilon_min, epsilon_decay, start_epsilon)
         self.batchsize = batchsize
         self.gamma = gamma
 

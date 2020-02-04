@@ -15,13 +15,14 @@ from devices.devices import node, base_station, mobile_user, d2d_user, d2d_node_
 from pathloss import pathloss
 from plots.plots import plot_positions, plot_spectral_effs
 from q_learning.environments.completeEnvironment import CompleteEnvironment
-from q_learning.agents.dqnAgent import DQNAgent
+from dqn.agents.dqnAgent import DQNAgent
 from q_learning.q_table import DistributedQTable
 from q_learning import rewards
-from parameters.parameters import EnvironmentParameters, TrainingParameters, AgentParameters, LearningParameters
+from parameters.parameters import EnvironmentParameters, TrainingParameters, DQNAgentParameters, LearningParameters
 from typing import List
 from matplotlib import pyplot as plt
 
+import torch
 import math
 import numpy as np
 
@@ -64,13 +65,13 @@ EPSILON_DECAY = 10 * EPSILON_MIN / STEPS_PER_EPISODE
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
 C = 8000 # C constant for the improved reward function
+TARGET_UPDATE = 10
 
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_train,
                                         n_mues, n_d2d, n_rb, bs_radius, c_param=C)
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
-agent_params = AgentParameters(EPSILON_MIN, EPSILON_DECAY, 1)
-learn_params = LearningParameters(ALPHA, GAMMA)
+agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 128, GAMMA)
 
 actions = [i*p_max/10 + 1e-9 for i in range(11)]
 agents = [DQNAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
@@ -94,14 +95,21 @@ def train(agents: List[DQNAgent], env: CompleteEnvironment, params: TrainingPara
             if i >= params.steps_per_episode:
                 break
             else:
-                for j in range(len(agents)):
-                    agents[j].get_action()                
+                actions = torch.zeros([len(agents)], device='cuda')
+                for j, agent in enumerate(agents):
+                    actions[j] = agent.get_action(obs[j])                
                 next_obs, rewards, done = env.step(agents)
                 i += 1
-                # for m in range(len(agents)):
-                #     q_tables[m].learn(obs[m], agents[m].action_index, rewards[m], next_obs[m])
+                for j, agent in enumerate(agents):
+                    agent.replay_memory.push(obs[j].values, actions[j], next_obs[j], rewards[j])
+                    agent.learn()
+                obs = next_obs
+                total_reward += np.sum(rewards)
                 obs = next_obs
                 total_reward += sum(rewards)
+            if episode % TARGET_UPDATE == 0:
+                for j, agent in enumerate(agents):
+                    agent.target_net.load_state_dict(agent.policy_net.state_dict())
             if total_reward > best_reward:
                 best_reward = total_reward
             print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,

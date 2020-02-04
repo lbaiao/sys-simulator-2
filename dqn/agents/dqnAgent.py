@@ -4,7 +4,7 @@ lucas_path = os.environ['LUCAS_PATH']
 sys.path.insert(1, lucas_path)
 
 import numpy as np
-from q_learning.dqn import DQN
+from dqn.dqn import DQN
 from parameters.parameters import DQNAgentParameters
 from q_learning.agents.agent import Agent
 from dqn.replayMemory import ReplayMemory, Transition
@@ -31,14 +31,15 @@ class DQNAgent(Agent):
     def set_distance_to_bs(self, distance: float):
         self.distance_to_bs = distance
     
-    def get_actions(self, obs):
+    def get_action(self, obs):
         if self.epsilon > self.epsilon_min:
             self.epsilon -= self.epsilon_decay
         if np.random.random() > self.epsilon_decay:
-            aux = torch.tensor([obs, torch.tensor(0)]).reshape(2,1)
-            return torch.tensor(self.policy_net(aux.float())).max(1)[1][0]
+            aux = torch.tensor([obs.values[0]]).reshape(5,1)
+            self.action =  torch.tensor(self.policy_net(aux.float())).max(1)[1][0]
         else:
-            return torch.tensor(np.random.choice([i for i in enumerate(self.actions)]))
+            self.action =  torch.tensor(np.random.choice([i for i in enumerate(self.actions)]))
+        return self.action
 
     def learn(self):
         if len(self.replay_memory) < self.batchsize:
@@ -46,8 +47,8 @@ class DQNAgent(Agent):
         transitions = self.replay_memory.sample(self.batchsize)
         batch = Transition(*zip(*transitions))
         
-        state_batch = torch.tensor(batch.state).reshape(self.batchsize, 1).float()
-        next_state_batch = torch.tensor(batch.next_state).reshape(self.batchsize, 1).float()
+        state_batch = torch.tensor(batch.state).reshape(self.batchsize, batch.state[0].shape[1]).float()
+        next_state_batch = torch.tensor(batch.next_state.values).reshape(self.batchsize, 1).float()
         action_batch = torch.tensor(batch.action).reshape(self.batchsize, 1).float()
         reward_batch = torch.tensor(batch.reward).reshape(self.batchsize, 1).float()
 

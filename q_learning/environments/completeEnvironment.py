@@ -16,6 +16,7 @@ from scipy.spatial.distance import euclidean
 
 import numpy as np
 import pandas as pd
+import torch
 
 
 class CompleteEnvironment(RLEnvironment):
@@ -31,6 +32,7 @@ class CompleteEnvironment(RLEnvironment):
         # self.actions = [i*params.p_max/10 for i in range(11)]
         super(CompleteEnvironment, self).__init__(params, reward_function, **kwargs)
         self.states = [0,0,1]
+        self.device = torch.device('cuda')
     
 
     def build_scenario(self, agents: List[DistanceAgent]):
@@ -92,8 +94,8 @@ class CompleteEnvironment(RLEnvironment):
              
         interference_indicator = int(sinr < self.params.sinr_threshold)
         
-        state = np.array([[number_of_d2d_pairs, d2d_tx_distance_to_bs, d2d_rx_distance_to_mue, mue_distance_to_bs, interference_indicator]])
-        state = pd.DataFrame(state, columns=['number_of_d2d_pairs', 'd2d_tx_distance_to_bs', 'd2d_rx_distance_to_mue', 'mue_distance_to_bs', 'interference_indicator'])        
+        state = torch.tensor([[number_of_d2d_pairs, d2d_tx_distance_to_bs, d2d_rx_distance_to_mue, mue_distance_to_bs, interference_indicator]], device=self.device)
+        # state = pd.DataFrame(state, columns=['number_of_d2d_pairs', 'd2d_tx_distance_to_bs', 'd2d_rx_distance_to_mue', 'mue_distance_to_bs', 'interference_indicator'])        
 
         return state
 
@@ -122,10 +124,10 @@ class CompleteEnvironment(RLEnvironment):
 
         done = False
         if self.early_stop:                        
-            if abs(np.sum(rewards) - self.reward) <= self.change_tolerance:
+            if torch.abs(torch.sum(rewards) - self.reward) <= self.change_tolerance:
                 done = True
 
-        self.reward = np.sum(rewards)
+        self.reward = torch.sum(rewards)
 
         self.mue_spectral_eff.append(mue_se)
         self.d2d_spectral_eff.append(d2d_se)

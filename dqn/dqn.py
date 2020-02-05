@@ -39,13 +39,13 @@ class DQN(torch.nn.Module):
     """
     def __init__(self):
         super(DQN, self).__init__()
-        self.linear1 = torch.nn.Linear(1,5)
+        self.linear1 = torch.nn.Linear(5,5)
         self.linear2 = torch.nn.Linear(5,5)
         self.linear3 = torch.nn.Linear(5,5)
         self.linear4 = torch.nn.Linear(5,5)
         self.linear5 = torch.nn.Linear(5,5)
         self.linear6 = torch.nn.Linear(5,5)
-        self.linear7 = torch.nn.Linear(5,4)
+        self.linear7 = torch.nn.Linear(5,11)
 
     def forward(self, x):
         h_tanh1 = self.linear1(x).relu()
@@ -81,12 +81,12 @@ class Agent:
             self.epsilon -= self.epsilonDecay
         if np.random.random() > self.epsilon:
             try:
-                aux = torch.tensor([obs, torch.tensor(0)]).reshape(2,1)                
-                return torch.tensor(self.policyNet(aux.float()).max(1)[1][0])
+                aux = torch.tensor([obs, torch.tensor(0)], device=self.device).reshape(2,1)                
+                return torch.tensor(self.policyNet(aux.float(), device=self.device).max(1)[1][0])
             except Exception as e:
                 print(e)
         else:
-            return torch.tensor(np.random.choice([ a for a in range(len(self.actionVector))]))
+            return torch.tensor(np.random.choice([ a for a in range(len(self.actionVector))]), device=self.device)
 
     def learn(self,obs,action,reward,netObs):
         pass # train the dqn

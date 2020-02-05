@@ -75,7 +75,7 @@ agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 128, GAMMA)
 
 actions = [i*p_max/10 + 1e-9 for i in range(11)]
 agents = [DQNAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-reward_function = rewards.dis_reward
+reward_function = rewards.dis_reward_tensor
 environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
 
 
@@ -83,12 +83,13 @@ environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, 
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
 def train(agents: List[DQNAgent], env: CompleteEnvironment, params: TrainingParameters):
     best_reward = -1e9
+    device = torch.device('cuda')
     for episode in range(params.max_episodes):
         # TODO: atualmente redistribuo os usuarios aleatoriamente a cada episodio. Isto é o melhor há se fazer? 
         # Simular deslocamento dos usuários?
         env.build_scenario(agents)
         done = False
-        obs = [env.get_state(a) for a in agents] 
+        obs = [torch.tensor(env.get_state(a), device=device) for a in agents] 
         total_reward = 0.0
         i = 0
         while not done:
@@ -101,13 +102,11 @@ def train(agents: List[DQNAgent], env: CompleteEnvironment, params: TrainingPara
                 next_obs, rewards, done = env.step(agents)
                 i += 1
                 for j, agent in enumerate(agents):
-                    agent.replay_memory.push(obs[j].values, actions[j], next_obs[j], rewards[j])
+                    agent.replay_memory.push(obs[j], actions[j], next_obs[j], rewards[j])
                     agent.learn()
                 obs = next_obs
-                total_reward += np.sum(rewards)
+                total_reward += torch.sum(rewards)
                 obs = next_obs
-                total_reward += sum(rewards)
-            if episode % TARGET_UPDATE == 0:
                 for j, agent in enumerate(agents):
                     agent.target_net.load_state_dict(agent.policy_net.state_dict())
             if total_reward > best_reward:

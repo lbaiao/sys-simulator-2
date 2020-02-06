@@ -89,7 +89,7 @@ def train(agents: List[DQNAgent], env: CompleteEnvironment, params: TrainingPara
         # Simular deslocamento dos usuários?
         env.build_scenario(agents)
         done = False
-        obs = [torch.tensor(env.get_state(a), device=device) for a in agents] 
+        obs = [env.get_state(a) for a in agents] 
         total_reward = 0.0
         i = 0
         while not done:

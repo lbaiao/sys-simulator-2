@@ -27,7 +27,7 @@ class DQNAgent(Agent):
         self.device = torch.device("cuda")        
 
         self.optimizer = torch.optim.Adam(self.policy_net.parameters())
-        self.criterion = torch.nn.SmoothL1Loss
+        self.criterion = torch.nn.SmoothL1Loss()
 
     def set_distance_to_bs(self, distance: float):
         self.distance_to_bs = distance
@@ -37,7 +37,7 @@ class DQNAgent(Agent):
             self.epsilon -= self.epsilon_decay
         if np.random.random() > self.epsilon:
             # aux = torch.tensor([obs[0]], device=self.device)
-            self.action = torch.tensor(self.policy_net(obs[0]), device=self.device).max(1)[1][0]
+            self.action = torch.tensor(self.policy_net(obs), device=self.device).max(1)[1][0]
         else:
             self.action = torch.tensor(np.random.choice([i for i in range(len(self.actions))])).cpu()
             self.action = torch.tensor(self.action, device=self.device)
@@ -49,8 +49,10 @@ class DQNAgent(Agent):
         transitions = self.replay_memory.sample(self.batchsize)
         batch = Transition(*zip(*transitions))
         
-        state_batch = torch.tensor(batch.state, device=self.device).reshape(self.batchsize, batch.state[0].shape[1]).float()
-        next_state_batch = torch.tensor(batch.next_state, device=self.device).reshape(self.batchsize, batch.next_state[0].shape[1]).float()
+        state_batch = torch.zeros([self.batchsize, batch.state[0].shape[1]], device=self.device)
+        torch.cat(batch.state, out=state_batch)
+        next_state_batch = torch.zeros([self.batchsize, batch.state[0].shape[1]], device=self.device)        
+        torch.cat(batch.next_state, out=next_state_batch)
         action_batch = torch.tensor(batch.action, device=self.device).reshape(self.batchsize, 1).float()
         reward_batch = torch.tensor(batch.reward, device=self.device).reshape(self.batchsize, 1).float()
 

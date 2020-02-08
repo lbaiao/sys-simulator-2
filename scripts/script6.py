@@ -38,7 +38,7 @@ bs_gain = 17    # macro bs antenna gain in dBi
 user_gain = 4   # user antenna gain in dBi
 sinr_threshold_train = 6  # mue sinr threshold in dB for training
 sinr_threshold_mue = 6  # true mue sinr threshold in dB
-mue_margin = 1e4
+mue_margin = .5e4
 
 # conversions from dB to pow
 p_max = p_max - 30
@@ -52,7 +52,7 @@ sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
 # q-learning parameters
 # MAX_NUM_EPISODES = 2500
 # MAX_NUM_EPISODES = 8000
-STEPS_PER_EPISODE = 200
+STEPS_PER_EPISODE = 2000
 # STEPS_PER_EPISODE = 200
 # STEPS_PER_EPISODE = 1000
 EPSILON_MIN = 0.01
@@ -171,6 +171,12 @@ bins = [p_max/10 * i for i in range(10) ]
 plt.figure(2)
 plt.hist(environment.bag, bins)
 plt.title('environment bag')
+
+plt.figure(3)
+plt.plot(environment.bag, '.')
+plt.title('environment bag')
+
+
 plt.show()
 
 

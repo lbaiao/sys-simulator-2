@@ -25,6 +25,7 @@ from matplotlib import pyplot as plt
 import torch
 import math
 import numpy as np
+import os
 
 n_mues = 1 # number of mues
 n_d2d = 2  # number of d2d pairs
@@ -37,7 +38,7 @@ p_max = 23  # max tx power in dBm
 noise_power = -116  # noise power per RB in dBm
 bs_gain = 17    # macro bs antenna gain in dBi
 user_gain = 4   # user antenna gain in dBi
-sinr_threshold_train = 84  # mue sinr threshold in dB for training
+sinr_threshold_train = 6  # mue sinr threshold in dB for training
 sinr_threshold_mue = 6  # true mue sinr threshold in dB
 
 # conversions from dB to pow
@@ -52,14 +53,16 @@ sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
 # q-learning parameters
 # MAX_NUM_EPISODES = 2500
 # MAX_NUM_EPISODES = 8000
-MAX_NUM_EPISODES = int(1.2e4)
+# MAX_NUM_EPISODES = int(1.2e4)
+# MAX_NUM_EPISODES = int(6e3)
 STEPS_PER_EPISODE = 4000
 # STEPS_PER_EPISODE = 200
 # STEPS_PER_EPISODE = 1000
 EPSILON_MIN = 0.01
 # MAX_NUM_STEPS = 50
 # EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
-EPSILON_DECAY = 10 * EPSILON_MIN / STEPS_PER_EPISODE
+EPSILON_DECAY = 100 * EPSILON_MIN / STEPS_PER_EPISODE
+MAX_NUM_EPISODES = int(1/EPSILON_DECAY)
 # EPSILON_DECAY = 8e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
 ALPHA = 0.05  # Learning rate
@@ -96,7 +99,7 @@ def train(agents: List[DQNAgent], env: CompleteEnvironment, params: TrainingPara
             if i >= params.steps_per_episode:
                 break
             else:
-                actions = torch.zeros([len(agents)], device='cuda')
+                actions = torch.zeros([len(agents)], device=device)
                 for j, agent in enumerate(agents):
                     actions[j] = agent.get_action(obs[j])                
                 next_obs, rewards, done = env.step(agents)
@@ -107,8 +110,9 @@ def train(agents: List[DQNAgent], env: CompleteEnvironment, params: TrainingPara
                 obs = next_obs
                 total_reward += torch.sum(rewards)
                 obs = next_obs
-                for j, agent in enumerate(agents):
-                    agent.target_net.load_state_dict(agent.policy_net.state_dict())
+                if episode % TARGET_UPDATE == 0:
+                    for j, agent in enumerate(agents):
+                        agent.target_net.load_state_dict(agent.policy_net.state_dict())
             if total_reward > best_reward:
                 best_reward = total_reward
             print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
@@ -119,7 +123,7 @@ def train(agents: List[DQNAgent], env: CompleteEnvironment, params: TrainingPara
     return 0
 
 
-def test(agents: List[DQNAgent], env: CompleteEnvironment, policies: np.array, num_episodes: int, episode_steps: int):
+def test(agents: List[DQNAgent], env: CompleteEnvironment, num_episodes: int, episode_steps: int):
     mue_spectral_effs = list()
     d2d_spectral_effs = list()    
     done = False
@@ -148,6 +152,11 @@ def test(agents: List[DQNAgent], env: CompleteEnvironment, policies: np.array, n
 # SCRIPT EXEC
 # training
 train(agents, environment, train_params)
+
+cwd = os.getcwd()
+
+for i, a in enumerate(agents):
+    torch.save(a.policy_net.state_dict(), f'{cwd}/models/model_dqn_agent{i}.pt')
 
 # filename = gen.path_leaf(__file__) 
 # filename =  filename.split('.')[0]

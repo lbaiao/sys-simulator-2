@@ -36,8 +36,9 @@ p_max = 23  # max tx power in dBm
 noise_power = -116  # noise power per RB in dBm
 bs_gain = 17    # macro bs antenna gain in dBi
 user_gain = 4   # user antenna gain in dBi
-sinr_threshold_train = 84  # mue sinr threshold in dB for training
+sinr_threshold_train = 6  # mue sinr threshold in dB for training
 sinr_threshold_mue = 6  # true mue sinr threshold in dB
+mue_margin = 1e4
 
 # conversions from dB to pow
 p_max = p_max - 30
@@ -51,23 +52,21 @@ sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
 # q-learning parameters
 # MAX_NUM_EPISODES = 2500
 # MAX_NUM_EPISODES = 8000
-MAX_NUM_EPISODES = int(1.2e4)
-STEPS_PER_EPISODE = 4000
+STEPS_PER_EPISODE = 200
 # STEPS_PER_EPISODE = 200
 # STEPS_PER_EPISODE = 1000
 EPSILON_MIN = 0.01
 # MAX_NUM_STEPS = 50
 # EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
-EPSILON_DECAY = 10 * EPSILON_MIN / STEPS_PER_EPISODE
-# EPSILON_DECAY = 8e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
-# EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
+EPSILON_DECAY = 100 * EPSILON_MIN / STEPS_PER_EPISODE
+MAX_NUM_EPISODES = int(0.95/EPSILON_DECAY)
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
 C = 8000 # C constant for the improved reward function
 
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_train,
-                                        n_mues, n_d2d, n_rb, bs_radius, c_param=C)
+                                        n_mues, n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin)
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = AgentParameters(EPSILON_MIN, EPSILON_DECAY, 1)
 learn_params = LearningParameters(ALPHA, GAMMA)
@@ -167,6 +166,12 @@ plt.plot(list(range(len(mue_spectral_effs))), mue_spectral_effs, '.',label='MUE'
 plt.plot(list(range(len(mue_spectral_effs))), threshold_eff, label='Threshold')    
 plt.title('Spectral efficiencies')
 plt.legend()
+
+bins = [p_max/10 * i for i in range(10) ]
+plt.figure(2)
+plt.hist(environment.bag, bins)
+plt.title('environment bag')
 plt.show()
+
 
 

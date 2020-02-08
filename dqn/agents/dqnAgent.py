@@ -42,6 +42,20 @@ class DQNAgent(Agent):
             self.action = torch.tensor(np.random.choice([i for i in range(len(self.actions))])).cpu()
             self.action = torch.tensor(self.action, device=self.device)
         return self.action
+    
+
+    def set_policy(self, policy: DQN):
+        self.policy_net = policy
+
+
+    def act(self, obs: torch.Tensor):
+        return self.policy_net(obs)
+
+
+    def set_action(self, action_index: torch.Tensor, action: torch.Tensor):
+        self.action_index = action_index.long()
+        self.action = action
+
 
     def learn(self):
         if len(self.replay_memory) < self.batchsize:

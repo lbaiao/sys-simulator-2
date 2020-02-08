@@ -30,17 +30,20 @@ class DistanceEnvironment(RLEnvironment):
     def build_scenario(self, agents: List[DistanceAgent]):
         # declaring the bs, mues and d2d pairs
         self.bs = base_station((0,0), radius = self.params.bs_radius)
+        self.bs.set_gain(self.params.bs_gain)
         self.mue = mobile_user(0)
-        self.d2d_pairs = [ (d2d_user(x, d2d_node_type.TX), d2d_user(x, d2d_node_type.RX)) for x in range(self.params.n_d2d) ]
+        self.mue.set_gain(self.params.user_gain)
+        self.d2d_pairs = [ (d2d_user(x, d2d_node_type.TX), d2d_user(x, d2d_node_type.RX)) for x in range(self.params.n_d2d) ]                
         self.rb = 1
         self.distances = [1/10*i*self.bs.radius for i in range(11)]
 
-        # distributing nodes in the bs radius        
+        # distributing nodes in the bs radius and setting gains
         gen.distribute_nodes([self.mue], self.bs)
         for p in self.d2d_pairs:
             gen.distribute_pair_fixed_distance( p, self.bs, self.params.d2d_pair_distance)
             for d in p:
                 d.set_distance_d2d(self.params.d2d_pair_distance)
+                d.set_gain(self.params.user_gain)
 
         # plot nodes positions
         # plot_positions(bs, mues, d2d_txs, d2d_rxs)
@@ -55,7 +58,9 @@ class DistanceEnvironment(RLEnvironment):
             p[1].set_rb(self.rb)
 
         # TODO: como determinar a potencia de transmissao do mue? vou setar pmax por enquanto
-        self.mue.set_tx_power(self.params.p_max)
+        # self.mue.set_tx_power(self.params.p_max)
+        mue_tx_power = self.mue.get_tx_power(self.bs, self.params.sinr_threshold, self.params.noise_power, self.params.mue_margin, self.params.p_max)
+        self.mue.set_tx_power(mue_tx_power)
 
         for i in range(self.params.n_d2d):
             agents[i].set_d2d_tx_id(self.d2d_pairs[i][0].id)
@@ -65,6 +70,7 @@ class DistanceEnvironment(RLEnvironment):
 
     def get_state(self, agent: DistanceAgent):
         flag = 1
+        
         sinr = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power, self.params.bs_gain, self.params.user_gain)
         distance_index = 0
 
@@ -92,6 +98,9 @@ class DistanceEnvironment(RLEnvironment):
                 if agent.id == device.id:
                     device.tx_power = agent.action
 
+        mue_tx_power = self.mue.get_tx_power(self.bs, self.params.sinr_threshold, self.params.noise_power, self.params.mue_margin, self.params.p_max)
+        self.mue.set_tx_power(mue_tx_power)
+        self.bag.append(mue_tx_power)
         sinr_m = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power, self.params.bs_gain, self.params.user_gain)
 
         sinr_d2ds = list()

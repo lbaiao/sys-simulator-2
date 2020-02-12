@@ -68,6 +68,8 @@ bs_gain = 17    # macro bs antenna gain in dBi
 user_gain = 4   # user antenna gain in dBi
 sinr_threshold_train = 84  # mue sinr threshold in dB for training
 sinr_threshold_mue = 6  # true mue sinr threshold in dB
+mue_margin = .5e4
+
 
 # conversions from dB to pow
 p_max = p_max - 30
@@ -100,7 +102,7 @@ TARGET_UPDATE = 10
 
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_train,
-                                        n_mues, n_d2d, n_rb, bs_radius, c_param=C)
+                                        n_mues, n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin)
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 128, GAMMA)
 
@@ -116,7 +118,7 @@ reward_function = rewards.dis_reward_tensor
 t_agents = [DQNAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 for i, a in enumerate(t_agents):
     a.policy_net.load_state_dict(torch.load(f'{cwd}/models/model_dqn_agent{i}.pt'))
-total_reward, mue_spectral_effs, d2d_spectral_effs = test(t_agents, environment, 10, 5)
+total_reward, mue_spectral_effs, d2d_spectral_effs = test(t_agents, environment, 1000, 50)
 
 mue_spectral_effs = torch.tensor(mue_spectral_effs)
 mue_spectral_effs = torch.reshape(mue_spectral_effs, (1, torch.prod(torch.tensor(mue_spectral_effs.shape))))
@@ -141,19 +143,19 @@ for l in log:
     file.write(f'{l}\n')
 file.close()
 
-plt.figure(1)
-plt.plot(list(range(len(d2d_spectral_effs))), d2d_spectral_effs, '.', label='Script')
-plt.title('D2D spectral efficiencies')
-plt.legend()
+# plt.figure(1)
+# plt.plot(list(range(len(d2d_spectral_effs))), d2d_spectral_effs, '.', label='Script')
+# plt.title('D2D spectral efficiencies')
+# plt.legend()
 
-plt.figure(2)
-threshold_eff = np.log2(1 + sinr_threshold_mue) * np.ones(len(mue_spectral_effs))
-plt.plot(list(range(len(mue_spectral_effs))), mue_spectral_effs, '.', label='Script ')
-plt.plot(list(range(len(mue_spectral_effs))), threshold_eff, label='Threshold')    
+# plt.figure(2)
+# threshold_eff = np.log2(1 + sinr_threshold_mue) * np.ones(len(mue_spectral_effs))
+# plt.plot(list(range(len(mue_spectral_effs))), mue_spectral_effs, '.', label='Script ')
+# plt.plot(list(range(len(mue_spectral_effs))), threshold_eff, label='Threshold')    
 
-plt.title('MUE spectral efficiencies')
-plt.legend()
-plt.show()
+# plt.title('MUE spectral efficiencies')
+# plt.legend()
+# plt.show()
 
 
 

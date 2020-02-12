@@ -5,6 +5,7 @@ sys.path.insert(1, lucas_path)
 
 from parameters.parameters import LearningParameters
 import numpy as np
+import torch
 
 class QTable:
     def __init__(self, num_states: int, num_actions: int, params: LearningParameters):
@@ -17,6 +18,17 @@ class QTable:
         deltaQ = reward + self.gamma*np.max(self.table[next_obs]) - self.table[obs, action_index]
         self.table[obs, action_index] = self.table[obs,action_index] + self.alpha*deltaQ
 
+class QTableTorch:
+    def __init__(self, num_states: int, num_actions: int, params: LearningParameters):
+        self.device = torch.device('cuda')
+        self.table = torch.zeros((num_states, num_actions), device=self.device)
+        self.gamma = params.gamma
+        self.alpha = params.alpha
+
+    # calculates Q-table values
+    def learn(self, obs, action_index, reward, next_obs):
+        deltaQ = reward + self.gamma*torch.max(self.table[next_obs]) - self.table[obs, action_index]
+        self.table[obs, action_index] = self.table[obs,action_index] + self.alpha*deltaQ
 
 class DistributedQTable(QTable):
     def __init__(self, num_states: int, num_actions: int, params: LearningParameters):

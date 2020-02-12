@@ -52,14 +52,14 @@ sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
 # q-learning parameters
 # MAX_NUM_EPISODES = 2500
 # MAX_NUM_EPISODES = 8000
-STEPS_PER_EPISODE = 2000
+STEPS_PER_EPISODE = 8000
 # STEPS_PER_EPISODE = 200
 # STEPS_PER_EPISODE = 1000
 EPSILON_MIN = 0.01
 # MAX_NUM_STEPS = 50
 # EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
 EPSILON_DECAY = 100 * EPSILON_MIN / STEPS_PER_EPISODE
-MAX_NUM_EPISODES = int(0.95/EPSILON_DECAY)
+MAX_NUM_EPISODES = int(0.5/EPSILON_DECAY/2.3)
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
 C = 8000 # C constant for the improved reward function
@@ -71,7 +71,7 @@ train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = AgentParameters(EPSILON_MIN, EPSILON_DECAY, 1)
 learn_params = LearningParameters(ALPHA, GAMMA)
 
-actions = [i*p_max/10 + 1e-9 for i in range(11)]
+actions = [i*p_max/10/1000 + 1e-9 for i in range(11)]
 agents = [DistanceAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 q_tables = [DistributedQTable(len(actions)*2, len(actions), learn_params) for a in agents]
 reward_function = rewards.dis_reward
@@ -167,9 +167,9 @@ plt.plot(list(range(len(mue_spectral_effs))), threshold_eff, label='Threshold')
 plt.title('Spectral efficiencies')
 plt.legend()
 
-bins = [p_max/10 * i for i in range(10) ]
+# bins = [p_max/10 * i for i in range(10) ]
 plt.figure(2)
-plt.hist(environment.bag, bins)
+plt.hist(environment.bag)
 plt.title('environment bag')
 
 plt.figure(3)

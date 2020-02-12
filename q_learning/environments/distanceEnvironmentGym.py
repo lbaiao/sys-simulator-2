@@ -17,7 +17,7 @@ from scipy.spatial.distance import euclidean
 import numpy as np
 
 
-class DistanceEnvironment(RLEnvironment):
+class DistanceEnvironment(RLEnvironment, ):
     """
     Environment implemented for the Q Learning Based Power Control algorithms found in 
     Nie, S., Fan, Z., Zhao, M., Gu, X. and Zhang, L., 2016, September. Q-learning based power control algorithm for D2D communication. 
@@ -94,9 +94,9 @@ class DistanceEnvironment(RLEnvironment):
 
     def step(self, agents: List[DistanceAgent]):
         for agent in agents:
-            for pair in self.d2d_pairs:
-                if agent.id == pair[0].id:
-                    pair[0].tx_power = agent.action
+            for device in self.d2d_pairs[0]:
+                if agent.id == device.id:
+                    device.tx_power = agent.action
 
         mue_tx_power = self.mue.get_tx_power(self.bs, self.params.sinr_threshold, self.params.noise_power, self.params.mue_margin, self.params.p_max)
         self.mue.set_tx_power(mue_tx_power)

@@ -17,7 +17,7 @@ from scipy.spatial.distance import euclidean
 import numpy as np
 
 
-class DistanceEnvironment(RLEnvironment):
+class DistanceTorchEnvironment(RLEnvironment):
     """
     Environment implemented for the Q Learning Based Power Control algorithms found in 
     Nie, S., Fan, Z., Zhao, M., Gu, X. and Zhang, L., 2016, September. Q-learning based power control algorithm for D2D communication. 
@@ -25,7 +25,7 @@ class DistanceEnvironment(RLEnvironment):
     (PIMRC) (pp. 1-6). IEEE.
     """
     def __init__(self, params: EnvironmentParameters, reward_function, **kwargs):
-        super(DistanceEnvironment, self).__init__(params, reward_function, **kwargs)
+        super(DistanceTorchEnvironment, self).__init__(params, reward_function, **kwargs)
 
     def build_scenario(self, agents: List[DistanceAgent]):
         # declaring the bs, mues and d2d pairs

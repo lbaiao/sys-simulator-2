@@ -72,9 +72,9 @@ class DistributedEnvironment(RLEnvironment):
 
     def step(self, agents: List[Agent]):
         for agent in agents:
-            for device in list(zip(*self.d2d_pairs))[0]:
-                if agent.id == device.id:
-                    device.tx_power = agent.action
+            for pair in self.d2d_pairs:
+                if agent.id == pair[0].id:
+                    pair[0].tx_power = agent.action
 
         sinr_m = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power, self.params.bs_gain, self.params.user_gain)
 

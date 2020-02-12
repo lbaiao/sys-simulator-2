@@ -37,10 +37,12 @@ class DQNAgent(Agent):
             self.epsilon -= self.epsilon_decay
         if np.random.random() > self.epsilon:
             # aux = torch.tensor([obs[0]], device=self.device)
-            self.action = torch.tensor(self.policy_net(obs), device=self.device).max(1)[1][0]
+            self.action_index = torch.tensor(self.policy_net(obs), device=self.device).max(1)[1][0]
+            self.action = self.actions[self.action_index]
         else:
-            self.action = torch.tensor(np.random.choice([i for i in range(len(self.actions))])).cpu()
-            self.action = torch.tensor(self.action, device=self.device)
+            self.action_index = torch.tensor(np.random.choice([i for i in range(len(self.actions))])).cpu()
+            self.action_index = torch.tensor(self.action_index, device=self.device)
+            self.action = self.actions[self.action_index]
         return self.action
     
 

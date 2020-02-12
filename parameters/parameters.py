@@ -16,6 +16,9 @@ class EnvironmentParameters:
         if 'c_param' in kwargs:
             self.c_param = kwargs['c_param']
 
+        if 'mue_margin' in kwargs:
+            self.mue_margin = kwargs['mue_margin']
+
 
 class TrainingParameters:
     def __init__(self, max_episodes: int, steps_per_episode: int):  

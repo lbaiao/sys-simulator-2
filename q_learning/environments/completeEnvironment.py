@@ -15,7 +15,8 @@ from q_learning.rewards import centralized_reward, mod_reward
 from scipy.spatial.distance import euclidean
 
 import numpy as np
-import pandas as pd
+# import pandas as pd
+import torch
 
 
 class CompleteEnvironment(RLEnvironment):
@@ -31,12 +32,15 @@ class CompleteEnvironment(RLEnvironment):
         # self.actions = [i*params.p_max/10 for i in range(11)]
         super(CompleteEnvironment, self).__init__(params, reward_function, **kwargs)
         self.states = [0,0,1]
+        self.device = torch.device('cuda')
     
 
     def build_scenario(self, agents: List[DistanceAgent]):
         # declaring the bs, mues and d2d pairs
         self.bs = base_station((0,0), radius = self.params.bs_radius)
+        self.bs.set_gain(self.params.bs_gain)
         self.mue = mobile_user(0)
+        self.mue.set_gain(self.params.user_gain)
         self.d2d_pairs = [ (d2d_user(x, d2d_node_type.TX), d2d_user(x, d2d_node_type.RX)) for x in range(self.params.n_d2d) ]
         self.rb = 1
         self.distances = [1/10*i*self.bs.radius for i in range(11)]
@@ -47,6 +51,7 @@ class CompleteEnvironment(RLEnvironment):
             gen.distribute_pair_fixed_distance( p, self.bs, self.params.d2d_pair_distance)
             for d in p:
                 d.set_distance_d2d(self.params.d2d_pair_distance)
+                d.set_gain(self.params.user_gain)
 
         # plot nodes positions
         # plot_positions(bs, mues, d2d_txs, d2d_rxs)
@@ -92,18 +97,20 @@ class CompleteEnvironment(RLEnvironment):
              
         interference_indicator = int(sinr < self.params.sinr_threshold)
         
-        state = np.array([[number_of_d2d_pairs, d2d_tx_distance_to_bs, d2d_rx_distance_to_mue, mue_distance_to_bs, interference_indicator]])
-        state = pd.DataFrame(state, columns=['number_of_d2d_pairs', 'd2d_tx_distance_to_bs', 'd2d_rx_distance_to_mue', 'mue_distance_to_bs', 'interference_indicator'])        
+        state = torch.tensor([[number_of_d2d_pairs, d2d_tx_distance_to_bs, d2d_rx_distance_to_mue, mue_distance_to_bs, interference_indicator]], device=self.device)
+        # state = pd.DataFrame(state, columns=['number_of_d2d_pairs', 'd2d_tx_distance_to_bs', 'd2d_rx_distance_to_mue', 'mue_distance_to_bs', 'interference_indicator'])        
 
         return state
 
 
     def step(self, agents: List[DistanceAgent]):
         for agent in agents:
-            for device in self.d2d_pairs[0]:
-                if agent.id == device.id:
-                    device.tx_power = agent.action
+            for pair in self.d2d_pairs:
+                if agent.id == pair[0].id:
+                    pair[0].tx_power = agent.action
 
+        mue_tx_power = self.mue.get_tx_power(self.bs, self.params.sinr_threshold, self.params.noise_power, self.params.mue_margin, self.params.p_max)
+        self.mue.set_tx_power(mue_tx_power)
         sinr_m = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power, self.params.bs_gain, self.params.user_gain)
 
         sinr_d2ds = list()
@@ -122,10 +129,10 @@ class CompleteEnvironment(RLEnvironment):
 
         done = False
         if self.early_stop:                        
-            if abs(np.sum(rewards) - self.reward) <= self.change_tolerance:
+            if torch.abs(torch.sum(rewards) - self.reward) <= self.change_tolerance:
                 done = True
 
-        self.reward = np.sum(rewards)
+        self.reward = torch.sum(rewards)
 
         self.mue_spectral_eff.append(mue_se)
         self.d2d_spectral_eff.append(d2d_se)

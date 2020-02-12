@@ -4,6 +4,7 @@ lucas_path = os.environ['LUCAS_PATH']
 sys.path.insert(1, lucas_path)
 
 from enum import Enum
+from pathloss.pathloss import pathloss_bs_users
 import numpy as np
 import scipy.spatial as spatial
 
@@ -34,6 +35,9 @@ class node:
     
     def set_sinr(self, sinr):
         self.sinr = sinr
+
+    def set_gain(self, gain: float):
+        self.gain = gain
     
 
 class base_station(node):
@@ -57,6 +61,13 @@ class mobile_user(node):
     def __init__(self, id):
         super(mobile_user, self).__init__()
         self.id = f'MUE:{id}'
+
+    def get_tx_power(self, bs:base_station, snr: float, noise_power: float, margin: float, p_max: float):
+        tx_power = snr * noise_power * pathloss_bs_users(self.distance_to_bs)/ (self.gain * bs.gain)
+        tx_power *= margin
+        if tx_power > p_max:
+            tx_power = p_max
+        return tx_power
 
 class d2d_node_type(Enum):
     TX = 'TX'

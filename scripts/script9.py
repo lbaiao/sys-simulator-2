@@ -3,6 +3,7 @@
 #     In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
 #     (PIMRC) (pp. 1-6). IEEE.
 #  In this simulation, the agent state is based on its position and the MUE sinr. The reward function is the Distributed Reward.
+#  The reinforcement learning algorithm is Deep Q Learning
 
 import sys
 import os
@@ -25,6 +26,7 @@ from matplotlib import pyplot as plt
 import torch
 import math
 import numpy as np
+import os
 
 n_mues = 1 # number of mues
 n_d2d = 2  # number of d2d pairs
@@ -37,8 +39,9 @@ p_max = 23  # max tx power in dBm
 noise_power = -116  # noise power per RB in dBm
 bs_gain = 17    # macro bs antenna gain in dBi
 user_gain = 4   # user antenna gain in dBi
-sinr_threshold_train = 84  # mue sinr threshold in dB for training
+sinr_threshold_train = 6  # mue sinr threshold in dB for training
 sinr_threshold_mue = 6  # true mue sinr threshold in dB
+mue_margin = .5e4
 
 # conversions from dB to pow
 p_max = p_max - 30
@@ -52,14 +55,17 @@ sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
 # q-learning parameters
 # MAX_NUM_EPISODES = 2500
 # MAX_NUM_EPISODES = 8000
-MAX_NUM_EPISODES = int(1.2e4)
-STEPS_PER_EPISODE = 4000
+# MAX_NUM_EPISODES = int(1.2e4)
+# MAX_NUM_EPISODES = int(6e3)
+STEPS_PER_EPISODE = 100
 # STEPS_PER_EPISODE = 200
 # STEPS_PER_EPISODE = 1000
 EPSILON_MIN = 0.01
 # MAX_NUM_STEPS = 50
 # EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
 EPSILON_DECAY = 10 * EPSILON_MIN / STEPS_PER_EPISODE
+# MAX_NUM_EPISODES = int(1/EPSILON_DECAY)
+MAX_NUM_EPISODES = 100
 # EPSILON_DECAY = 8e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
 ALPHA = 0.05  # Learning rate
@@ -69,13 +75,13 @@ TARGET_UPDATE = 10
 
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_train,
-                                        n_mues, n_d2d, n_rb, bs_radius, c_param=C)
+                                        n_mues, n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin)
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 128, GAMMA)
 
-actions = [i*p_max/10 + 1e-9 for i in range(11)]
+actions = [i*p_max/10/1000 + 1e-9 for i in range(11)]
 agents = [DQNAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-reward_function = rewards.dis_reward
+reward_function = rewards.dis_reward_tensor
 environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
 
 
@@ -83,6 +89,7 @@ environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, 
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
 def train(agents: List[DQNAgent], env: CompleteEnvironment, params: TrainingParameters):
     best_reward = -1e9
+    device = torch.device('cuda')
     for episode in range(params.max_episodes):
         # TODO: atualmente redistribuo os usuarios aleatoriamente a cada episodio. Isto é o melhor há se fazer? 
         # Simular deslocamento dos usuários?
@@ -95,21 +102,20 @@ def train(agents: List[DQNAgent], env: CompleteEnvironment, params: TrainingPara
             if i >= params.steps_per_episode:
                 break
             else:
-                actions = torch.zeros([len(agents)], device='cuda')
+                actions = torch.zeros([len(agents)], device=device)
                 for j, agent in enumerate(agents):
                     actions[j] = agent.get_action(obs[j])                
                 next_obs, rewards, done = env.step(agents)
                 i += 1
                 for j, agent in enumerate(agents):
-                    agent.replay_memory.push(obs[j].values, actions[j], next_obs[j], rewards[j])
+                    agent.replay_memory.push(obs[j], actions[j], next_obs[j], rewards[j])
                     agent.learn()
                 obs = next_obs
-                total_reward += np.sum(rewards)
+                total_reward += torch.sum(rewards)
                 obs = next_obs
-                total_reward += sum(rewards)
-            if episode % TARGET_UPDATE == 0:
-                for j, agent in enumerate(agents):
-                    agent.target_net.load_state_dict(agent.policy_net.state_dict())
+                if episode % TARGET_UPDATE == 0:
+                    for j, agent in enumerate(agents):
+                        agent.target_net.load_state_dict(agent.policy_net.state_dict())
             if total_reward > best_reward:
                 best_reward = total_reward
             print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
@@ -120,7 +126,7 @@ def train(agents: List[DQNAgent], env: CompleteEnvironment, params: TrainingPara
     return 0
 
 
-def test(agents: List[DQNAgent], env: CompleteEnvironment, policies: np.array, num_episodes: int, episode_steps: int):
+def test(agents: List[DQNAgent], env: CompleteEnvironment, num_episodes: int, episode_steps: int):
     mue_spectral_effs = list()
     d2d_spectral_effs = list()    
     done = False
@@ -149,6 +155,11 @@ def test(agents: List[DQNAgent], env: CompleteEnvironment, policies: np.array, n
 # SCRIPT EXEC
 # training
 train(agents, environment, train_params)
+
+cwd = os.getcwd()
+
+for i, a in enumerate(agents):
+    torch.save(a.policy_net.state_dict(), f'{cwd}/models/model_dqn_agent{i}.pt')
 
 # filename = gen.path_leaf(__file__) 
 # filename =  filename.split('.')[0]

@@ -3,7 +3,8 @@
 #     In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
 #     (PIMRC) (pp. 1-6). IEEE.
 #  In this simulation, the agent state is based on its position and the MUE sinr. The reward function is the Centralized Reward.
-#  Good results were obtained with QTable
+#  Good results were obtained with the ModQTable
+#  Same as script 7 but agents randomly await i steps before taking another action, where i \in {2,3,4}
 
 import sys
 import os
@@ -53,15 +54,15 @@ sinr_threshold = gen.db_to_power(sinr_threshold)
 # q-learning parameters
 # MAX_NUM_EPISODES = 2500
 # MAX_NUM_EPISODES = 8000
-STEPS_PER_EPISODE = 2000
+STEPS_PER_EPISODE = 200
 # STEPS_PER_EPISODE = 1000
-EPSILON_MIN = 0.01
+EPSILON_MIN = 0.05
 # MAX_NUM_STEPS = 50
 # EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 2e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 8e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
-EPSILON_DECAY = 10 * EPSILON_MIN / STEPS_PER_EPISODE
-MAX_NUM_EPISODES = int(0.3/EPSILON_DECAY/3.1)
+EPSILON_DECAY = 1.6e-4
+MAX_NUM_EPISODES = 10000
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
@@ -80,10 +81,15 @@ q_tables = [QTable(len(actions)*2, len(actions), learn_params) for a in agents]
 reward_function = rewards.centralized_reward
 environment = DistanceEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
 
-
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
 def train(agents: List[DistanceAgent], env: DistanceEnvironment, params: TrainingParameters, q_tables: List[QTable]):
+    counts = np.zeros(len(agents))
+    awaits = list()
+    await_steps = [2,3,4]
+    for a in agents:
+        awaits.append(np.random.choice(await_steps))
+        a.set_action(0)
     best_reward = -1e9
     rewards = list()
     for episode in range(params.max_episodes):
@@ -99,7 +105,12 @@ def train(agents: List[DistanceAgent], env: DistanceEnvironment, params: Trainin
                 break
             else:
                 for j in range(len(agents)):
-                    agents[j].get_action(obs[j], q_tables[j])                
+                    if counts[j] < awaits[j]:
+                        counts[j] += 1
+                    else:
+                        agents[j].get_action(obs[j], q_tables[j])                
+                        counts[j] = 0
+                        awaits[j] = np.random.choice(await_steps)
                 next_obs, reward, done = env.step(agents)
                 i += 1
                 for m in range(len(agents)):

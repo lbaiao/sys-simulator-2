@@ -106,7 +106,7 @@ env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 128, GAMMA)
 
-actions = torch.tensor([i*p_max/10 + 1e-9 for i in range(11)])
+actions = torch.tensor([i*p_max/10/1000 + 1e-9 for i in range(11)])
 reward_function = rewards.dis_reward_tensor
 environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
 

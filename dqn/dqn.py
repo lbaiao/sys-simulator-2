@@ -39,13 +39,13 @@ class DQN(torch.nn.Module):
     """
     def __init__(self):
         super(DQN, self).__init__()
-        self.linear1 = torch.nn.Linear(5,5).cuda()
-        self.linear2 = torch.nn.Linear(5,5).cuda()
-        self.linear3 = torch.nn.Linear(5,5).cuda()
-        self.linear4 = torch.nn.Linear(5,5).cuda()
-        self.linear5 = torch.nn.Linear(5,5).cuda()
-        self.linear6 = torch.nn.Linear(5,5).cuda()
-        self.linear7 = torch.nn.Linear(5,11).cuda()
+        self.linear1 = torch.nn.Linear(5,8).cuda()
+        self.linear2 = torch.nn.Linear(8,16).cuda()
+        self.linear3 = torch.nn.Linear(16,16).cuda()
+        self.linear4 = torch.nn.Linear(16,16).cuda()
+        self.linear5 = torch.nn.Linear(16,16).cuda()
+        self.linear6 = torch.nn.Linear(16,16).cuda()
+        self.linear7 = torch.nn.Linear(16,11).cuda()
 
     def forward(self, x):
         h_tanh1 = self.linear1(x).relu().cuda()

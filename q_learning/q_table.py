@@ -7,6 +7,7 @@ from parameters.parameters import LearningParameters
 import numpy as np
 import torch
 
+
 class QTable:
     def __init__(self, num_states: int, num_actions: int, params: LearningParameters):
         self.table = np.zeros((num_states, num_actions))
@@ -17,6 +18,20 @@ class QTable:
     def learn(self, obs, action_index, reward, next_obs):
         deltaQ = reward + self.gamma*np.max(self.table[next_obs]) - self.table[obs, action_index]
         self.table[obs, action_index] = self.table[obs,action_index] + self.alpha*deltaQ
+
+
+class QTensor:
+    def __init__(self, tensor: np.array, params: LearningParameters):
+        self.tensor = tensor
+        self.gamma = params.gamma
+        self.alpha = params.alpha
+
+
+    # calculates Q-table values
+    def learn(self, state_action_tuple, reward, next_obs):
+        deltaQ = reward + self.gamma*np.max(axis=len(self.tensor.shape)-1) - self.tensor[state_action_tuple]
+        self.tensor[state_action_tuple] = self.tensor[state_action_tuple] + self.alpha*deltaQ
+
 
 class QTableTorch:
     def __init__(self, num_states: int, num_actions: int, params: LearningParameters):

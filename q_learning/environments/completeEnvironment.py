@@ -95,7 +95,7 @@ class CompleteEnvironment(RLEnvironment):
                 if dist < d2d_tx_distance_to_nearest:
                     d2d_tx_distance_to_nearest = dist
              
-        interference_indicator = int(sinr < self.params.sinr_threshold)
+        interference_indicator = int(sinr > self.params.sinr_threshold)
         
         state = torch.tensor([[number_of_d2d_pairs, d2d_tx_distance_to_bs, d2d_rx_distance_to_mue, mue_distance_to_bs, interference_indicator]], device=self.device)
         # state = pd.DataFrame(state, columns=['number_of_d2d_pairs', 'd2d_tx_distance_to_bs', 'd2d_rx_distance_to_mue', 'mue_distance_to_bs', 'interference_indicator'])        
@@ -135,7 +135,7 @@ class CompleteEnvironment(RLEnvironment):
         self.reward = torch.sum(rewards)
 
         self.mue_spectral_eff.append(mue_se)
-        self.d2d_spectral_eff.append(d2d_se)
+        self.d2d_spectral_eff.append(d2d_se)        
 
         return states, rewards, done
     

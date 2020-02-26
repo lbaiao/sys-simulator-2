@@ -34,8 +34,7 @@ class ReplayMemory(object):
 
 
 class DQN(torch.nn.Module):
-    """
-    
+    """    
     """
     def __init__(self):
         super(DQN, self).__init__()
@@ -53,7 +52,8 @@ class DQN(torch.nn.Module):
         h_tanh3 = self.linear3(h_tanh2).relu().cuda()
         h_tanh4 = self.linear4(h_tanh3).relu().cuda()
         h_tanh5 = self.linear5(h_tanh4).relu().cuda()
-        h_tanh6 = self.linear6(h_tanh5).relu().cuda()
+        h_tanh6 = self.linear6(h_tanh5).relu().cuda()        
         y_pred = self.linear7(h_tanh6).softmax(1).cuda()
+        self.q_values = h_tanh6
         return y_pred
 

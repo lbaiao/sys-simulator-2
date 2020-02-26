@@ -60,12 +60,12 @@ sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
 STEPS_PER_EPISODE = 100
 # STEPS_PER_EPISODE = 200
 # STEPS_PER_EPISODE = 1000
-EPSILON_MIN = 0.01
+EPSILON_MIN = 0.05
 # MAX_NUM_STEPS = 50
 # EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
-EPSILON_DECAY = 1 * EPSILON_MIN / STEPS_PER_EPISODE
+EPSILON_DECAY = 0.809*1e-4
 # MAX_NUM_EPISODES = int(1/EPSILON_DECAY)
-MAX_NUM_EPISODES = 1000
+MAX_NUM_EPISODES = 20000
 # EPSILON_DECAY = 8e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
 ALPHA = 0.05  # Learning rate
@@ -77,7 +77,7 @@ TARGET_UPDATE = 10
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_train,
                                         n_mues, n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin)
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
-agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 128, GAMMA)
+agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 512, GAMMA)
 
 actions = [i*p_max/10/1000 + 1e-9 for i in range(11)]
 agents = [DQNAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
@@ -88,8 +88,15 @@ environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, 
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
 def train(agents: List[DQNAgent], env: CompleteEnvironment, params: TrainingParameters):
+    counts = np.zeros(len(agents))
+    awaits = list()
+    await_steps = [2,3,4]
+    for a in agents:
+        awaits.append(np.random.choice(await_steps))
+        a.set_action(torch.tensor(0).long().cuda(), a.actions[0])
     best_reward = -1e9
     device = torch.device('cuda')
+    rewards_bag = list()
     for episode in range(params.max_episodes):
         # TODO: atualmente redistribuo os usuarios aleatoriamente a cada episodio. Isto é o melhor há se fazer? 
         # Simular deslocamento dos usuários?
@@ -104,14 +111,21 @@ def train(agents: List[DQNAgent], env: CompleteEnvironment, params: TrainingPara
             else:
                 actions = torch.zeros([len(agents)], device=device)
                 for j, agent in enumerate(agents):
-                    actions[j] = agent.get_action(obs[j])                
-                next_obs, rewards, done = env.step(agents)
+                    if counts[j] < awaits[j]:
+                        counts[j] += 1
+                    else:
+                        agents[j].get_action(obs[j])                
+                        counts[j] = 0
+                        awaits[j] = np.random.choice(await_steps)
+                # for j, agent in enumerate(agents):
+                #     actions[j] = agent.get_action(obs[j])       
+                next_obs, rewards, done = env.step(agents)                
                 i += 1
                 for j, agent in enumerate(agents):
                     agent.replay_memory.push(obs[j], actions[j], next_obs[j], rewards[j])
                     agent.learn()
                 obs = next_obs
-                total_reward += torch.sum(rewards)
+                total_reward += torch.sum(rewards)                
                 obs = next_obs
                 if episode % TARGET_UPDATE == 0:
                     for j, agent in enumerate(agents):
@@ -120,46 +134,35 @@ def train(agents: List[DQNAgent], env: CompleteEnvironment, params: TrainingPara
                 best_reward = total_reward
             print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
                                      total_reward, best_reward, agents[0].epsilon))
+        rewards_bag.append(total_reward)
+        
     
     # Return the trained policy
     # policies = [np.argmax(q.table, axis=1) for q in q_tables]
-    return 0
-
-
-def test(agents: List[DQNAgent], env: CompleteEnvironment, num_episodes: int, episode_steps: int):
-    mue_spectral_effs = list()
-    d2d_spectral_effs = list()    
-    done = False
-    for _ in range(num_episodes):
-        env.build_scenario(agents)
-        done = False
-        obs = [env.get_state(a) for a in agents] 
-        total_reward = 0.0
-        i = 0
-        while not done:            
-            actions_indexes = np.zeros(len(agents), dtype=int)        
-            for m in range(len(agents)):
-                actions_indexes[m] = policies[m][obs[m]]
-                agents[m].set_action(actions_indexes[m])
-            next_obs, rewards, done = env.step(agents)
-            obs = next_obs
-            total_reward += sum(rewards)
-            i +=1
-            if i >= episode_steps:
-                break
-        mue_spectral_effs.append(env.mue_spectral_eff)
-        d2d_spectral_effs.append(env.d2d_spectral_eff)
-    return total_reward, mue_spectral_effs, d2d_spectral_effs
+    return torch.tensor(rewards_bag)
 
             
 # SCRIPT EXEC
 # training
-train(agents, environment, train_params)
+# train(agents, environment, train_params)
+rewards = train(agents, environment, train_params)
+# rewards = rb_bandwidth*rewards
 
 cwd = os.getcwd()
 
 for i, a in enumerate(agents):
     torch.save(a.policy_net.state_dict(), f'{cwd}/models/model_dqn_agent{i}.pt')
+
+bags = [torch.tensor(a.bag) for a in agents]
+plt.figure(1)
+plt.plot(bags[0], '*', label='agent 1')
+plt.plot(bags[1], '*', label='agent 2')
+plt.legend()
+
+plt.figure(2)
+plt.plot(rewards)
+
+plt.show()
 
 # filename = gen.path_leaf(__file__) 
 # filename =  filename.split('.')[0]

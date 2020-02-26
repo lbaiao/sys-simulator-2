@@ -73,6 +73,7 @@ class DQNAgent(Agent):
         reward_batch = torch.tensor(batch.reward, device=self.device).reshape(self.batchsize, 1).float()
 
         state_action_values = self.policy_net(state_batch).gather(1, action_batch.long())
+        self.bag.append(torch.mean(self.policy_net.q_values)) # metrics
         next_state_values = torch.zeros(self.batchsize, device=self.device)
         next_state_values = self.target_net(next_state_batch).max(1)[0].detach().unsqueeze(1)
 

@@ -244,11 +244,11 @@ d2d_speffs_avg7 = np.average(d2d_spectral_effs7)
 # d2d_speffs_avg10 = np.average(d2d_spectral_effs10)
 
 
-mue_success_rate1 = np.average(mue_spectral_effs1 > sinr_threshold)
-mue_success_rate2 = np.average(mue_spectral_effs2 > sinr_threshold)
-# mue_success_rate5 = np.average(mue_spectral_effs5 > sinr_threshold)
-mue_success_rate6 = np.average(mue_spectral_effs6 > sinr_threshold)
-mue_success_rate7 = np.average(mue_spectral_effs7 > sinr_threshold)
+mue_success_rate1 = np.average(mue_spectral_effs1 > np.log2(1 + sinr_threshold))
+mue_success_rate2 = np.average(mue_spectral_effs2 > np.log2(1 + sinr_threshold))
+# mue_success_rate5 = np.average(mue_spectral_effs5 > np.log2(1 + sinr_threshold))
+mue_success_rate6 = np.average(mue_spectral_effs6 > np.log2(1 + sinr_threshold))
+mue_success_rate7 = np.average(mue_spectral_effs7 > np.log2(1 + sinr_threshold))
 # mue_success_rate10 = np.average(mue_spectral_effs10 > sinr_threshold)
 
 log = list()

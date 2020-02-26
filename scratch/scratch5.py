@@ -39,12 +39,10 @@ def test(agents: List[DQNAgent], env: CompleteEnvironment, num_episodes: int, ep
         obs = [env.get_state(a) for a in agents] 
         total_reward = 0.0
         i = 0
-        while not done:            
-            actions = torch.zeros([len(agents)], device=device)
+        while not done:                        
             for j, agent in enumerate(agents):
                     aux = agent.act(obs[j]).max(1)
-                    actions[j] = aux[1]
-                    agent.set_action(aux[1].long(), aux[0])
+                    agent.set_action(aux[1].long(), agent.actions[aux[1]])
             next_obs, rewards, done = env.step(agents)
             obs = next_obs
             total_reward += sum(rewards)
@@ -66,7 +64,6 @@ p_max = 23  # max tx power in dBm
 noise_power = -116  # noise power per RB in dBm
 bs_gain = 17    # macro bs antenna gain in dBi
 user_gain = 4   # user antenna gain in dBi
-sinr_threshold_train = 84  # mue sinr threshold in dB for training
 sinr_threshold_mue = 6  # true mue sinr threshold in dB
 mue_margin = .5e4
 
@@ -78,7 +75,7 @@ noise_power = noise_power - 30
 noise_power = gen.db_to_power(noise_power)
 bs_gain = gen.db_to_power(bs_gain)
 user_gain = gen.db_to_power(user_gain)
-sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
+sinr_threshold_mue = gen.db_to_power(sinr_threshold_mue)
 
 # q-learning parameters
 # MAX_NUM_EPISODES = 2500
@@ -101,7 +98,7 @@ C = 8000 # C constant for the improved reward function
 TARGET_UPDATE = 10
 
 # more parameters
-env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_train,
+env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_mue,
                                         n_mues, n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin)
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 128, GAMMA)
@@ -128,7 +125,7 @@ d2d_spectral_effs = torch.reshape(d2d_spectral_effs, (1, torch.prod(torch.tensor
 
 d2d_speffs_avg = torch.sum(d2d_spectral_effs)/d2d_spectral_effs.shape[1]
 
-mue_success_rate = torch.sum(mue_spectral_effs > sinr_threshold_mue) / mue_spectral_effs.shape[1]
+mue_success_rate = torch.sum(mue_spectral_effs > np.log2(1 + sinr_threshold_mue)).float() / mue_spectral_effs.shape[1]
 
 log = list()
 log.append(f'D2D SPECTRAL EFFICIENCY - SCRIPT: {d2d_speffs_avg}')

@@ -9,6 +9,7 @@ from parameters.parameters import DQNAgentParameters
 from q_learning.agents.agent import Agent
 from dqn.replayMemory import ReplayMemory, Transition
 from dqn.dqn import DQN
+from dqn.externalDQNFramework import ExternalDQNFramework
 import torch
 
 class DQNAgent(Agent):
@@ -73,7 +74,8 @@ class DQNAgent(Agent):
         reward_batch = torch.tensor(batch.reward, device=self.device).reshape(self.batchsize, 1).float()
 
         state_action_values = self.policy_net(state_batch).gather(1, action_batch.long())
-        self.bag.append(torch.mean(self.policy_net.q_values)) # metrics
+        # self.bag.append(torch.mean(self.policy_net.q_values)) # metrics, q values average
+        self.bag.append(torch.mean(self.policy_net.q_values[0,:])) # metrics, first q value average
         next_state_values = torch.zeros(self.batchsize, device=self.device)
         next_state_values = self.target_net(next_state_batch).max(1)[0].detach().unsqueeze(1)
 
@@ -87,6 +89,44 @@ class DQNAgent(Agent):
         for param in self.policy_net.parameters():
             param.grad.data.clamp_(-1,1)
         self.optimizer.step()
+
+
+class ExternalDQNAgent(Agent):
+    """
+    don't forget to set the agent actions with the set_actions method
+    Same as DQNAgent, but the agent does not have its own DQN.
+    """
+    def __init__(self, params: DQNAgentParameters, actions):
+        super(ExternalDQNAgent, self).__init__(params, actions)
+        self.device = torch.device("cuda")        
+
+    def set_distance_to_bs(self, distance: float):
+        self.distance_to_bs = distance
+    
+    def get_action(self, policy: ExternalDQNFramework, obs):
+        if self.epsilon > self.epsilon_min:
+            self.epsilon -= self.epsilon_decay
+        if np.random.random() > self.epsilon:
+            # aux = torch.tensor([obs[0]], device=self.device)
+            self.action_index = torch.tensor(policy.policy_net(obs), device=self.device).max(1)[1][0]
+            self.action = self.actions[self.action_index]
+        else:
+            self.action_index = torch.tensor(np.random.choice([i for i in range(len(self.actions))])).cpu()
+            self.action_index = torch.tensor(self.action_index, device=self.device)
+            self.action = self.actions[self.action_index]
+        return self.action
+    
+
+    def act(self, policy: ExternalDQNFramework, obs: torch.Tensor):
+        return policy.policy_net(obs)
+
+
+    def set_action(self, action_index: torch.Tensor, action: torch.Tensor):
+        self.action_index = action_index.long()
+        self.action = action    
+
+
+
 
 
         

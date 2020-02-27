@@ -16,7 +16,10 @@ from devices.devices import node, base_station, mobile_user, d2d_user, d2d_node_
 from pathloss import pathloss
 from plots.plots import plot_positions, plot_spectral_effs
 from q_learning.environments.completeEnvironment import CompleteEnvironment
-from dqn.agents.dqnAgent import DQNAgent
+from dqn.agents.dqnAgent import ExternalDQNAgent
+from dqn.externalDQNFramework import ExternalDQNFramework
+from dqn.replayMemory import ReplayMemory
+from dqn.dqn import DQN
 from q_learning.q_table import DistributedQTable
 from q_learning import rewards
 from parameters.parameters import EnvironmentParameters, TrainingParameters, DQNAgentParameters, LearningParameters
@@ -27,6 +30,7 @@ import torch
 import math
 import numpy as np
 import os
+import pickle
 
 n_mues = 1 # number of mues
 n_d2d = 2  # number of d2d pairs
@@ -53,23 +57,15 @@ user_gain = gen.db_to_power(user_gain)
 sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
 
 # q-learning parameters
-# MAX_NUM_EPISODES = 2500
-# MAX_NUM_EPISODES = 8000
-# MAX_NUM_EPISODES = int(1.2e4)
-# MAX_NUM_EPISODES = int(6e3)
 STEPS_PER_EPISODE = 100
-# STEPS_PER_EPISODE = 200
-# STEPS_PER_EPISODE = 1000
 EPSILON_MIN = 0.05
 # MAX_NUM_STEPS = 50
-# EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
+EPSILON_DECAY = 0.4045*1e-4    # super long training
 # EPSILON_DECAY = 0.809*1e-4    # long training
-EPSILON_DECAY = 8.09*1e-4      # short training
-# MAX_NUM_EPISODES = int(1/EPSILON_DECAY)
+# EPSILON_DECAY = 8.09*1e-4      # short training
+MAX_NUM_EPISODES = 40000      # super long training
 # MAX_NUM_EPISODES = 20000      # long training
-MAX_NUM_EPISODES = 2000        # short training
-# EPSILON_DECAY = 8e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
-# EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
+# MAX_NUM_EPISODES = 2000        # short training
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
 C = 8000 # C constant for the improved reward function
@@ -81,22 +77,23 @@ env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 512, GAMMA)
 
-actions = [i*p_max/10/1000 + 1e-9 for i in range(11)]
-agents = [DQNAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
+extFramework = ExternalDQNFramework(agent_params)
+actions = [i*p_max/10/1000 for i in range(11)]
+agents = [ExternalDQNAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 reward_function = rewards.dis_reward_tensor
 environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
 
 
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
-def train(agents: List[DQNAgent], env: CompleteEnvironment, params: TrainingParameters):
+def train(agents: List[ExternalDQNAgent], framework: ExternalDQNFramework, env: CompleteEnvironment, params: TrainingParameters):
     counts = np.zeros(len(agents))
     awaits = list()
     await_steps = [2,3,4]
     for a in agents:
         awaits.append(np.random.choice(await_steps))
         a.set_action(torch.tensor(0).long().cuda(), a.actions[0])
-    best_reward = -1e9
+    best_reward = float('-inf')
     device = torch.device('cuda')
     rewards_bag = list()
     for episode in range(params.max_episodes):
@@ -116,7 +113,7 @@ def train(agents: List[DQNAgent], env: CompleteEnvironment, params: TrainingPara
                     if counts[j] < awaits[j]:
                         counts[j] += 1
                     else:
-                        agent.get_action(obs[j])
+                        agent.get_action(framework, obs[j])
                         actions[j] = agent.action_index                
                         counts[j] = 0
                         awaits[j] = np.random.choice(await_steps)
@@ -125,14 +122,13 @@ def train(agents: List[DQNAgent], env: CompleteEnvironment, params: TrainingPara
                 next_obs, rewards, done = env.step(agents)                
                 i += 1
                 for j, agent in enumerate(agents):
-                    agent.replay_memory.push(obs[j], actions[j], next_obs[j], rewards[j])
-                    agent.learn()
+                    framework.replay_memory.push(obs[j], actions[j], next_obs[j], rewards[j])
+                    framework.learn()
                 obs = next_obs
                 total_reward += torch.sum(rewards)                
                 obs = next_obs
                 if episode % TARGET_UPDATE == 0:
-                    for j, agent in enumerate(agents):
-                        agent.target_net.load_state_dict(agent.policy_net.state_dict())
+                    framework.target_net.load_state_dict(framework.policy_net.state_dict())
             if total_reward > best_reward:
                 best_reward = total_reward
             print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
@@ -148,18 +144,22 @@ def train(agents: List[DQNAgent], env: CompleteEnvironment, params: TrainingPara
 # SCRIPT EXEC
 # training
 # train(agents, environment, train_params)
-rewards = train(agents, environment, train_params)
+rewards = train(agents, extFramework, environment, train_params)
 # rewards = rb_bandwidth*rewards
 
 cwd = os.getcwd()
 
-for i, a in enumerate(agents):
-    torch.save(a.policy_net.state_dict(), f'{cwd}/models/model_dqn_agent{i}.pt')
+torch.save(extFramework.policy_net.state_dict(), f'{cwd}/models/ext_model_dqn_agent.pt')
+filename = gen.path_leaf(__file__)
+filename = filename.split('.')[0]
+filename = f'{lucas_path}/logs/{filename}.pickle'
+with open(filename, 'w') as data_file:
+    pickle.dump(extFramework.bag, data_file)
 
-bags = [torch.tensor(a.bag) for a in agents]
 plt.figure(1)
-plt.plot(bags[0], '*', label='agent 1')
-plt.plot(bags[1], '*', label='agent 2')
+plt.plot(extFramework.bag, '*', label='agent 1')
+plt.xlabel('Iterations')
+plt.ylabel('Average Q-Values')
 plt.legend()
 
 plt.figure(2)

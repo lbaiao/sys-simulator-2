@@ -152,9 +152,8 @@ cwd = os.getcwd()
 torch.save(extFramework.policy_net.state_dict(), f'{cwd}/models/ext_model_dqn_agent.pt')
 filename = gen.path_leaf(__file__)
 filename = filename.split('.')[0]
-filename = f'{lucas_path}/logs/{filename}.pickle'
-with open(filename, 'w') as data_file:
-    pickle.dump(extFramework.bag, data_file)
+filename = f'{lucas_path}/data/{filename}.pickle'
+pickle.dump(extFramework.bag, data_file)
 
 plt.figure(1)
 plt.plot(extFramework.bag, '*', label='agent 1')

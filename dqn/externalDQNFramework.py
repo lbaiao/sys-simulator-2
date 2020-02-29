@@ -5,7 +5,7 @@ import torch
 
 class ExternalDQNFramework:
     def __init__(self, params: DQNAgentParameters):
-        self.replay_memory = ReplayMemory(10000)        
+        self.replay_memory = ReplayMemory(20000)        
         self.policy_net = DQN()
         self.target_net = DQN()
         self.target_net.load_state_dict(self.policy_net.state_dict())
@@ -29,9 +29,6 @@ class ExternalDQNFramework:
         torch.cat(batch.next_state, out=next_state_batch)
         action_batch = torch.tensor(batch.action, device=self.device).reshape(self.batchsize, 1).float()
         reward_batch = torch.tensor(batch.reward, device=self.device).reshape(self.batchsize, 1).float()
-        # batch normalization
-        # state_batch = (state_batch - torch.mean(state_batch))/torch.std(state_batch)
-        # next_state_batch = (next_state_batch - torch.mean(next_state_batch))/torch.std(next_state_batch)
 
         state_action_values = self.policy_net(state_batch).gather(1, action_batch.long())
         self.bag.append(torch.mean(self.policy_net.q_values)) # metrics, q values average

@@ -108,7 +108,7 @@ class ExternalDQNAgent(Agent):
             self.epsilon -= self.epsilon_decay
         if np.random.random() > self.epsilon:
             # aux = torch.tensor([obs[0]], device=self.device)
-            self.action_index = torch.tensor(policy.policy_net(obs), device=self.device).max(1)[1][0]
+            self.action_index = policy.policy_net(obs).max(1)[1][0]
             self.action = self.actions[self.action_index]
         else:
             self.action_index = torch.tensor(np.random.choice([i for i in range(len(self.actions))])).cpu()

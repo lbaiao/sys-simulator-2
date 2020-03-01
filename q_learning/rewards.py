@@ -29,6 +29,7 @@ def dis_reward(sinr_mue: float, sinr_d2ds: List[float], state: int, C: float, *a
             rewards[i] = 1/C * np.log2(1 + sinr_d2ds[i])        
     return rewards, mue_contrib, d2d_contrib
 
+
 def dis_reward_tensor(sinr_mue: float, sinr_d2ds: List[float], state: int, C: float, *args, **kwargs):
     device = torch.device('cuda')
     mue_contrib = torch.log2(1 + torch.tensor(sinr_mue, device=device))
@@ -36,6 +37,19 @@ def dis_reward_tensor(sinr_mue: float, sinr_d2ds: List[float], state: int, C: fl
     d2d_contrib = torch.sum(torch.log2(1 + sinr_d2ds))
     # d2d_contrib = torch.sum(torch.tensor([torch.log2(1 + s) for s in sinr_d2ds], device=device))
     rewards = -1 * torch.ones(len(sinr_d2ds))    
+    if state:
+        for i in range(len(sinr_d2ds)):
+            rewards[i] = 1/C * torch.log2(1 + sinr_d2ds[i])        
+    return rewards, mue_contrib, d2d_contrib
+
+
+def dis_reward_tensor2(sinr_mue: float, sinr_d2ds: List[float], state: int, C: float, *args, **kwargs):
+    device = torch.device('cuda')
+    mue_contrib = torch.log2(1 + torch.tensor(sinr_mue, device=device))
+    sinr_d2ds = torch.tensor(sinr_d2ds, device=device)
+    d2d_contrib = torch.sum(torch.log2(1 + sinr_d2ds))
+    # d2d_contrib = torch.sum(torch.tensor([torch.log2(1 + s) for s in sinr_d2ds], device=device))
+    rewards = -10/C * torch.ones(len(sinr_d2ds))    
     if state:
         for i in range(len(sinr_d2ds)):
             rewards[i] = 1/C * torch.log2(1 + sinr_d2ds[i])        

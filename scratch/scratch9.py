@@ -92,7 +92,8 @@ MAX_NUM_EPISODES = int(1.2/EPSILON_DECAY)
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
-C = 8000 # C constant for the improved reward function
+# C = 8000 # C constant for the improved reward function
+C = 80 # C constant for the improved reward function
 TARGET_UPDATE = 10
 
 # more parameters
@@ -101,8 +102,8 @@ env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 128, GAMMA)
 
-actions = torch.tensor([i*p_max/10/10000 for i in range(21)])
-reward_function = rewards.dis_reward_tensor
+actions = torch.tensor([i*0.82*p_max/10/1000 for i in range(21)])
+reward_function = rewards.dis_reward_tensor2
 environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
 
 cwd = os.getcwd()
@@ -140,6 +141,8 @@ file.close()
 
 plt.figure(1)
 plt.hist(bag)
+plt.xlabel('Actions')
+plt.ylabel('Number of occurrences')
 
 # plt.figure(1)
 # plt.plot(list(range(len(d2d_spectral_effs))), d2d_spectral_effs, '.', label='Script')

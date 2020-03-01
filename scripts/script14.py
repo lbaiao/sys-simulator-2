@@ -71,7 +71,8 @@ MAX_NUM_EPISODES = 5000      # medium training
 # MAX_NUM_EPISODES = 2000        # short training
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
-C = 8000 # C constant for the improved reward function
+# C = 8000 # C constant for the improved reward function
+C = 80 # C constant for the improved reward function
 TARGET_UPDATE = 10
 
 # more parameters
@@ -81,9 +82,11 @@ train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 512, GAMMA)
 
 extFramework = ExternalDQNFramework(agent_params)
-actions = [i*p_max/10/10000 for i in range(21)]
+# actions = [i*p_max/10/1000 for i in range(21)] # worst
+# actions = [i*0.80*p_max/10/1000 for i in range(21)] # best histogram
+actions = [i*0.82*p_max/10/1000 for i in range(21)] # best result
 agents = [ExternalDQNAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-reward_function = rewards.dis_reward_tensor
+reward_function = rewards.dis_reward_tensor2
 environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
 
 
@@ -107,6 +110,7 @@ def train(agents: List[ExternalDQNAgent], framework: ExternalDQNFramework, env: 
         obs = [env.get_state(a) for a in agents] 
         total_reward = 0.0
         i = 0
+        bag = list()
         while not done:
             if i >= params.steps_per_episode:
                 break
@@ -128,7 +132,8 @@ def train(agents: List[ExternalDQNAgent], framework: ExternalDQNFramework, env: 
                     framework.replay_memory.push(obs[j], actions[j], next_obs[j], rewards[j])
                     framework.learn()
                 obs = next_obs
-                total_reward += torch.sum(rewards)                
+                total_reward += torch.sum(rewards)      
+                bag.append(total_reward.item())      
                 obs = next_obs
                 if episode % TARGET_UPDATE == 0:
                     framework.target_net.load_state_dict(framework.policy_net.state_dict())
@@ -136,12 +141,12 @@ def train(agents: List[ExternalDQNAgent], framework: ExternalDQNFramework, env: 
                 best_reward = total_reward
             print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
                                      total_reward, best_reward, agents[0].epsilon))
-        rewards_bag.append(total_reward)
+        rewards_bag.append(np.average(bag))
         
     
     # Return the trained policy
     # policies = [np.argmax(q.table, axis=1) for q in q_tables]
-    return torch.tensor(rewards_bag)
+    return rewards_bag
 
             
 # SCRIPT EXEC
@@ -156,16 +161,16 @@ torch.save(extFramework.policy_net.state_dict(), f'{cwd}/models/ext_model_dqn_ag
 filename = gen.path_leaf(__file__)
 filename = filename.split('.')[0]
 filename = f'{lucas_path}/data/{filename}.pickle'
-pickle.dump(extFramework.bag, filename)
+with open(filename, 'wb') as f:
+    pickle.dump(extFramework.bag, f)
 
 plt.figure(1)
-plt.plot(extFramework.bag, '*', label='agent 1')
+plt.plot(extFramework.bag, '.')
 plt.xlabel('Iterations')
 plt.ylabel('Average Q-Values')
-plt.legend()
 
 plt.figure(2)
-plt.plot(rewards)
+plt.plot(rewards, '.')
 
 plt.show()
 

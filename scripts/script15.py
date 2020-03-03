@@ -58,18 +58,18 @@ EPSILON_MIN = 0.05
 # EPSILON_DECAY = 0.4045*1e-4    # super long training
 # EPSILON_DECAY = 0.809*1e-4    # long training
 # EPSILON_DECAY = 0.809*1e-4    # medium training
-EPSILON_DECAY = 3.236*1e-4    # medium training
+EPSILON_DECAY = 0.809*1e-4    # medium training
 # EPSILON_DECAY = 8.09*1e-4      # short training
 # MAX_NUM_EPISODES = 40000      # super long training
 # MAX_NUM_EPISODES = 20000      # long training
-MAX_NUM_EPISODES = 5000      # medium training
+MAX_NUM_EPISODES = 480      # medium training
 # MAX_NUM_EPISODES = 2000        # short training
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
 # C = 8000 # C constant for the improved reward function
 C = 80 # C constant for the improved reward function
 TARGET_UPDATE = 10
-MAX_NUMBER_OF_AGENTS = 3
+MAX_NUMBER_OF_AGENTS = 20
 
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_train,

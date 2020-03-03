@@ -1,9 +1,4 @@
-# Simulation implemented for the Distributed-Q Learning Based Power Control algorithm based in the algorithms found on  
-#     Nie, S., Fan, Z., Zhao, M., Gu, X. and Zhang, L., 2016, September. Q-learning based power control algorithm for D2D communication. 
-#     In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
-#     (PIMRC) (pp. 1-6). IEEE.
-#  In this simulation, the agent state is based on its position and the MUE sinr. The reward function is the Distributed Reward.
-#  The reinforcement learning algorithm is Deep Q Learning. The agents train the same DQN
+# Same as script 14, but the algorith is trained with a number of agents varying from 1 to 20.
 
 import sys
 import os
@@ -74,6 +69,7 @@ GAMMA = 0.98  # Discount factor
 # C = 8000 # C constant for the improved reward function
 C = 80 # C constant for the improved reward function
 TARGET_UPDATE = 10
+MAX_NUMBER_OF_AGENTS = 3
 
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_train,
@@ -81,30 +77,36 @@ env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 512, GAMMA)
 
-extFramework = ExternalDQNFramework(agent_params)
+ext_framework = ExternalDQNFramework(agent_params)
 # actions = [i*p_max/10/1000 for i in range(21)] # worst
 # actions = [i*0.80*p_max/10/1000 for i in range(21)] # best histogram
-actions = [i*0.82*p_max/10/1000 for i in range(21)] # best result
-agents = [ExternalDQNAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 reward_function = rewards.dis_reward_tensor2
-environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
+# environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
+environment = CompleteEnvironment(env_params, reward_function)
 
 
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
-def train(agents: List[ExternalDQNAgent], framework: ExternalDQNFramework, env: CompleteEnvironment, params: TrainingParameters):
-    counts = np.zeros(len(agents))
-    awaits = list()
-    await_steps = [2,3,4]
-    for a in agents:
-        awaits.append(np.random.choice(await_steps))
-        a.set_action(torch.tensor(0).long().cuda(), a.actions[0])
+def train(framework: ExternalDQNFramework, env: CompleteEnvironment, params: TrainingParameters, agent_params: DQNAgentParameters, max_d2d: int):    
     best_reward = 1e-16
     device = torch.device('cuda')
     rewards_bag = list()
+    aux_range = range(max_d2d)[1:]
+    epsilon = agent_params.start_epsilon
     for episode in range(params.max_episodes):
         # TODO: atualmente redistribuo os usuarios aleatoriamente a cada episodio. Isto é o melhor há se fazer? 
         # Simular deslocamento dos usuários?
+        actions = [i*0.82*p_max/10/1000 for i in range(21)] # best result
+        n_agents = np.random.choice(aux_range)
+        agents = [ExternalDQNAgent(agent_params, actions) for i in range(n_agents)] # 1 agent per d2d tx
+        counts = np.zeros(len(agents))
+        awaits = list()
+        await_steps = [2,3,4]
+        for a in agents:
+            awaits.append(np.random.choice(await_steps))
+            a.set_action(torch.tensor(0).long().cuda(), a.actions[0])
+            a.set_epsilon(epsilon)
+
         env.build_scenario(agents)
         done = False
         obs = [env.get_state(a) for a in agents] 
@@ -124,13 +126,11 @@ def train(agents: List[ExternalDQNAgent], framework: ExternalDQNFramework, env: 
                         actions[j] = agent.action_index                
                         counts[j] = 0
                         awaits[j] = np.random.choice(await_steps)
-                # for j, agent in enumerate(agents):
-                #     actions[j] = agent.get_action(obs[j])       
                 next_obs, rewards, done = env.step(agents)                
                 i += 1
                 for j, agent in enumerate(agents):
                     framework.replay_memory.push(obs[j], actions[j], next_obs[j], rewards[j])
-                    framework.learn()
+                framework.learn()
                 obs = next_obs
                 total_reward += torch.sum(rewards)      
                 bag.append(total_reward.item())      
@@ -142,30 +142,28 @@ def train(agents: List[ExternalDQNAgent], framework: ExternalDQNFramework, env: 
             print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
                                      total_reward, best_reward, agents[0].epsilon))
         rewards_bag.append(np.average(bag))
-        
+        epsilon = agents[0].epsilon
+
     
     # Return the trained policy
-    # policies = [np.argmax(q.table, axis=1) for q in q_tables]
     return rewards_bag
 
             
 # SCRIPT EXEC
 # training
-# train(agents, environment, train_params)
-rewards = train(agents, extFramework, environment, train_params)
-# rewards = rb_bandwidth*rewards
+rewards = train(ext_framework, environment, train_params, agent_params, MAX_NUMBER_OF_AGENTS)
 
 cwd = os.getcwd()
 
-torch.save(extFramework.policy_net.state_dict(), f'{cwd}/models/ext_model_dqn_agent.pt')
+torch.save(ext_framework.policy_net.state_dict(), f'{cwd}/models/ext_model_dqn_agent.pt')
 filename = gen.path_leaf(__file__)
 filename = filename.split('.')[0]
 filename = f'{lucas_path}/data/{filename}.pickle'
 with open(filename, 'wb') as f:
-    pickle.dump(extFramework.bag, f)
+    pickle.dump(ext_framework.bag, f)
 
 plt.figure(1)
-plt.plot(extFramework.bag, '.')
+plt.plot(ext_framework.bag, '.')
 plt.xlabel('Iterations')
 plt.ylabel('Average Q-Values')
 
@@ -173,31 +171,5 @@ plt.figure(2)
 plt.plot(rewards, '.')
 
 plt.show()
-
-# filename = gen.path_leaf(__file__) 
-# filename =  filename.split('.')[0]
-# np.save(f'{lucas_path}/models/{filename}', learned_policies)
-
-# testing
-# t_env = CompleteEnvironment(env_params, reward_function)
-# t_agents = [DQNAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-# total_reward, mue_spectral_effs, d2d_spectral_effs = test(t_agents, environment, learned_policies, 5, 100)
-
-# plots
-# mue_spectral_effs = np.array(mue_spectral_effs)
-# mue_spectral_effs = np.reshape(mue_spectral_effs, np.prod(mue_spectral_effs.shape))
-
-# d2d_spectral_effs = np.array(d2d_spectral_effs)
-# d2d_spectral_effs = np.reshape(d2d_spectral_effs, np.prod(d2d_spectral_effs.shape))
-
-# threshold_eff = np.log2(1 + sinr_threshold_train) * np.ones(len(mue_spectral_effs))
-
-# plt.figure(1)
-# plt.plot(list(range(len(d2d_spectral_effs))), d2d_spectral_effs, '.',label='D2D')
-# plt.plot(list(range(len(mue_spectral_effs))), mue_spectral_effs, '.',label='MUE')
-# plt.plot(list(range(len(mue_spectral_effs))), threshold_eff, label='Threshold')    
-# plt.title('Spectral efficiencies')
-# plt.legend()
-# plt.show()
 
 

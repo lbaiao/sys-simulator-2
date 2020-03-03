@@ -124,6 +124,10 @@ class ExternalDQNAgent(Agent):
     def set_action(self, action_index: torch.Tensor, action: torch.Tensor):
         self.action_index = action_index.long()
         self.action = action    
+    
+
+    def set_epsilon(self, epsilon):
+        self.epsilon = epsilon
 
 
 

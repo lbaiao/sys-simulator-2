@@ -41,7 +41,7 @@ class CompleteEnvironment(RLEnvironment):
         self.bs.set_gain(self.params.bs_gain)
         self.mue = mobile_user(0)
         self.mue.set_gain(self.params.user_gain)
-        self.d2d_pairs = [ (d2d_user(x, d2d_node_type.TX), d2d_user(x, d2d_node_type.RX)) for x in range(self.params.n_d2d) ]
+        self.d2d_pairs = [ (d2d_user(x, d2d_node_type.TX), d2d_user(x, d2d_node_type.RX)) for x in range(len(agents)) ]
         self.rb = 1
         self.distances = [1/10*i*self.bs.radius for i in range(11)]
 
@@ -68,18 +68,14 @@ class CompleteEnvironment(RLEnvironment):
         # TODO: como determinar a potencia de transmissao do mue? vou setar pmax por enquanto
         self.mue.set_tx_power(self.params.p_max)
 
-        for i in range(self.params.n_d2d):
+        for i in range(len(agents)):
             agents[i].set_d2d_tx_id(self.d2d_pairs[i][0].id)
 
         # print('SCENARIO BUILT')
 
 
     def get_state(self, agent: DistanceAgent):
-        flag = 1
         sinr = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power, self.params.bs_gain, self.params.user_gain)
-        distance_index = 0
-        mue_distance_index = 0
-
         (index, d2d_tx) = [(index, p[0]) for index, p in enumerate(self.d2d_pairs) if p[0].id == agent.id][0]                
         d2d_rx = self.d2d_pairs[index][1]
 
@@ -146,6 +142,10 @@ class CompleteEnvironment(RLEnvironment):
         else:
             state_index = 10*agent_distance + mue_distance
             return state_index
+
+    
+    def set_n_d2d(self, n_d2d):
+        self.n_d2d = n_d2d
 
 
         

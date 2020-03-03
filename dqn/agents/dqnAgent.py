@@ -117,8 +117,8 @@ class ExternalDQNAgent(Agent):
         return self.action
     
 
-    def act(self, policy: ExternalDQNFramework, obs: torch.Tensor):
-        return policy.policy_net(obs)
+    def act(self, framework: ExternalDQNFramework, obs: torch.Tensor):
+        return framework.policy_net(obs)
 
 
     def set_action(self, action_index: torch.Tensor, action: torch.Tensor):
@@ -128,9 +128,3 @@ class ExternalDQNAgent(Agent):
 
     def set_epsilon(self, epsilon):
         self.epsilon = epsilon
-
-
-
-
-
-        

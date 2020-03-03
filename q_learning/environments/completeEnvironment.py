@@ -130,8 +130,8 @@ class CompleteEnvironment(RLEnvironment):
 
         self.reward = torch.sum(rewards)
 
-        self.mue_spectral_eff.append(mue_se)
-        self.d2d_spectral_eff.append(d2d_se)        
+        self.mue_spectral_eff = mue_se
+        self.d2d_spectral_eff = d2d_se
 
         return states, rewards, done
     

@@ -17,6 +17,7 @@ class ExternalDQNFramework:
         self.gamma = params.gamma
         self.bag = list()
 
+    
     def learn(self):
         if len(self.replay_memory) < self.batchsize:
             return
@@ -46,3 +47,5 @@ class ExternalDQNFramework:
         for param in self.policy_net.parameters():
             param.grad.data.clamp_(-1,1)
         self.optimizer.step()
+
+    

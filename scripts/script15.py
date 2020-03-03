@@ -88,7 +88,7 @@ environment = CompleteEnvironment(env_params, reward_function)
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
 def train(framework: ExternalDQNFramework, env: CompleteEnvironment, params: TrainingParameters, agent_params: DQNAgentParameters, max_d2d: int):    
-    best_reward = 1e-16
+    best_reward = float('-inf')
     device = torch.device('cuda')
     rewards_bag = list()
     aux_range = range(max_d2d)[1:]
@@ -155,7 +155,7 @@ rewards = train(ext_framework, environment, train_params, agent_params, MAX_NUMB
 
 cwd = os.getcwd()
 
-torch.save(ext_framework.policy_net.state_dict(), f'{cwd}/models/ext_model_dqn_agent.pt')
+torch.save(ext_framework.policy_net.state_dict(), f'{cwd}/models/ext_model_dqn_agent_mult.pt')
 filename = gen.path_leaf(__file__)
 filename = filename.split('.')[0]
 filename = f'{lucas_path}/data/{filename}.pickle'

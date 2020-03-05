@@ -11,8 +11,8 @@ class ExternalDQNFramework:
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
         self.device = torch.device("cuda")        
-        self.optimizer = torch.optim.Adam(self.policy_net.parameters())
-        self.criterion = torch.nn.SmoothL1Loss()
+        self.optimizer = torch.optim.Adam(self.policy_net.parameters(), lr=0.003)
+        self.criterion = torch.nn.NLLLoss()
         self.batchsize = params.batchsize
         self.gamma = params.gamma
         self.bag = list()

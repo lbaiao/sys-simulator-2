@@ -28,7 +28,7 @@ class DQNAgent(Agent):
         self.device = torch.device("cuda")        
 
         self.optimizer = torch.optim.Adam(self.policy_net.parameters())
-        self.criterion = torch.nn.SmoothL1Loss()
+        self.criterion = torch.nn.NLLLoss()
 
     def set_distance_to_bs(self, distance: float):
         self.distance_to_bs = distance

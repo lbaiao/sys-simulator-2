@@ -59,7 +59,7 @@ class ReplayMemory(object):
 
 
 # class DQN(torch.nn.Module):
-#     """    
+#     """ Script 15        
 #     """
 #     def __init__(self):
 #         super(DQN, self).__init__()
@@ -84,33 +84,23 @@ class ReplayMemory(object):
 
 
 class DQN(torch.nn.Module):
-    """    
+    """ Script 16  
     """
     def __init__(self):
         super(DQN, self).__init__()
-        self.linear1 = torch.nn.Linear(5,8).cuda()
-        self.linear2 = torch.nn.Linear(8,16).cuda()
-        self.linear3 = torch.nn.Linear(16,32).cuda()
-        self.linear4 = torch.nn.Linear(32,64).cuda()
-        self.linear5 = torch.nn.Linear(64,64).cuda()
-        self.linear6 = torch.nn.Linear(64,64).cuda()
-        self.linear7 = torch.nn.Linear(64,64).cuda()
-        self.linear8 = torch.nn.Linear(64,64).cuda()
-        self.linear10 = torch.nn.Linear(64,32).cuda()
-        self.linear11 = torch.nn.Linear(32,32).cuda()
-        self.linear12 = torch.nn.Linear(32,21).cuda()
+        self.fc1 = torch.nn.Linear(5,5).cuda()
+        self.fc2 = torch.nn.Linear(5,5).cuda()
+        self.fc3 = torch.nn.Linear(5,5).cuda()
+        self.fc4 = torch.nn.Linear(5,5).cuda()
+        self.fc5 = torch.nn.Linear(5,5).cuda()
+        
 
-    def forward(self, x):
-        h_tanh1 = self.linear1(x).relu().cuda()
-        h_tanh2 = self.linear2(h_tanh1).relu().cuda()
-        h_tanh3 = self.linear3(h_tanh2).relu().cuda()
-        h_tanh4 = self.linear4(h_tanh3).relu().cuda()
-        h_tanh5 = self.linear5(h_tanh4).relu().cuda()
-        h_tanh6 = self.linear6(h_tanh5).relu().cuda()        
-        h_tanh7 = self.linear7(h_tanh6).relu().cuda()        
-        h_tanh8 = self.linear8(h_tanh7).relu().cuda()        
-        h_tanh10 = self.linear10(h_tanh8).relu().cuda()        
-        h_tanh11 = self.linear11(h_tanh10).relu().cuda()            
-        y_pred = self.linear12(h_tanh11).softmax(dim=1).cuda()
-        self.q_values = h_tanh11
-        return y_pred
+    def forward(self, state):
+        x = self.fc1(state).relu().cuda()
+        x = self.fc2(state).relu().cuda()
+        x = self.fc3(state).relu().cuda()
+        x = self.fc4(state).relu().cuda()
+        y = self.fc5(state).log_softmax(dim=1).cuda()
+                
+        self.q_values = x
+        return y

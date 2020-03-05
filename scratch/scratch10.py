@@ -25,8 +25,8 @@ import numpy as np
 import os
 
 def test(env: CompleteEnvironment, framework: ExternalDQNFramework, max_d2d: int, num_episodes: int, episode_steps: int):
-    mue_spectral_effs = [list() for i in range(max_d2d)]
-    d2d_spectral_effs = [list() for i in range(max_d2d)]   
+    mue_spectral_effs = [list() for i in range(max_d2d+1)]
+    d2d_spectral_effs = [list() for i in range(max_d2d+1)]   
     device = torch.device('cuda')
     done = False
     bag = list()
@@ -120,21 +120,22 @@ framework.policy_net.load_state_dict(torch.load(f'{cwd}/models/ext_model_dqn_age
 reward_function = rewards.dis_reward_tensor
 
 # policy 5 test
-total_reward, mue_spectral_effs, d2d_spectral_effs, bag = test(environment, framework, 10, 50, MAX_NUMBER_OF_AGENTS)
+total_reward, mue_spectral_effs, d2d_spectral_effs, bag = test(environment, framework, MAX_NUMBER_OF_AGENTS, 5000, 25)
 
 mue_success_rate = list()
 for i, m in enumerate(mue_spectral_effs):    
-    mue_success_rate.append(np.sum(m > np.log2(1 + sinr_threshold_mue)) / len(m))
+    mue_success_rate.append(np.average(m > np.log2(1 + sinr_threshold_mue)))
 
 d2d_speffs_avg = list()
 for i, d in enumerate(d2d_spectral_effs):    
-    d2d_speffs_avg.append(np.sum(d)/len(d))
+    d2d_speffs_avg.append(np.average(d))
 
 log = list()
 for i, d in enumerate(zip(d2d_speffs_avg, mue_success_rate)):
-    log.append(f'NUMBER OF D2D_USERS: {i}')
+    log.append(f'NUMBER OF D2D_USERS: {i+1}')
     log.append(f'D2D SPECTRAL EFFICIENCY - SCRIPT: {d[0]}')
     log.append(f'MUE SUCCESS RATE - SCRIPT: {d[1]}')
+    log.append(f'-------------------------------------')
 
 
 filename = gen.path_leaf(__file__)

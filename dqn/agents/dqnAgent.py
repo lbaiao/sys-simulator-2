@@ -65,6 +65,8 @@ class DQNAgent(Agent):
             return
         transitions = self.replay_memory.sample(self.batchsize)
         batch = Transition(*zip(*transitions))
+
+        self.optimizer.zero_grad()
         
         state_batch = torch.zeros([self.batchsize, batch.state[0].shape[1]], device=self.device)
         torch.cat(batch.state, out=state_batch)
@@ -83,7 +85,6 @@ class DQNAgent(Agent):
 
         loss = self.criterion(state_action_values.float(), expected_state_action_values.float())
 
-        self.optimizer.zero_grad()
         loss.backward()
 
         for param in self.policy_net.parameters():

@@ -52,17 +52,17 @@ user_gain = gen.db_to_power(user_gain)
 sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
 
 # q-learning parameters
-STEPS_PER_EPISODE = 100
+STEPS_PER_EPISODE = 25
 EPSILON_MIN = 0.05
 # MAX_NUM_STEPS = 50
 # EPSILON_DECAY = 0.4045*1e-4    # super long training
 # EPSILON_DECAY = 0.809*1e-4    # long training
 # EPSILON_DECAY = 0.809*1e-4    # medium training
-EPSILON_DECAY = 0.809*1e-4    # medium training
+EPSILON_DECAY = 1.675*1e-4    # medium training
 # EPSILON_DECAY = 8.09*1e-4      # short training
 # MAX_NUM_EPISODES = 40000      # super long training
 # MAX_NUM_EPISODES = 20000      # long training
-MAX_NUM_EPISODES = 480      # medium training
+MAX_NUM_EPISODES = 960      # medium training
 # MAX_NUM_EPISODES = 2000        # short training
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
@@ -80,7 +80,7 @@ agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 512, GAMMA)
 ext_framework = ExternalDQNFramework(agent_params)
 # actions = [i*p_max/10/1000 for i in range(21)] # worst
 # actions = [i*0.80*p_max/10/1000 for i in range(21)] # best histogram
-reward_function = rewards.dis_reward_tensor2
+reward_function = rewards.dis_reward_tensor
 # environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
 environment = CompleteEnvironment(env_params, reward_function)
 

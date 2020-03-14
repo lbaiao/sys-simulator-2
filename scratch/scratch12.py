@@ -115,7 +115,7 @@ reward_function = rewards.dis_reward_tensor2
 environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
 
 framework = ExternalDQNFramework(agent_params)
-framework.policy_net.load_state_dict(torch.load(f'{cwd}/models/script17.pt'))
+framework.policy_net.load_state_dict(torch.load(f'/home/lucas/dev/sys-simulator-2/data/script17.pickle.pt'))
 
 reward_function = rewards.dis_reward_tensor
 

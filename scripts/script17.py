@@ -63,6 +63,7 @@ EPSILON_DECAY = 3.35*1e-4    # medium training
 # MAX_NUM_EPISODES = 40000      # super long training
 # MAX_NUM_EPISODES = 20000      # long training
 MAX_NUM_EPISODES = 480      # medium training
+# MAX_NUM_EPISODES = 480      # medium training
 # MAX_NUM_EPISODES = 2000        # short training
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
@@ -150,20 +151,20 @@ def train(framework: ExternalDQNFramework, env: CompleteEnvironment, params: Tra
 
     
     # Return the trained policy
-    return (mue_spectral_eff_bag, d2d_spectral_eff_bag)
+    return mue_spectral_eff_bag, d2d_spectral_eff_bag
 
             
 # SCRIPT EXEC
 # training
-spectral_effs = train(ext_framework, environment, train_params, agent_params, MAX_NUMBER_OF_AGENTS)
-mue_spectral_effs, d2d_spectral_effs = zip(*spectral_effs)
+mue_spectral_effs, d2d_spectral_effs = train(ext_framework, environment, train_params, agent_params, MAX_NUMBER_OF_AGENTS)
+spectral_effs = zip(mue_spectral_effs, d2d_spectral_effs)
 
 cwd = os.getcwd()
 
 filename = gen.path_leaf(__file__)
 filename = filename.split('.')[0]
 filename = f'{lucas_path}/data/{filename}.pickle'
-torch.save(ext_framework.policy_net.state_dict(), f'{cwd}/models/{filename}.pt')
+torch.save(ext_framework.policy_net.state_dict(), f'{filename}.pt')
 with open(filename, 'wb') as f:
     pickle.dump(spectral_effs, f)
 

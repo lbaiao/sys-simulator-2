@@ -1,4 +1,4 @@
-# Same as script 15, but there are only 5 actions options, hence the DQN has a smaller output layer.
+# Same as script 14, but with the smaller DQN and recording the spectral efficiencies
 
 import sys
 import os
@@ -52,25 +52,23 @@ user_gain = gen.db_to_power(user_gain)
 sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
 
 # q-learning parameters
-STEPS_PER_EPISODE = 25
+STEPS_PER_EPISODE = 100
 EPSILON_MIN = 0.05
 # MAX_NUM_STEPS = 50
 # EPSILON_DECAY = 0.4045*1e-4    # super long training
 # EPSILON_DECAY = 0.809*1e-4    # long training
 # EPSILON_DECAY = 0.809*1e-4    # medium training
-EPSILON_DECAY = 3.35*1e-4    # medium training
+EPSILON_DECAY = 3.236*1e-4    # medium training
 # EPSILON_DECAY = 8.09*1e-4      # short training
 # MAX_NUM_EPISODES = 40000      # super long training
 # MAX_NUM_EPISODES = 20000      # long training
-MAX_NUM_EPISODES = 480      # medium training
-# MAX_NUM_EPISODES = 480      # medium training
+MAX_NUM_EPISODES = 5000      # medium training
 # MAX_NUM_EPISODES = 2000        # short training
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
 # C = 8000 # C constant for the improved reward function
 C = 80 # C constant for the improved reward function
 TARGET_UPDATE = 10
-MAX_NUMBER_OF_AGENTS = 20
 
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_train,
@@ -78,43 +76,36 @@ env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 512, GAMMA)
 
-ext_framework = ExternalDQNFramework(agent_params)
+extFramework = ExternalDQNFramework(agent_params)
 # actions = [i*p_max/10/1000 for i in range(21)] # worst
 # actions = [i*0.80*p_max/10/1000 for i in range(21)] # best histogram
-reward_function = rewards.dis_reward_tensor
-# environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
-environment = CompleteEnvironment(env_params, reward_function)
+actions = [i*0.82*p_max/5/1000 for i in range(5)] # best result
+agents = [ExternalDQNAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
+reward_function = rewards.dis_reward_tensor2
+environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
 
 
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
-def train(framework: ExternalDQNFramework, env: CompleteEnvironment, params: TrainingParameters, agent_params: DQNAgentParameters, max_d2d: int):    
-    best_reward = float('-inf')
+def train(agents: List[ExternalDQNAgent], framework: ExternalDQNFramework, env: CompleteEnvironment, params: TrainingParameters):
+    counts = np.zeros(len(agents))
+    awaits = list()
+    await_steps = [2,3,4]
+    for a in agents:
+        awaits.append(np.random.choice(await_steps))
+        a.set_action(torch.tensor(0).long().cuda(), a.actions[0])
+    best_reward = 1e-16
     device = torch.device('cuda')
     mue_spectral_eff_bag = list()
     d2d_spectral_eff_bag = list()
-    aux_range = range(max_d2d)[1:]
-    epsilon = agent_params.start_epsilon
     for episode in range(params.max_episodes):
         # TODO: atualmente redistribuo os usuarios aleatoriamente a cada episodio. Isto é o melhor há se fazer? 
         # Simular deslocamento dos usuários?
-        actions = [i*0.82*p_max/5/1000 for i in range(5)] # best result
-        n_agents = np.random.choice(aux_range)
-        agents = [ExternalDQNAgent(agent_params, actions) for i in range(n_agents)] # 1 agent per d2d tx
-        counts = np.zeros(len(agents))
-        awaits = list()
-        await_steps = [2,3,4]
-        for a in agents:
-            awaits.append(np.random.choice(await_steps))
-            a.set_action(torch.tensor(0).long().cuda(), a.actions[0])
-            a.set_epsilon(epsilon)
-
         env.build_scenario(agents)
         done = False
         obs = [env.get_state(a) for a in agents] 
         total_reward = 0.0
         i = 0
-        bag = list()
         while not done:
             if i >= params.steps_per_episode:
                 break
@@ -128,14 +119,15 @@ def train(framework: ExternalDQNFramework, env: CompleteEnvironment, params: Tra
                         actions[j] = agent.action_index                
                         counts[j] = 0
                         awaits[j] = np.random.choice(await_steps)
+                # for j, agent in enumerate(agents):
+                #     actions[j] = agent.get_action(obs[j])       
                 next_obs, rewards, done = env.step(agents)                
                 i += 1
                 for j, agent in enumerate(agents):
                     framework.replay_memory.push(obs[j], actions[j], next_obs[j], rewards[j])
-                framework.learn()
+                    framework.learn()
                 obs = next_obs
                 total_reward += torch.sum(rewards)      
-                bag.append(total_reward.item())      
                 obs = next_obs
                 if episode % TARGET_UPDATE == 0:
                     framework.target_net.load_state_dict(framework.policy_net.state_dict())
@@ -143,32 +135,33 @@ def train(framework: ExternalDQNFramework, env: CompleteEnvironment, params: Tra
                 best_reward = total_reward
             print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
                                      total_reward, best_reward, agents[0].epsilon))
-
             # some statistics
             mue_spectral_eff_bag.append(env.mue_spectral_eff)     # mue spectral eff
             d2d_spectral_eff_bag.append(env.d2d_spectral_eff/env.params.n_d2d)   # average d2d spectral eff        
-        epsilon = agents[0].epsilon
-
+        
     
     # Return the trained policy
+    # policies = [np.argmax(q.table, axis=1) for q in q_tables]
     return mue_spectral_eff_bag, d2d_spectral_eff_bag
 
             
 # SCRIPT EXEC
 # training
-mue_spectral_effs, d2d_spectral_effs = train(ext_framework, environment, train_params, agent_params, MAX_NUMBER_OF_AGENTS)
-spectral_effs = zip(mue_spectral_effs, d2d_spectral_effs)
+# train(agents, environment, train_params)
+rewards = train(agents, extFramework, environment, train_params)
+# rewards = rb_bandwidth*rewards
 
 cwd = os.getcwd()
 
+torch.save(extFramework.policy_net.state_dict(), f'{cwd}/models/script18.pt')
 filename = gen.path_leaf(__file__)
 filename = filename.split('.')[0]
 filename_model = filename
 filename = f'{lucas_path}/data/{filename}.pickle'
-torch.save(ext_framework.policy_net.state_dict(), f'{filename_model}.pt')
+torch.save(extFramework.policy_net.state_dict(), f'{cwd}/models/script18.pt')
 with open(filename, 'wb') as f:
-    pickle.dump(spectral_effs, f)
-
+    pickle.dump(extFramework.bag, f)
+    
 plt.figure(1)
 plt.plot(mue_spectral_effs, '.', label='MUEs')
 plt.plot(d2d_spectral_effs, '.', label='D2Ds')
@@ -177,5 +170,6 @@ plt.ylabel('Average Spectral Efficiencies')
 plt.legend()
 
 plt.show()
+
 
 

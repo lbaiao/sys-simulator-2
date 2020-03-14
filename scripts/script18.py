@@ -148,20 +148,20 @@ def train(agents: List[ExternalDQNAgent], framework: ExternalDQNFramework, env: 
 # SCRIPT EXEC
 # training
 # train(agents, environment, train_params)
-rewards = train(agents, extFramework, environment, train_params)
+mue_spectral_effs, d2d_spectral_effs = train(ext_framework, environment, train_params, agent_params, MAX_NUMBER_OF_AGENTS)
+spectral_effs = zip(mue_spectral_effs, d2d_spectral_effs)
 # rewards = rb_bandwidth*rewards
 
 cwd = os.getcwd()
 
-torch.save(extFramework.policy_net.state_dict(), f'{cwd}/models/script18.pt')
 filename = gen.path_leaf(__file__)
 filename = filename.split('.')[0]
 filename_model = filename
 filename = f'{lucas_path}/data/{filename}.pickle'
-torch.save(extFramework.policy_net.state_dict(), f'{cwd}/models/script18.pt')
+torch.save(extFramework.policy_net.state_dict(), f'{filename_model}.pt')
 with open(filename, 'wb') as f:
-    pickle.dump(extFramework.bag, f)
-    
+    pickle.dump(spectral_effs, f)
+
 plt.figure(1)
 plt.plot(mue_spectral_effs, '.', label='MUEs')
 plt.plot(d2d_spectral_effs, '.', label='D2Ds')

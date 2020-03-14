@@ -160,10 +160,10 @@ mue_spectral_effs, d2d_spectral_effs = zip(*spectral_effs)
 
 cwd = os.getcwd()
 
-torch.save(ext_framework.policy_net.state_dict(), f'{cwd}/models/ext_model_dqn_agent_mult_small_dqn.pt')
 filename = gen.path_leaf(__file__)
 filename = filename.split('.')[0]
 filename = f'{lucas_path}/data/{filename}.pickle'
+torch.save(ext_framework.policy_net.state_dict(), f'{cwd}/models/{filename}.pt')
 with open(filename, 'wb') as f:
     pickle.dump(spectral_effs, f)
 

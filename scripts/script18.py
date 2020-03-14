@@ -76,7 +76,7 @@ env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 512, GAMMA)
 
-extFramework = ExternalDQNFramework(agent_params)
+ext_framework = ExternalDQNFramework(agent_params)
 # actions = [i*p_max/10/1000 for i in range(21)] # worst
 # actions = [i*0.80*p_max/10/1000 for i in range(21)] # best histogram
 actions = [i*0.82*p_max/5/1000 for i in range(5)] # best result
@@ -148,7 +148,7 @@ def train(agents: List[ExternalDQNAgent], framework: ExternalDQNFramework, env: 
 # SCRIPT EXEC
 # training
 # train(agents, environment, train_params)
-mue_spectral_effs, d2d_spectral_effs = train(ext_framework, environment, train_params, agent_params, MAX_NUMBER_OF_AGENTS)
+mue_spectral_effs, d2d_spectral_effs = train(ext_framework, environment, train_params, agent_params)
 spectral_effs = zip(mue_spectral_effs, d2d_spectral_effs)
 # rewards = rb_bandwidth*rewards
 
@@ -158,7 +158,7 @@ filename = gen.path_leaf(__file__)
 filename = filename.split('.')[0]
 filename_model = filename
 filename = f'{lucas_path}/data/{filename}.pickle'
-torch.save(extFramework.policy_net.state_dict(), f'{filename_model}.pt')
+torch.save(ext_framework.policy_net.state_dict(), f'{filename_model}.pt')
 with open(filename, 'wb') as f:
     pickle.dump(spectral_effs, f)
 

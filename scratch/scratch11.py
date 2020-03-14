@@ -110,12 +110,12 @@ env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 128, GAMMA)
 
-actions = torch.tensor([i*0.82*p_max/10/1000 for i in range(21)])
+actions = torch.tensor([i*0.82*p_max/5/1000 for i in range(21)])
 reward_function = rewards.dis_reward_tensor2
 environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
 
 framework = ExternalDQNFramework(agent_params)
-framework.policy_net.load_state_dict(torch.load(f'{cwd}/models/ext_model_dqn_agent_mult.pt'))
+framework.policy_net.load_state_dict(torch.load(f'{cwd}/models/ext_model_dqn_agent_mult_small_dqn.pt'))
 
 reward_function = rewards.dis_reward_tensor
 

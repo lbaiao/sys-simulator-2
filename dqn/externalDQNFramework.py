@@ -6,13 +6,13 @@ import torch
 class ExternalDQNFramework:
     def __init__(self, params: DQNAgentParameters):
         self.replay_memory = ReplayMemory(20000)        
-        self.policy_net = DQN()
-        self.target_net = DQN()
-        self.target_net.load_state_dict(self.policy_net.state_dict())
-        self.target_net.eval()
         self.device = torch.device("cuda")        
+        self.policy_net = DQN().to(self.device)
+        self.target_net = DQN().to(self.device)
+        self.target_net.load_state_dict(self.policy_net.state_dict())
+        self.target_net.eval()        
         self.optimizer = torch.optim.Adam(self.policy_net.parameters(), lr=0.003)
-        self.criterion = torch.nn.NLLLoss()
+        self.criterion = torch.nn.MSELoss()
         self.batchsize = params.batchsize
         self.gamma = params.gamma
         self.bag = list()
@@ -34,7 +34,7 @@ class ExternalDQNFramework:
         reward_batch = torch.tensor(batch.reward, device=self.device).reshape(self.batchsize, 1).float()
 
         state_action_values = self.policy_net(state_batch).gather(1, action_batch.long())
-        self.bag.append(torch.mean(self.policy_net.q_values)) # metrics, q values average
+        # self.bag.append(torch.mean(state_action_values)) # metrics, q values average
         # self.bag.append(torch.mean(self.policy_net.q_values[0,:])) # metrics, first q value average
         next_state_values = torch.zeros(self.batchsize, device=self.device)
         next_state_values = self.target_net(next_state_batch).max(1)[0].detach().unsqueeze(1)
@@ -45,8 +45,8 @@ class ExternalDQNFramework:
 
         loss.backward()
 
-        for param in self.policy_net.parameters():
-            param.grad.data.clamp_(-1,1)
+        # for param in self.policy_net.parameters():
+        #     param.grad.data.clamp_(-1,1)
         self.optimizer.step()
 
     

@@ -1,4 +1,4 @@
-# Same as script 15, but the dqn is much smaller and there are only 5 actions options.
+# Same as script 15, but there are only 5 actions options, hence the DQN has a smaller output layer.
 
 import sys
 import os
@@ -90,7 +90,8 @@ environment = CompleteEnvironment(env_params, reward_function)
 def train(framework: ExternalDQNFramework, env: CompleteEnvironment, params: TrainingParameters, agent_params: DQNAgentParameters, max_d2d: int):    
     best_reward = float('-inf')
     device = torch.device('cuda')
-    rewards_bag = list()
+    mue_spectral_eff_bag = list()
+    d2d_spectral_eff_bag = list()
     aux_range = range(max_d2d)[1:]
     epsilon = agent_params.start_epsilon
     for episode in range(params.max_episodes):
@@ -141,17 +142,21 @@ def train(framework: ExternalDQNFramework, env: CompleteEnvironment, params: Tra
                 best_reward = total_reward
             print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
                                      total_reward, best_reward, agents[0].epsilon))
-        rewards_bag.append(np.average(bag))
+
+            # some statistics
+            mue_spectral_eff_bag.append(env.mue_spectral_eff)     # mue spectral eff
+            d2d_spectral_eff_bag.append(env.d2d_spectral_eff/env.params.n_d2d)   # average d2d spectral eff        
         epsilon = agents[0].epsilon
 
     
     # Return the trained policy
-    return rewards_bag
+    return (mue_spectral_eff_bag, d2d_spectral_eff_bag)
 
             
 # SCRIPT EXEC
 # training
-rewards = train(ext_framework, environment, train_params, agent_params, MAX_NUMBER_OF_AGENTS)
+spectral_effs = train(ext_framework, environment, train_params, agent_params, MAX_NUMBER_OF_AGENTS)
+mue_spectral_effs, d2d_spectral_effs = zip(*spectral_effs)
 
 cwd = os.getcwd()
 
@@ -160,15 +165,14 @@ filename = gen.path_leaf(__file__)
 filename = filename.split('.')[0]
 filename = f'{lucas_path}/data/{filename}.pickle'
 with open(filename, 'wb') as f:
-    pickle.dump(ext_framework.bag, f)
+    pickle.dump(spectral_effs, f)
 
 plt.figure(1)
-plt.plot(ext_framework.bag, '.')
-plt.xlabel('Iterations')
-plt.ylabel('Average Q-Values')
-
-plt.figure(2)
-plt.plot(rewards, '.')
+plt.plot(mue_spectral_effs, '.', label='MUEs')
+plt.plot(d2d_spectral_effs, '.', label='D2Ds')
+plt.xlabel('Iteration')
+plt.ylabel('Average Spectral Efficiencies')
+plt.legend()
 
 plt.show()
 

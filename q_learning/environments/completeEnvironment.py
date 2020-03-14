@@ -32,7 +32,7 @@ class CompleteEnvironment(RLEnvironment):
         # self.actions = [i*params.p_max/10 for i in range(11)]
         super(CompleteEnvironment, self).__init__(params, reward_function, **kwargs)
         self.states = [0,0,1]
-        self.device = torch.device('cuda')
+        self.device = torch.device('cuda')        
     
 
     def build_scenario(self, agents: List[DistanceAgent]):

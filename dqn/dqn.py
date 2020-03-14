@@ -83,24 +83,48 @@ class ReplayMemory(object):
 #         return y_pred
 
 
+# class DQN(torch.nn.Module):
+#     """ Script 16  
+#     """
+#     def __init__(self):
+#         super(DQN, self).__init__()
+#         self.fc1 = torch.nn.Linear(5,5).cuda()
+#         self.fc2 = torch.nn.Linear(5,5).cuda()
+#         self.fc3 = torch.nn.Linear(5,5).cuda()
+#         self.fc4 = torch.nn.Linear(5,5).cuda()
+#         self.fc5 = torch.nn.Linear(5,5).cuda()
+        
+
+#     def forward(self, state):
+#         x = self.fc1(state).tanh().cuda()
+#         x = self.fc2(x).tanh().cuda()
+#         x = self.fc3(x).tanh().cuda()
+#         x = self.fc4(x).tanh().cuda()
+#         y = self.fc5(x).cuda()
+                
+#         return y
+
+
 class DQN(torch.nn.Module):
-    """ Script 16  
+    """ Script 17
     """
     def __init__(self):
         super(DQN, self).__init__()
-        self.fc1 = torch.nn.Linear(5,5).cuda()
-        self.fc2 = torch.nn.Linear(5,5).cuda()
-        self.fc3 = torch.nn.Linear(5,5).cuda()
-        self.fc4 = torch.nn.Linear(5,5).cuda()
-        self.fc5 = torch.nn.Linear(5,5).cuda()
-        
+        self.linear1 = torch.nn.Linear(5,8)
+        self.linear2 = torch.nn.Linear(8,16)
+        self.linear3 = torch.nn.Linear(16,32)
+        self.linear4 = torch.nn.Linear(32,64)
+        self.linear5 = torch.nn.Linear(64,32)
+        self.linear6 = torch.nn.Linear(32,32)
+        self.linear7 = torch.nn.Linear(32,5)
 
-    def forward(self, state):
-        x = self.fc1(state).relu().cuda()
-        x = self.fc2(state).relu().cuda()
-        x = self.fc3(state).relu().cuda()
-        x = self.fc4(state).relu().cuda()
-        y = self.fc5(state).log_softmax(dim=1).cuda()
-                
-        self.q_values = x
-        return y
+    def forward(self, x):
+        h_tanh1 = self.linear1(x).relu()
+        h_tanh2 = self.linear2(h_tanh1).relu()
+        h_tanh3 = self.linear3(h_tanh2).relu()
+        h_tanh4 = self.linear4(h_tanh3).relu()
+        h_tanh5 = self.linear5(h_tanh4).relu()
+        h_tanh6 = self.linear6(h_tanh5).relu()        
+        y_pred = self.linear7(h_tanh6).softmax(1)
+        self.q_values = h_tanh6
+        return y_pred

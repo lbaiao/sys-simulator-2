@@ -148,7 +148,7 @@ def train(agents: List[ExternalDQNAgent], framework: ExternalDQNFramework, env: 
 # SCRIPT EXEC
 # training
 # train(agents, environment, train_params)
-mue_spectral_effs, d2d_spectral_effs = train(ext_framework, environment, train_params, agent_params)
+mue_spectral_effs, d2d_spectral_effs = train(agents, ext_framework, environment, train_params)
 spectral_effs = zip(mue_spectral_effs, d2d_spectral_effs)
 # rewards = rb_bandwidth*rewards
 

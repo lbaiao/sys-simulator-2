@@ -120,7 +120,7 @@ framework.policy_net.load_state_dict(torch.load(f'D:/dev/sys-simulator-2/data/sc
 reward_function = rewards.dis_reward_tensor
 
 # policy 5 test
-total_reward, mue_spectral_effs, d2d_spectral_effs, bag = test(environment, framework, MAX_NUMBER_OF_AGENTS, 2, 25)
+total_reward, mue_spectral_effs, d2d_spectral_effs, bag = test(environment, framework, MAX_NUMBER_OF_AGENTS, 5000, 25)
 
 mue_success_rate = list()
 for i, m in enumerate(mue_spectral_effs):    

@@ -151,6 +151,16 @@ plt.hist(bag)
 plt.xlabel('Actions')
 plt.ylabel('Number of occurrences')
 
+fig2, ax1 = plt.subplots()
+ax1.set_xlabel('Number of D2D pairs')
+ax1.set_ylabel('D2D Average Spectral Efficiency [bps/Hz]', color='tab:blue')
+ax1.plot(d2d_speffs_avg, '.', color='tab:blue')
+
+ax2 = ax1.twinx()
+ax2.set_ylabel('MUE Success Rate', color='tab:red')
+ax2.plot(mue_success_rate, '.', color='tab:red')
+fig2.tight_layout()
+
 # plt.figure(1)
 # plt.plot(list(range(len(d2d_spectral_effs))), d2d_spectral_effs, '.', label='Script')
 # plt.title('D2D spectral efficiencies')

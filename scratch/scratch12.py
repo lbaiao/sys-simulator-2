@@ -115,12 +115,12 @@ reward_function = rewards.dis_reward_tensor2
 environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
 
 framework = ExternalDQNFramework(agent_params)
-framework.policy_net.load_state_dict(torch.load(f'D:/dev/sys-simulator-2/data/script17.pickle.pt'))
+framework.policy_net.load_state_dict(torch.load(f'/home/lucas/dev/sys-simulator-2/data/script17.pickle.pt'))
 
 reward_function = rewards.dis_reward_tensor
 
 # policy 5 test
-total_reward, mue_spectral_effs, d2d_spectral_effs, bag = test(environment, framework, MAX_NUMBER_OF_AGENTS, 2, 25)
+total_reward, mue_spectral_effs, d2d_spectral_effs, bag = test(environment, framework, MAX_NUMBER_OF_AGENTS, 5000, 25)
 
 mue_success_rate = list()
 for i, m in enumerate(mue_spectral_effs):    
@@ -154,12 +154,12 @@ plt.ylabel('Number of occurrences')
 
 fig2, ax1 = plt.subplots()
 ax1.set_xlabel('Iteration')
-ax1.set_ylabel('D2D Average Spectral Efficiency [bps/Hz]')
-ax1.plot(d2d_speffs_avg, '.')
+ax1.set_ylabel('D2D Average Spectral Efficiency [bps/Hz]', color='tab:blue')
+ax1.plot(d2d_speffs_avg, '.', color='tab:blue')
 
 ax2 = ax1.twinx()
-ax2.set_ylabel('MUE Success Rate')
-ax2.plot(mue_success_rate, '.')
+ax2.set_ylabel('MUE Success Rate', color='tab:red')
+ax2.plot(mue_success_rate, '.', color='tab:red')
 fig2.tight_layout()
 
 

@@ -92,6 +92,7 @@ def train(agents: List[DistanceAgent], env: DistanceEnvironment, params: Trainin
         a.set_action(0)
     best_reward = -1e9
     rewards = list()
+    avg_q_values = list()
     for episode in range(params.max_episodes):
         # TODO: atualmente redistribuo os usuarios aleatoriamente a cada episodio. Isto é o melhor há se fazer? 
         # Simular deslocamento dos usuários?
@@ -121,13 +122,14 @@ def train(agents: List[DistanceAgent], env: DistanceEnvironment, params: Trainin
                 # total_reward += sum(reward)
             if total_reward > best_reward:
                 best_reward = total_reward
+            avg_q_values.append(np.mean(agents[0].q_table.table))
             print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
                                      total_reward, best_reward, agents[0].epsilon))
-        rewards.append(total_reward)
+        rewards.append(total_reward)        
     
     # Return the trained policy
     policies = [np.argmax(q.table, axis=1) for q in q_tables]
-    return policies, rewards
+    return policies, rewards, avg_q_values
 
 
 def test(agents: List[DistanceAgent], env: DistanceEnvironment, policies: np.array, num_episodes: int, episode_steps: int):
@@ -158,7 +160,7 @@ def test(agents: List[DistanceAgent], env: DistanceEnvironment, policies: np.arr
             
 # SCRIPT EXEC
 # training
-learned_policies, train_rewards = train(agents, environment, train_params, q_tables)
+learned_policies, train_rewards, avg_q_values = train(agents, environment, train_params, q_tables)
 
 filename = gen.path_leaf(__file__) 
 filename =  filename.split('.')[0]
@@ -191,6 +193,11 @@ normalized_reward = (train_rewards - np.mean(train_rewards))/np.std(train_reward
 plt.figure(2)
 plt.plot(normalized_reward, '.')
 plt.title('Total rewards')
+
+plt.figure(3)
+plt.plot(avg_q_values, '.')
+plt.xlabel('Iteration')
+plt.ylabel('Average Q-Values')
 
 
 plt.show()

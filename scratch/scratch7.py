@@ -91,7 +91,7 @@ learn_params = LearningParameters(ALPHA, GAMMA)
 actions = [i*p_max/10/1000 + 1e-9 for i in range(11)]
 reward_function10 = dis_reward
 environment10 = DistanceEnvironment(env_params, reward_function10)
-learned_policy_10 = np.load(f'D:/Dev/sys-simulator-2/models/script12.npy')
+learned_policy_10 = np.load(f'{lucas_path}/models/script12.npy')
 
 
 # policy 10 test

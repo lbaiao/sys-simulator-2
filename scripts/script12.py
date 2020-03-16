@@ -61,10 +61,10 @@ EPSILON_MIN = 0.05
 # EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 2e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 8e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
-EPSILON_DECAY = 1.6e-4
-MAX_NUM_EPISODES = 10000
+EPSILON_DECAY = .16e-4
+MAX_NUM_EPISODES = 100000
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
-ALPHA = 0.05  # Learning rate
+ALPHA = 0.2  # Learning rate
 GAMMA = 0.98  # Discount factor
 C = 80  # C constant for the improved reward function
 
@@ -122,7 +122,7 @@ def train(agents: List[DistanceAgent], env: DistanceEnvironment, params: Trainin
                 # total_reward += sum(reward)
             if total_reward > best_reward:
                 best_reward = total_reward
-            avg_q_values.append(np.mean(agents[0].q_table.table))
+            avg_q_values.append(np.mean(q_tables[0].table))
             print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
                                      total_reward, best_reward, agents[0].epsilon))
         rewards.append(total_reward)        
@@ -180,23 +180,25 @@ d2d_spectral_effs = np.reshape(d2d_spectral_effs, np.prod(d2d_spectral_effs.shap
 
 threshold_eff = np.log2(1 + sinr_threshold) * np.ones(len(mue_spectral_effs))
 
-plt.figure(1)
-plt.plot(list(range(len(d2d_spectral_effs))), d2d_spectral_effs, '.',label='D2D')
-plt.plot(list(range(len(mue_spectral_effs))), mue_spectral_effs, '.',label='MUE')
-plt.plot(list(range(len(mue_spectral_effs))), threshold_eff, label='Threshold')    
-plt.title('Spectral efficiencies')
-plt.legend()
+# plt.figure(1)
+# plt.plot(list(range(len(d2d_spectral_effs))), d2d_spectral_effs, '.',label='D2D')
+# plt.plot(list(range(len(mue_spectral_effs))), mue_spectral_effs, '.',label='MUE')
+# plt.plot(list(range(len(mue_spectral_effs))), threshold_eff, label='Threshold')    
+# plt.title('Spectral efficiencies')
+# plt.legend()
 
 
-normalized_reward = (train_rewards - np.mean(train_rewards))/np.std(train_rewards)
+# normalized_reward = (train_rewards - np.mean(train_rewards))/np.std(train_rewards)
 
-plt.figure(2)
-plt.plot(normalized_reward, '.')
-plt.title('Total rewards')
+# plt.figure(2)
+# plt.plot(normalized_reward, '.')
+# plt.title('Total rewards')
+
+plottable = avg_q_values[::10]
 
 plt.figure(3)
-plt.plot(avg_q_values, '.')
-plt.xlabel('Iteration')
+plt.plot(range(len(plottable)), plottable, '.')
+plt.xlabel('Iterations*1/10')
 plt.ylabel('Average Q-Values')
 
 

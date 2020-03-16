@@ -99,6 +99,7 @@ class DQN(torch.nn.Module):
         x = self.fc1(state).tanh().cuda()
         x = self.fc2(x).tanh().cuda()
         x = self.fc3(x).tanh().cuda()
+        x = torch.nn.Dropout(0.2)(x)
         x = self.fc4(x).tanh().cuda()
         y = self.fc5(x).cuda()
                 

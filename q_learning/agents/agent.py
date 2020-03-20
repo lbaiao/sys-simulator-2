@@ -20,14 +20,18 @@ class Agent:
         self.action_index = 0
         self.bag = list()
 
+
     def set_q_table(self, q_table: QTable):
         self.q_table = q_table
+
 
     def set_d2d_tx_id(self, id: str):
         self.id = id
 
+
     def set_actions(self, actions):
         self.actions = actions
+
 
     def get_action(self, obs, q_table):
         if self.epsilon > self.epsilon_min:
@@ -39,9 +43,14 @@ class Agent:
         else:
             action = np.random.choice(self.actions)
             self.action = action
+           
             self.action_index = self.actions.index(action, 0)
 
     def set_action(self, action_index: int):
         self.action_index = action_index
         self.action = self.actions[action_index]
+
+    
+    def set_epsilon(self, epsilon):
+        self.epsilon = epsilon
         

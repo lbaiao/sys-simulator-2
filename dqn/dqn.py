@@ -84,7 +84,7 @@ class ReplayMemory(object):
 
 
 class DQN(torch.nn.Module):
-    """ Script 16  
+    """ Script 16, script19
     """
     def __init__(self):
         super(DQN, self).__init__()

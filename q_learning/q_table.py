@@ -28,9 +28,9 @@ class QTensor:
 
 
     # calculates Q-table values
-    def learn(self, state_action_tuple, reward, next_obs):
-        deltaQ = reward + self.gamma*np.max(axis=len(self.tensor.shape)-1) - self.tensor[state_action_tuple]
-        self.tensor[state_action_tuple] = self.tensor[state_action_tuple] + self.alpha*deltaQ
+    def learn(self, obs, action, reward, next_obs):
+        deltaQ = reward + self.gamma*self.tensor[next_obs].max() - self.tensor[(*obs, action)]
+        self.tensor[obs] += self.alpha*deltaQ
 
 
 class QTableTorch:

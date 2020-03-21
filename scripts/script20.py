@@ -49,19 +49,21 @@ sinr_threshold = gen.db_to_power(sinr_threshold)
 # q-learning parameters
 # MAX_NUM_EPISODES = 2500
 # MAX_NUM_EPISODES = 8000
-STEPS_PER_EPISODE = 200
+STEPS_PER_EPISODE = 20
 # STEPS_PER_EPISODE = 1000
 EPSILON_MIN = 0.05
 # MAX_NUM_STEPS = 50
 # EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 2e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
 # EPSILON_DECAY = 8e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
-EPSILON_DECAY = .16e-4
-MAX_NUM_EPISODES = 100000
+EPSILON_DECAY = .11e-2
+MAX_NUM_EPISODES = 150
+# EPSILON_DECAY = .11e-3
+# MAX_NUM_EPISODES = 2000
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
 ALPHA = 0.2  # Learning rate
 GAMMA = 0.98  # Discount factor
-C = 80  # C constant for the improved reward function
+C = 8000  # C constant for the improved reward function
 MAX_NUMBER_OF_AGENTS = 20
 
 # more parameters
@@ -71,10 +73,10 @@ train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = AgentParameters(EPSILON_MIN, EPSILON_DECAY, 1)
 learn_params = LearningParameters(ALPHA, GAMMA)
 
-actions = [i*0.82*p_max/5/1000 for i in range(5)] # best result
+actions = [i*0.82*p_max/5/10 for i in range(5)] # best result
 agents = [DistanceAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 # q_tables = [QTable(len(actions)*2, len(actions), learn_params) for a in agents]
-q_table = QTensor(np.zeros([MAX_NUMBER_OF_AGENTS, len(actions), 2, len(actions)]), learn_params)
+q_table = QTensor(np.zeros([MAX_NUMBER_OF_AGENTS, 11, 2, len(actions)]), learn_params)
 reward_function = rewards.centralized_reward
 environment = DistanceEnvironmentMulti(env_params, reward_function)
 
@@ -84,10 +86,10 @@ def train(env: DistanceEnvironmentMulti, params: TrainingParameters, q_table: QT
     best_reward = float('-inf')
     aux_range = range(max_d2d)[1:]
     epsilon = agent_params.start_epsilon
-    rewards = list()
+    total_rewards = list()
     avg_q_values = list()
     for episode in range(params.max_episodes):
-        actions = [i*0.82*p_max/5/1000 for i in range(5)] # best result
+        actions = [i*0.82*p_max/5 for i in range(5)] # best result
         n_agents = np.random.choice(aux_range)
         env.params.n_d2d = n_agents
         agents = [DistanceAgent(agent_params, actions) for i in range(n_agents)] # 1 agent per d2d tx
@@ -104,6 +106,7 @@ def train(env: DistanceEnvironmentMulti, params: TrainingParameters, q_table: QT
         obs = [env.get_state(a) for a in agents]                
         total_reward = 0.0
         i = 0
+        interference_indicator_old = 1
         while not done:
             if i >= params.steps_per_episode:
                 break
@@ -112,53 +115,28 @@ def train(env: DistanceEnvironmentMulti, params: TrainingParameters, q_table: QT
                     if counts[j] < awaits[j]:
                         counts[j] += 1
                     else:
-                        agents[j].get_action(obs[j], q_table)                
+                        agents[j].get_action_tensor((n_agents, obs[j], interference_indicator), q_table)                
                         counts[j] = 0
                         awaits[j] = np.random.choice(await_steps)
-                next_obs, interference_indicator, reward, done = env.step(agents)                
+                next_obs, interference_indicator, rewards, done = env.step(agents)                
                 i += 1
                 for m, a in enumerate(agents):                    
-                    q_table.learn((n_agents, obs[m], interference_indicator), a.action_index, reward, (n_agents, next_obs[m], interference_indicator))
+                    q_table.learn((n_agents, obs[m], interference_indicator_old), a.action_index, rewards, (n_agents, next_obs[m], interference_indicator))
                 obs = next_obs
-                total_reward += reward
+                interference_indicator_old = interference_indicator
+                total_reward += np.sum(rewards)
                 # total_reward += sum(reward)
             if total_reward > best_reward:
                 best_reward = total_reward
             avg_q_values.append(np.mean(q_table.tensor))
             print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
                                      total_reward, best_reward, agents[0].epsilon))
-        rewards.append(total_reward)        
+        total_rewards.append(total_reward)        
         epsilon = agents[0].epsilon
 
     # Return the trained policy
-    policy = np.argmax(q_table, axis=len(q_table.shape)-1)
-    return policy, rewards, avg_q_values
-
-
-def test(agents: List[DistanceAgent], env: DistanceEnvironmentMulti, policies: np.array, num_episodes: int, episode_steps: int):
-    mue_spectral_effs = list()
-    d2d_spectral_effs = list()    
-    done = False
-    for _ in range(num_episodes):
-        env.build_scenario(agents)
-        done = False
-        obs = [env.get_state(a) for a in agents] 
-        total_reward = 0.0
-        i = 0
-        while not done:            
-            actions_indexes = np.zeros(len(agents), dtype=int)        
-            for m in range(len(agents)):
-                actions_indexes[m] = policies[m][obs[m]]
-                agents[m].set_action(actions_indexes[m])
-            next_obs, reward, done = env.step(agents)
-            obs = next_obs
-            total_reward += reward
-            i +=1
-            if i >= episode_steps:
-                break
-        mue_spectral_effs.append(env.mue_spectral_eff)
-        d2d_spectral_effs.append(env.d2d_spectral_eff)
-    return total_reward, mue_spectral_effs, d2d_spectral_effs
+    policy = q_table.tensor.argmax(axis=-1)
+    return policy, total_rewards, avg_q_values
 
             
 # SCRIPT EXEC
@@ -172,31 +150,6 @@ np.save(f'{lucas_path}/models/{filename}', learned_policies)
 # testing
 t_env = DistanceEnvironmentMulti(env_params, reward_function)
 t_agents = [DistanceAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-total_reward, mue_spectral_effs, d2d_spectral_effs = test(t_agents, environment, learned_policies, 5, 100)
-
-# plots
-mue_spectral_effs = np.array(mue_spectral_effs)
-mue_spectral_effs = np.reshape(mue_spectral_effs, np.prod(mue_spectral_effs.shape))
-
-d2d_spectral_effs = np.array(d2d_spectral_effs)
-d2d_spectral_effs = np.reshape(d2d_spectral_effs, np.prod(d2d_spectral_effs.shape))
-
-threshold_eff = np.log2(1 + sinr_threshold) * np.ones(len(mue_spectral_effs))
-
-# plt.figure(1)
-# plt.plot(list(range(len(d2d_spectral_effs))), d2d_spectral_effs, '.',label='D2D')
-# plt.plot(list(range(len(mue_spectral_effs))), mue_spectral_effs, '.',label='MUE')
-# plt.plot(list(range(len(mue_spectral_effs))), threshold_eff, label='Threshold')    
-# plt.title('Spectral efficiencies')
-# plt.legend()
-
-
-# normalized_reward = (train_rewards - np.mean(train_rewards))/np.std(train_rewards)
-
-# plt.figure(2)
-# plt.plot(normalized_reward, '.')
-# plt.title('Total rewards')
-
 plottable = avg_q_values[::10]
 
 plt.figure(3)

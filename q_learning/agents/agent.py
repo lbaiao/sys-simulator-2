@@ -46,6 +46,20 @@ class Agent:
            
             self.action_index = self.actions.index(action, 0)
 
+
+    def get_action_tensor(self, obs, q_table):
+        if self.epsilon > self.epsilon_min:
+            self.epsilon -= self.epsilon_decay
+        if np.random.random() > self.epsilon:
+            action_index = np.argmax(q_table.tensor[obs])
+            self.action = self.actions[action_index]
+            self.action_index = action_index
+        else:
+            action = np.random.choice(self.actions)
+            self.action = action
+            self.action_index = self.actions.index(action, 0)
+
+
     def set_action(self, action_index: int):
         self.action_index = action_index
         self.action = self.actions[action_index]

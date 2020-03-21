@@ -77,7 +77,7 @@ class DistanceEnvironmentMulti(RLEnvironment):
                 distance_index = i
                 break
 
-            return distance_index
+        return distance_index
 
 
     def step(self, agents: List[DistanceAgent]):
@@ -105,8 +105,8 @@ class DistanceEnvironmentMulti(RLEnvironment):
         
         rewards, mue_se, d2d_se = self.reward_function(sinr_m, sinr_d2ds, flag, self.params.c_param)
 
-        self.mue_spectral_eff.append(mue_se)
-        self.d2d_spectral_eff.append(d2d_se)
+        self.mue_spectral_eff = mue_se
+        self.d2d_spectral_eff = d2d_se
 
         done = False
         if self.early_stop:                        

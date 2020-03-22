@@ -84,16 +84,23 @@ class CompleteEnvironment(RLEnvironment):
         d2d_rx_distance_to_mue = euclidean(d2d_rx.position, self.mue.position)
         mue_distance_to_bs = self.mue.distance_to_bs
 
-        d2d_tx_distance_to_nearest = 1e9
+        d2d_tx_distance_to_nearest = 2*self.params.bs_radius
         for i, p in enumerate(self.d2d_pairs):
             if i != index:
                 dist = euclidean(d2d_tx.position, p[1].position)
                 if dist < d2d_tx_distance_to_nearest:
                     d2d_tx_distance_to_nearest = dist
              
-        interference_indicator = int(sinr > self.params.sinr_threshold)
+        interference_indicator = sinr > self.params.sinr_threshold
+
+        # normalization
+        d2d_tx_distance_to_bs /= self.params.bs_radius
+        d2d_rx_distance_to_mue /= 2*self.params.bs_radius
+        mue_distance_to_bs /= self.params.bs_radius
+        d2d_tx_distance_to_nearest /= 2*self.params.bs_radius
+
         
-        state = torch.tensor([[number_of_d2d_pairs, d2d_tx_distance_to_bs, d2d_rx_distance_to_mue, mue_distance_to_bs, interference_indicator]], device=self.device)
+        state = torch.tensor([[number_of_d2d_pairs, d2d_tx_distance_to_bs, d2d_rx_distance_to_mue, mue_distance_to_bs, d2d_tx_distance_to_nearest, int(interference_indicator), int(not interference_indicator)]], device=self.device)
         # state = pd.DataFrame(state, columns=['number_of_d2d_pairs', 'd2d_tx_distance_to_bs', 'd2d_rx_distance_to_mue', 'mue_distance_to_bs', 'interference_indicator'])        
 
         return state

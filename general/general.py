@@ -72,6 +72,16 @@ def distribute_nodes(nodes, base_station):
         n.set_distance_to_bs(spatial.distance.euclidean(n.position, base_station.position))
 
 
+def distribute_mue_validation(nodes: List[mobile_user], base_station):
+    if len(nodes) != 1:
+        raise 'number of mues must be 1'
+    if base_station.position != (0,0):
+        raise 'BS position must be (0,0)'
+    center = base_station.position
+    nodes[0].set_position((center[0], center[1]+100))
+    nodes[0].set_distance_to_bs(spatial.distance.euclidean(nodes[0].position, base_station.position))
+
+
 def distribute_pair_fixed_distance_multiple(nodes_tx: List[d2d_user], nodes_rx: List[d2d_user], base_station):
     """
     Distribute d2d pairs. Nodes_tx and nodes_rx should be lists with the length
@@ -113,6 +123,27 @@ def distribute_pair_fixed_distance(nodes, base_station, pair_distance):
             nodes[1].set_distance_to_bs(nodes_bs_distance)
             # print(spatial.distance.euclidean(nodes[0].position, nodes[1].position))
             is_node2_in_circle = True        
+
+
+def distribute_d2d_validation(pairs: List[List[d2d_user]], base_station: base_station):
+    if len(pairs) != 4:
+        raise 'number of mues must be 4'
+    if base_station.position != (0,0):
+        raise 'BS position must be (0,0)'
+
+    pairs[0][0].set_position((-250,250))
+    pairs[0][1].set_position((-250,300))
+    pairs[1][0].set_position((-250,-250))
+    pairs[1][1].set_position((-250,-300))
+    pairs[2][0].set_position((250,-250))
+    pairs[2][1].set_position((250,-300))
+    pairs[3][0].set_position((250,250))
+    pairs[3][1].set_position((250,300))
+
+    for p in pairs:
+        for n in p:
+            n.set_distance_to_bs(spatial.distance.euclidean(n.position, base_station.position))
+            n.set_distance_d2d(50)            
 
 
 def get_distances_table(nodes):

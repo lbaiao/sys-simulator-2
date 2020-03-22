@@ -155,12 +155,13 @@ rewards = train(ext_framework, environment, train_params, agent_params, MAX_NUMB
 
 cwd = os.getcwd()
 
-torch.save(ext_framework.policy_net.state_dict(), f'{cwd}/models/script21.pt')
 filename = gen.path_leaf(__file__)
 filename = filename.split('.')[0]
+filename_model = filename
 filename = f'{lucas_path}/data/{filename}.pickle'
+torch.save(ext_framework.policy_net.state_dict(), f'{filename_model}.pt')
 with open(filename, 'wb') as f:
-    pickle.dump(ext_framework.bag, f)
+    pickle.dump(spectral_effs, f)
 
 plt.figure(1)
 plt.plot(ext_framework.bag, '.')

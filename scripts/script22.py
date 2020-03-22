@@ -1,5 +1,6 @@
-# same as script 14, but with the smaller dqn and returning the average q values
-
+# Same as script 14, but the training is done in a static environment, 
+# with a fixed amount of d2d agents, and the devices have fixed positions.
+# built for validation purposes. We want to obtain a learning curve that has a clean convergence.
 
 import sys
 import os
@@ -11,7 +12,7 @@ from general import general as gen
 from devices.devices import node, base_station, mobile_user, d2d_user, d2d_node_type
 from pathloss import pathloss
 from plots.plots import plot_positions, plot_spectral_effs
-from q_learning.environments.completeEnvironment import CompleteEnvironment
+from q_learning.environments.staticCompleteEnvironment import StaticCompleteEnvironment
 from dqn.agents.dqnAgent import ExternalDQNAgent
 from dqn.externalDQNFramework import ExternalDQNFramework
 from dqn.replayMemory import ReplayMemory
@@ -29,7 +30,7 @@ import os
 import pickle
 
 n_mues = 1 # number of mues
-n_d2d = 2  # number of d2d pairs
+n_d2d = 4  # number of d2d pairs
 n_rb = n_mues   # number of RBs
 bs_radius = 500 #   bs radius in m
 
@@ -53,14 +54,14 @@ user_gain = gen.db_to_power(user_gain)
 sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
 
 # q-learning parameters
-STEPS_PER_EPISODE = 100
+STEPS_PER_EPISODE = 25
 EPSILON_MIN = 0.05
 # MAX_NUM_STEPS = 50
 # EPSILON_DECAY = 0.4045*1e-4    # super long training
 # EPSILON_DECAY = 0.809*1e-4    # long training
 # EPSILON_DECAY = 0.809*1e-4    # medium training
 # EPSILON_DECAY = 3.236*1e-4    # medium training
-EPSILON_DECAY = 8.09*1e-4      # short training
+EPSILON_DECAY = 33.6*1e-4      # short training
 # EPSILON_DECAY = 4.045*1e-4      # short training
 # MAX_NUM_EPISODES = 40000      # super long training
 # MAX_NUM_EPISODES = 20000      # long training
@@ -78,18 +79,18 @@ env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 512, GAMMA)
 
-extFramework = ExternalDQNFramework(agent_params)
+ext_framework = ExternalDQNFramework(agent_params)
 # actions = [i*p_max/10/1000 for i in range(21)] # worst
 # actions = [i*0.80*p_max/10/1000 for i in range(21)] # best histogram
 actions = [i*0.82*p_max/5/1000 for i in range(5)] # best result
 agents = [ExternalDQNAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
 reward_function = rewards.dis_reward_tensor2
-environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
+environment = StaticCompleteEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
 
 
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
-def train(agents: List[ExternalDQNAgent], framework: ExternalDQNFramework, env: CompleteEnvironment, params: TrainingParameters):
+def train(agents: List[ExternalDQNAgent], framework: ExternalDQNFramework, env: StaticCompleteEnvironment, params: TrainingParameters):
     counts = np.zeros(len(agents))
     awaits = list()
     await_steps = [2,3,4]
@@ -99,10 +100,10 @@ def train(agents: List[ExternalDQNAgent], framework: ExternalDQNFramework, env: 
     best_reward = 1e-16
     device = torch.device('cuda')
     rewards_bag = list()
+    env.build_scenario(agents)
     for episode in range(params.max_episodes):
         # TODO: atualmente redistribuo os usuarios aleatoriamente a cada episodio. Isto é o melhor há se fazer? 
-        # Simular deslocamento dos usuários?
-        env.build_scenario(agents)
+        # Simular deslocamento dos usuários?        
         done = False
         obs = [env.get_state(a) for a in agents] 
         total_reward = 0.0
@@ -149,7 +150,7 @@ def train(agents: List[ExternalDQNAgent], framework: ExternalDQNFramework, env: 
 # SCRIPT EXEC
 # training
 # train(agents, environment, train_params)
-rewards = train(agents, extFramework, environment, train_params)
+rewards = train(agents, ext_framework, environment, train_params)
 # rewards = rb_bandwidth*rewards
 
 cwd = os.getcwd()
@@ -159,11 +160,11 @@ filename = filename.split('.')[0]
 filename_model = filename
 filename = f'{lucas_path}/data/{filename}.pickle'
 torch.save(ext_framework.policy_net.state_dict(), f'{filename_model}.pt')
-with open(filename, 'wb') as f:
-    pickle.dump(spectral_effs, f)
+# with open(filename, 'wb') as f:
+#     pickle.dump(spectral_effs, f)
 
 plt.figure(1)
-plt.plot(extFramework.bag, '.')
+plt.plot(ext_framework.bag, '.')
 plt.xlabel('Iterations')
 plt.ylabel('Average Q-Values')
 

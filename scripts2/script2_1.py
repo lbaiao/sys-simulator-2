@@ -138,7 +138,7 @@ for i in range(50):
     total_reward = test(t_agents, t_env, learned_policies, 20)
     print(f'TEST #{i} REWARD: {total_reward}')
 
-success_rate = np.mean(t_env.mue_spectral_eff > sinr_threshold)
+success_rate = np.mean(np.array(t_env.mue_spectral_eff) > sinr_threshold)
 log = list()
 log.append(f'D2D SPECTRAL EFFICIENCY: {t_env.d2d_spectral_eff}')
 log.append(f'MUE SUCCESS RATE: {success_rate}')

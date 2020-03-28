@@ -165,7 +165,7 @@ filename = gen.path_leaf(__file__)
 filename = filename.split('.')[0]
 filename_model = filename
 filename = f'{lucas_path}/data/{filename}.pickle'
-torch.save(ext_framework.policy_net.state_dict(), f'{filename_model}.pt')
+torch.save(ext_framework.policy_net.state_dict(), f'{lucas_path}/models/{filename_model}.pt')
 with open(filename, 'wb') as f:
     pickle.dump(spectral_effs, f)
 

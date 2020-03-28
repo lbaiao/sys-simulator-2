@@ -13,7 +13,7 @@ from plots.plots import plot_positions, plot_spectral_effs
 from q_learning.environments.completeEnvironment import CompleteEnvironment
 from dqn.agents.dqnAgent import ExternalDQNAgent
 from dqn.externalDQNFramework import ExternalDQNFramework
-from dqn.replayMemory import ReplayMemory
+from dqn.replayMemory import ReplayMemory/home/lucas/dev/sys-simulator-2/models/ext_model_dqn_agent_mult_small_dqn_high_available.pt
 from dqn.dqn import DQN
 from q_learning.q_table import DistributedQTable
 from q_learning import rewards

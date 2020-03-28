@@ -115,7 +115,7 @@ reward_function = rewards.dis_reward_tensor2
 environment = CompleteEnvironment(env_params, reward_function, early_stop=1e-6, tolerance=10)
 
 framework = ExternalDQNFramework(agent_params)
-framework.policy_net.load_state_dict(torch.load(f'/home/lucas/dev/sys-simulator-2/data/script17.pickle.pt'))
+framework.policy_net.load_state_dict(torch.load(f'/home/lucas/dev/sys-simulator-2/models/script17.pt'))
 
 reward_function = rewards.dis_reward_tensor
 
@@ -153,7 +153,7 @@ plt.xlabel('Actions')
 plt.ylabel('Number of occurrences')
 
 fig2, ax1 = plt.subplots()
-ax1.set_xlabel('Iteration')
+ax1.set_xlabel('Number of D2D pairs in the RB')
 ax1.set_ylabel('D2D Average Spectral Efficiency [bps/Hz]', color='tab:blue')
 ax1.plot(d2d_speffs_avg, '.', color='tab:blue')
 

@@ -61,12 +61,12 @@ EPSILON_MIN = 0.05
 # EPSILON_DECAY = 0.809*1e-4    # long training
 # EPSILON_DECAY = 0.809*1e-4    # medium training
 # EPSILON_DECAY = 3.236*1e-4    # medium training
-EPSILON_DECAY = 33.6*1e-4      # short training
+EPSILON_DECAY = 80*1e-4      # short training
 # EPSILON_DECAY = 4.045*1e-4      # short training
 # MAX_NUM_EPISODES = 40000      # super long training
 # MAX_NUM_EPISODES = 20000      # long training
 # MAX_NUM_EPISODES = 5000      # medium training
-MAX_NUM_EPISODES = 2000        # short training
+MAX_NUM_EPISODES = 5000        # short training
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
 # C = 8000 # C constant for the improved reward function
@@ -164,7 +164,7 @@ torch.save(ext_framework.policy_net.state_dict(), f'{filename_model}.pt')
 #     pickle.dump(spectral_effs, f)
 
 plt.figure(1)
-plt.plot(ext_framework.bag, '.')
+plt.plot(ext_framework.bag)
 plt.xlabel('Iterations')
 plt.ylabel('Average Q-Values')
 

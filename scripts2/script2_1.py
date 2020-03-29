@@ -22,6 +22,7 @@ from parameters.parameters import EnvironmentParameters, TrainingParameters, Age
 from typing import List
 
 import math
+import copy
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -105,7 +106,9 @@ def train(agents: List[Agent], env: DistributedEnvironment, params: TrainingPara
 
 
 def test(agents: List[Agent], env: DistributedEnvironment, policies, iterations: int):
-    env.build_scenario(agents)
+    # env.build_scenario(agents)
+    env.mue_spectral_eff = list()
+    env.d2d_spectral_eff = list()
     done = False
     obs = env.get_state()
     total_reward = 0.0
@@ -132,10 +135,11 @@ filename = filename.split('.')[0]
 np.save(f'{lucas_path}/models/{filename}', learned_policies)
 
 # testing
-t_env = DistributedEnvironment(env_params, reward_function)
-t_agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
+# t_env = DistributedEnvironment(env_params, reward_function)
+# t_agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
+t_env = copy.copy(environment)
 for i in range(50):
-    total_reward = test(t_agents, t_env, learned_policies, 20)
+    total_reward = test(agents, t_env, learned_policies, 20)
     print(f'TEST #{i} REWARD: {total_reward}')
 
 success_rate = np.mean(np.array(t_env.mue_spectral_eff) > sinr_threshold)

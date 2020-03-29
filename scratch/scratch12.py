@@ -27,7 +27,6 @@ import os
 def test(env: CompleteEnvironment, framework: ExternalDQNFramework, max_d2d: int, num_episodes: int, episode_steps: int):
     mue_spectral_effs = [list() for i in range(max_d2d+1)]
     d2d_spectral_effs = [list() for i in range(max_d2d+1)]   
-    device = torch.device('cuda')
     done = False
     bag = list()
     aux_range = range(max_d2d)[1:]
@@ -100,6 +99,8 @@ GAMMA = 0.98  # Discount factor
 C = 80 # C constant for the improved reward function
 TARGET_UPDATE = 10
 MAX_NUMBER_OF_AGENTS = 20
+REPLAY_MEMORY_SIZE = 10000
+BATCH_SIZE = 128
 
 
 # more parameters
@@ -108,7 +109,7 @@ cwd = os.getcwd()
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_mue,
                                         n_mues, n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin)
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
-agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 128, GAMMA)
+agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, REPLAY_MEMORY_SIZE, BATCH_SIZE, GAMMA)
 
 actions = torch.tensor([i*0.82*p_max/5/1000 for i in range(5)])
 reward_function = rewards.dis_reward_tensor2

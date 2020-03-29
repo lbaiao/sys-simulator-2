@@ -33,10 +33,11 @@ class AgentParameters:
         self.start_epsilon = start_epsilon
 
 class DQNAgentParameters(AgentParameters):
-    def __init__(self, epsilon_min, epsilon_decay, start_epsilon, batchsize, gamma):
+    def __init__(self, epsilon_min, epsilon_decay, start_epsilon, replay_memory_size, batchsize, gamma):
         super(DQNAgentParameters, self).__init__(epsilon_min, epsilon_decay, start_epsilon)
         self.batchsize = batchsize
         self.gamma = gamma
+        self.replay_memory_size = replay_memory_size
 
 
 class LearningParameters:

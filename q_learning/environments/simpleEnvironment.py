@@ -79,7 +79,7 @@ class SimpleEnvironment(RLEnvironment):
         interference_indicator = sinr > self.params.sinr_threshold
 
         # hot vector encoding
-        state = torch.tensor([int(interference_indicator), int(not interference_indicator)], device=self.device)
+        state = torch.tensor([[int(interference_indicator), int(not interference_indicator)]], device=self.device).float()
 
         return state
 
@@ -102,7 +102,7 @@ class SimpleEnvironment(RLEnvironment):
 
         state = self.get_state()
 
-        rewards, mue_se, d2d_se = self.reward_function(sinr_m, sinr_d2ds, state, self.params.c_param)
+        rewards, mue_se, d2d_se = self.reward_function(sinr_m, sinr_d2ds, state[0][0], self.params.c_param)
 
         self.reward = torch.sum(rewards)
 

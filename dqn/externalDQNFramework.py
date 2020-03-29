@@ -5,7 +5,7 @@ import torch
 
 class ExternalDQNFramework:
     def __init__(self, params: DQNAgentParameters):
-        self.replay_memory = ReplayMemory(20000)        
+        self.replay_memory = ReplayMemory(params.replay_memory_size)        
         self.device = torch.device("cuda")        
         self.policy_net = DQN().to(self.device)
         self.target_net = DQN().to(self.device)

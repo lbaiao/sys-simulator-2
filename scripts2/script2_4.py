@@ -55,25 +55,16 @@ sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
 # q-learning parameters
 STEPS_PER_EPISODE = 100
 EPSILON_MIN = 0.05
-# MAX_NUM_STEPS = 50
-# EPSILON_DECAY = 0.4045*1e-4    # super long training
-# EPSILON_DECAY = 0.809*1e-4    # long training
-# EPSILON_DECAY = 0.809*1e-4    # medium training
-# EPSILON_DECAY = 3.236*1e-4    # medium training
-# EPSILON_DECAY = 4.045*1e-4      # short training
-# MAX_NUM_EPISODES = 40000      # super long training
-# MAX_NUM_EPISODES = 20000      # long training
-# MAX_NUM_EPISODES = 5000      # medium training
-MAX_NUM_EPISODES = 10000        # short training
+MAX_NUM_EPISODES = 3500        # short training
 EPSILON_DECAY = 1.6/MAX_NUM_EPISODES      # short training
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
 # C = 8000 # C constant for the improved reward function
 C = 80 # C constant for the improved reward function
 TARGET_UPDATE = 10
-REPLAY_MEMORY_SIZE = 128
-BATCH_SIZE = 32
-ITERATIONS = 2
+REPLAY_MEMORY_SIZE = 1024
+BATCH_SIZE = 128
+ITERATIONS = 100
 
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_train,
@@ -119,8 +110,8 @@ def train(agents: List[ExternalDQNAgent], frameworks: List[ExternalDQNFramework]
                 f.target_net.load_state_dict(f.policy_net.state_dict())
         if total_reward > best_reward:
             best_reward = total_reward
-        print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
-                                    total_reward, best_reward, agents[0].epsilon))
+        # print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
+        #                             total_reward, best_reward, agents[0].epsilon))
     return bag
 
 
@@ -148,10 +139,11 @@ def test(env: SimpleEnvironment, agents: List[ExternalDQNAgent], frameworks: Lis
 success_rates = list()
 mue_spectral_effs = list()
 d2d_spectral_effs = list()
-for _ in range(ITERATIONS):
+for i in range(ITERATIONS):
+    print(f'Iteration {i+1}/{ITERATIONS}')
     rewards = train(agents, ext_frameworks, environment, train_params)
     total_reward, mue_speffs, d2d_speffs, _ = test(environment, agents, ext_frameworks, 100)
-    success_rates.append(np.mean(mue_speffs > sinr_threshold_mue))
+    success_rates.append(np.mean(np.array(mue_speffs) > sinr_threshold_mue))
     mue_spectral_effs.append(np.mean(mue_speffs))
     d2d_spectral_effs.append(np.mean(d2d_speffs))
 

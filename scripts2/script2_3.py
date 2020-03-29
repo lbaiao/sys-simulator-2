@@ -61,19 +61,19 @@ EPSILON_MIN = 0.05
 # EPSILON_DECAY = 0.809*1e-4    # long training
 # EPSILON_DECAY = 0.809*1e-4    # medium training
 # EPSILON_DECAY = 3.236*1e-4    # medium training
-EPSILON_DECAY = 8.09*1e-4      # short training
 # EPSILON_DECAY = 4.045*1e-4      # short training
 # MAX_NUM_EPISODES = 40000      # super long training
 # MAX_NUM_EPISODES = 20000      # long training
 # MAX_NUM_EPISODES = 5000      # medium training
-MAX_NUM_EPISODES = 2000        # short training
+MAX_NUM_EPISODES = 10000        # short training
+EPSILON_DECAY = 1.6/MAX_NUM_EPISODES      # short training
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
 # C = 8000 # C constant for the improved reward function
 C = 80 # C constant for the improved reward function
 TARGET_UPDATE = 10
-REPLAY_MEMORY_SIZE = 32
-BATCH_SIZE = 16
+REPLAY_MEMORY_SIZE = 128
+BATCH_SIZE = 32
 
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_train,
@@ -95,7 +95,6 @@ environment = SimpleEnvironment(env_params, reward_function)
 def train(agents: List[ExternalDQNAgent], frameworks: List[ExternalDQNFramework], env: SimpleEnvironment, params: TrainingParameters):
     best_reward = 1e-16
     device = torch.device('cuda')
-    rewards_bag = list()
     env.build_scenario(agents)
     obs = env.get_state()
     total_reward = 0.0
@@ -104,14 +103,15 @@ def train(agents: List[ExternalDQNAgent], frameworks: List[ExternalDQNFramework]
     for episode in range(params.max_episodes):
         actions = torch.zeros([len(agents)], device=device)
         for j, agent in enumerate(agents):
-            agent.get_action(frameworks[j], obs)            
+            agent.get_action(frameworks[j], obs) 
+            actions[j] = agent.action_index           
         next_obs, rewards = env.step(agents)                
         i += 1
         for j, agent in enumerate(agents):
             frameworks[j].replay_memory.push(obs, actions[j], next_obs, rewards[j])
             frameworks[j].learn()
         obs = next_obs
-        total_reward += torch.sum(rewards)      
+        total_reward = torch.sum(rewards)      
         bag.append(total_reward.item())      
         obs = next_obs
         if episode % TARGET_UPDATE == 0:
@@ -121,8 +121,7 @@ def train(agents: List[ExternalDQNAgent], frameworks: List[ExternalDQNFramework]
             best_reward = total_reward
         print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
                                     total_reward, best_reward, agents[0].epsilon))
-        rewards_bag.append(np.average(bag))
-    return rewards_bag
+    return bag
 
             
 # SCRIPT EXEC
@@ -138,9 +137,13 @@ filename = filename.split('.')[0]
 filename_model = filename
 filename = f'{lucas_path}/data/{filename}.pickle'
 dir_path = f'{lucas_path}/models/{filename_model}'
-os.mkdir(dir_path)
-for i, f in enumerate(ext_frameworks):
-    torch.save(f.policy_net.state_dict(), f'{dir_path}/model_{i}.pt')
+try:
+    os.mkdir(dir_path)
+except:
+    pass
+finally:
+    for i, f in enumerate(ext_frameworks):
+        torch.save(f.policy_net.state_dict(), f'{dir_path}/model_{i}.pt')
 
 # with open(filename, 'wb') as f:
 #     pickle.dump(spectral_effs, f)
@@ -152,6 +155,8 @@ plt.ylabel('Average Q-Values')
 
 plt.figure(2)
 plt.plot(rewards, '.')
+plt.xlabel('Iterations')
+plt.ylabel('Rewards')
 
 plt.show()
 

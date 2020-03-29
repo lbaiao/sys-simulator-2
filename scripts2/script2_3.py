@@ -72,12 +72,14 @@ GAMMA = 0.98  # Discount factor
 # C = 8000 # C constant for the improved reward function
 C = 80 # C constant for the improved reward function
 TARGET_UPDATE = 10
+REPLAY_MEMORY_SIZE = 32
+BATCH_SIZE = 16
 
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_train,
                                         n_mues, n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin)
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
-agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 512, GAMMA)
+agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, REPLAY_MEMORY_SIZE, BATCH_SIZE, GAMMA)
 
 # actions = [i*p_max/10/1000 for i in range(21)] # worst
 # actions = [i*0.80*p_max/10/1000 for i in range(21)] # best histogram

@@ -55,15 +55,6 @@ sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
 # q-learning parameters
 STEPS_PER_EPISODE = 100
 EPSILON_MIN = 0.05
-# MAX_NUM_STEPS = 50
-# EPSILON_DECAY = 0.4045*1e-4    # super long training
-# EPSILON_DECAY = 0.809*1e-4    # long training
-# EPSILON_DECAY = 0.809*1e-4    # medium training
-# EPSILON_DECAY = 3.236*1e-4    # medium training
-# EPSILON_DECAY = 4.045*1e-4      # short training
-# MAX_NUM_EPISODES = 40000      # super long training
-# MAX_NUM_EPISODES = 20000      # long training
-# MAX_NUM_EPISODES = 5000      # medium training
 MAX_NUM_EPISODES = 10000        # short training
 EPSILON_DECAY = 1.6/MAX_NUM_EPISODES      # short training
 ALPHA = 0.05  # Learning rate

@@ -140,7 +140,7 @@ for i in range(50):
 
 success_rate = np.mean(np.array(t_env.mue_spectral_eff) > sinr_threshold)
 log = list()
-log.append(f'D2D SPECTRAL EFFICIENCY: {t_env.d2d_spectral_eff}')
+log.append(f'D2D SPECTRAL EFFICIENCY: {np.array(t_env.d2d_spectral_eff).mean()}')
 log.append(f'MUE SUCCESS RATE: {success_rate}')
 
 filename = f'{lucas_path}/logs/{filename}.txt'

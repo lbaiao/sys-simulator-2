@@ -32,8 +32,8 @@ def test(env: SimpleEnvironment, agents: List[ExternalDQNAgent], frameworks: Lis
     d2d_spectral_effs = list()
     for _ in range(num_episodes):
         total_reward = 0.0
-        for agent in agents:
-            aux = agent.act(framework, obs).max(1)
+        for i, agent in enumerate(agents):
+            aux = agent.act(frameworks[i], obs).max(1)
             agent.set_action(aux[1].long(), agent.actions[aux[1]])
             bag.append(aux[1].item())
         next_obs, rewards = env.step(agents)

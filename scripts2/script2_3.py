@@ -30,7 +30,7 @@ import os
 import pickle
 
 n_mues = 1 # number of mues
-n_d2d = 2  # number of d2d pairs
+n_d2d = 10  # number of d2d pairs
 n_rb = n_mues   # number of RBs
 bs_radius = 500 #   bs radius in m
 

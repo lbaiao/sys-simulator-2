@@ -27,7 +27,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 n_mues = 1 # number of mues
-n_d2d = 2  # number of d2d pairs
+n_d2d = 10  # number of d2d pairs
 n_rb = n_mues   # number of RBs
 bs_radius = 500 #   bs radius in m
 
@@ -50,7 +50,7 @@ sinr_threshold = gen.db_to_power(sinr_threshold)
 
 # q-learning parameters
 # MAX_NUM_EPISODES = 1e5
-MAX_NUM_EPISODES = 5000
+MAX_NUM_EPISODES = 3000
 # STEPS_PER_EPISODE = 400
 STEPS_PER_EPISODE = 200 
 EPSILON_MIN = 0.05

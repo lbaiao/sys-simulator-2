@@ -1,4 +1,5 @@
 # same as script2-3.py, but we train and test for many different scenarios and take the statistics.
+#  Train and Test in in the same script. The models are not saved.
 
 
 import sys
@@ -29,7 +30,7 @@ import os
 import pickle
 
 n_mues = 1 # number of mues
-n_d2d = 2  # number of d2d pairs
+n_d2d = 10  # number of d2d pairs
 n_rb = n_mues   # number of RBs
 bs_radius = 500 #   bs radius in m
 
@@ -55,16 +56,16 @@ sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
 # q-learning parameters
 STEPS_PER_EPISODE = 100
 EPSILON_MIN = 0.05
-MAX_NUM_EPISODES = 3500        # short training
+MAX_NUM_EPISODES = 3000        # short training
 EPSILON_DECAY = 1.6/MAX_NUM_EPISODES      # short training
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
 # C = 8000 # C constant for the improved reward function
 C = 80 # C constant for the improved reward function
 TARGET_UPDATE = 10
-REPLAY_MEMORY_SIZE = 1024
-BATCH_SIZE = 128
-ITERATIONS = 100
+REPLAY_MEMORY_SIZE = 256
+BATCH_SIZE = 64
+ITERATIONS = 50
 
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_train,

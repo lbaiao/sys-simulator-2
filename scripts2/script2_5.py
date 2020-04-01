@@ -2,7 +2,7 @@
 #     Nie, S., Fan, Z., Zhao, M., Gu, X. and Zhang, L., 2016, September. Q-learning based power control algorithm for D2D communication. 
 #     In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
 #     (PIMRC) (pp. 1-6). IEEE.
-# devices positions are fixed. 
+# devices positions are fixed. Train and Test in in the same script. The models are not saved.
 
 import sys
 import os
@@ -27,7 +27,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 n_mues = 1 # number of mues
-n_d2d = 2  # number of d2d pairs
+n_d2d = 10  # number of d2d pairs
 n_rb = n_mues   # number of RBs
 bs_radius = 500 #   bs radius in m
 
@@ -58,7 +58,7 @@ EPSILON_MIN = 0.05
 # MAX_NUM_STEPS = 50
 # EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
 EPSILON_DECAY = 1/MAX_NUM_EPISODES
-ITERATIONS = 2
+ITERATIONS = 100
 # EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
 ALPHA = 0.2  # Learning rate
 GAMMA = 0.98  # Discount factor
@@ -98,8 +98,8 @@ def train(agents: List[Agent], env: DistributedEnvironment, params: TrainingPara
         if total_reward > best_reward:
             best_reward = total_reward
         bag.append(q_tables[0].table.mean())
-        print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
-                                    total_reward, best_reward, agents[0].epsilon))
+        # print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
+        #                             total_reward, best_reward, agents[0].epsilon))
     
     # Return the trained policy
     policies = [np.argmax(q.table, axis=1) for q in q_tables]
@@ -132,7 +132,8 @@ def test(agents: List[Agent], env: DistributedEnvironment, policies, iterations:
 success_rates = list()
 mue_spectral_effs = list()
 d2d_spectral_effs = list()
-for _ in range(ITERATIONS):
+for i in range(ITERATIONS):
+    print(f'Iteration {i+1}/{ITERATIONS}')
     learned_policies, avg_q_values = train(agents, environment, train_params, q_tables)
     total_reward, mue_speffs, d2d_speffs = test(agents, environment, learned_policies, 100)
     success_rates.append(np.mean(np.array(mue_speffs) > sinr_threshold))

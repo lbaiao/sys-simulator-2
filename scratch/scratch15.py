@@ -29,7 +29,7 @@ def test(env: CompleteEnvironment3, framework: ExternalDQNFramework, max_d2d: in
     d2d_spectral_effs = [list() for i in range(max_d2d+1)]   
     done = False
     bag = list()
-    aux_range = range(max_d2d)[1:]
+    aux_range = range(max_d2d+1)[1:]
     for _ in range(num_episodes):
         actions = [i*0.82*p_max/5/1000 for i in range(5)] # best result
         n_agents = np.random.choice(aux_range)

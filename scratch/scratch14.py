@@ -29,7 +29,7 @@ def test(env: CompleteEnvironment2, framework: ExternalDQNFramework, max_d2d: in
     d2d_spectral_effs = [list() for i in range(max_d2d+1)]   
     done = False
     bag = list()
-    aux_range = range(max_d2d)[1:]
+    aux_range = range(max_d2d+1)[1:]
     for _ in range(num_episodes):
         actions = [i*0.82*p_max/5/1000 for i in range(5)] # best result
         n_agents = np.random.choice(aux_range)
@@ -121,7 +121,7 @@ framework.policy_net.load_state_dict(torch.load(f'/home/lucas/dev/sys-simulator-
 reward_function = rewards.dis_reward_tensor
 
 # policy 5 test
-total_reward, mue_spectral_effs, d2d_spectral_effs, bag = test(environment, framework, MAX_NUMBER_OF_AGENTS, 5000, 25)
+total_reward, mue_spectral_effs, d2d_spectral_effs, bag = test(environment, framework, MAX_NUMBER_OF_AGENTS, 10000, 25)
 
 mue_success_rate = list()
 for i, m in enumerate(mue_spectral_effs):    

@@ -63,7 +63,7 @@ EPSILON_DECAY = 3.35*1e-4    # medium training
 # MAX_NUM_EPISODES = 40000      # super long training
 # MAX_NUM_EPISODES = 20000      # long training
 MAX_NUM_EPISODES = 480      # medium training
-# MAX_NUM_EPISODES = 480      # medium training
+# MAX_NUM_EPISODES = 700      # medium training
 # MAX_NUM_EPISODES = 2000        # short training
 ALPHA = 0.2  # Learning rate
 GAMMA = 0.98  # Discount factor
@@ -93,7 +93,7 @@ def train(framework: ExternalDQNFramework, env: CompleteEnvironment3, params: Tr
     device = torch.device('cuda')
     mue_spectral_eff_bag = list()
     d2d_spectral_eff_bag = list()
-    aux_range = range(max_d2d)[1:]
+    aux_range = range(max_d2d+1)[1:]
     epsilon = agent_params.start_epsilon
     for episode in range(params.max_episodes):
         # TODO: atualmente redistribuo os usuarios aleatoriamente a cada episodio. Isto é o melhor há se fazer? 

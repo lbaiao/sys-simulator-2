@@ -93,7 +93,7 @@ def train(framework: ExternalDQNFramework, env: CompleteEnvironment2, params: Tr
     device = torch.device('cuda')
     mue_spectral_eff_bag = list()
     d2d_spectral_eff_bag = list()
-    aux_range = range(max_d2d)[1:]
+    aux_range = range(max_d2d+1)[1:]
     epsilon = agent_params.start_epsilon
     for episode in range(params.max_episodes):
         # TODO: atualmente redistribuo os usuarios aleatoriamente a cada episodio. Isto é o melhor há se fazer? 

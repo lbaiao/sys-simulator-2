@@ -131,12 +131,34 @@ class ReplayMemory(object):
 #         return y_pred
 
 
+# class DQN(torch.nn.Module):
+#     """ Script2_3, Script2_4
+#     """
+#     def __init__(self):
+#         super(DQN, self).__init__()
+#         self.fc1 = torch.nn.Linear(2,5).cuda()
+#         self.fc2 = torch.nn.Linear(5,5).cuda()
+#         self.fc3 = torch.nn.Linear(5,5).cuda()
+#         self.fc4 = torch.nn.Linear(5,5).cuda()
+#         self.fc5 = torch.nn.Linear(5,5).cuda()
+        
+
+#     def forward(self, state):
+#         x = self.fc1(state).tanh().cuda()
+#         x = self.fc2(x).tanh().cuda()
+#         x = self.fc3(x).tanh().cuda()
+#         x = self.fc4(x).tanh().cuda()
+#         y = self.fc5(x).cuda()
+                
+#         return y
+
+
 class DQN(torch.nn.Module):
-    """ Script2_3, Script2_4
+    """ Script 16, script19, script23
     """
     def __init__(self):
         super(DQN, self).__init__()
-        self.fc1 = torch.nn.Linear(2,5).cuda()
+        self.fc1 = torch.nn.Linear(6,5).cuda()
         self.fc2 = torch.nn.Linear(5,5).cuda()
         self.fc3 = torch.nn.Linear(5,5).cuda()
         self.fc4 = torch.nn.Linear(5,5).cuda()
@@ -147,6 +169,7 @@ class DQN(torch.nn.Module):
         x = self.fc1(state).tanh().cuda()
         x = self.fc2(x).tanh().cuda()
         x = self.fc3(x).tanh().cuda()
+        # x = torch.nn.Dropout(0.2)(x)
         x = self.fc4(x).tanh().cuda()
         y = self.fc5(x).cuda()
                 

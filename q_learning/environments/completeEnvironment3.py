@@ -125,6 +125,8 @@ class CompleteEnvironment3(RLEnvironment):
                 sinr_d = sinr_d2d(p[0], p[1], list(zip(*self.d2d_pairs))[0], self.mue, self.params.noise_power, self.params.user_gain)
                 sinr_d2ds.append(sinr_d)
 
+        self.sinr_d2ds = sinr_d2ds
+
         states = [self.get_state(a) for a in agents]
         
         flag = True

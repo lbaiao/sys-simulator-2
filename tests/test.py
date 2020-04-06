@@ -72,17 +72,29 @@ d2d_users = [d2d1_1, d2d1_2, d2d2_1, d2d2_2]
 
 
 sinr1 = sinr_d2d(d2d1_1, d2d1_2, d2d_users, mue, 2.5119e-15, 2.5119)
-if sinr1 == 9.659478562268228:
+if sinr1 == 9.659478562268298:
     print('PASS sinr_d2d')
 else:
-    print('DONE sinr_d2d')
+    print('FAIL sinr_d2d')
 
 
 sinrm = sinr_mue(mue, d2d_users, bs, 2.5119e-15, 50.1187, 2.5119)
-if sinrm == 56.406572374295244:
+if sinrm == 56.40657237429534:
     print('PASS sinr_mue')
 else:
-    print('DONE sinr_mue')
+    print('FAIL sinr_mue')
+
+
+my_vec = [1, 2, 3]
+j1 = gen.jain_index(my_vec)
+my_vec = [3, 3, 3]
+j2 = gen.jain_index(my_vec)
+
+if j2 == 1 and j1 == 0.8571428571428571:
+    print('PASS jain_index')
+else:
+    print('FAIL jain_index')
+
 
 
 

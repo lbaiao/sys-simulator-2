@@ -180,3 +180,7 @@ def get_d2d_links(d2d_nodes_distances_table, d2d_nodes, channel):
 def path_leaf(path):
     head, tail = ntpath.split(path)
     return tail or ntpath.basename(head)
+
+
+def jain_index(vec: List[float]):
+    return np.sum(vec) ** 2 / (len(vec)*np.sum([v ** 2 for v in vec]))

@@ -116,7 +116,7 @@ def test(agents: List[Agent], env: DistributedEnvironment, policies, iterations:
 
 mue_success_avg_total = list()
 d2d_speffs_avg_total = list()
-for n_d2d in range(MAX_NUM_AGENTS+1):
+for n_d2d in range(MAX_NUM_AGENTS+1)[1:]:
     env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold,
                                             n_mues, n_d2d, n_rb, bs_radius, c_param=C)
     train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)

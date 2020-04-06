@@ -26,7 +26,8 @@ import os
 
 def test(env: CompleteEnvironment3, framework: ExternalDQNFramework, max_d2d: int, num_episodes: int, episode_steps: int):
     mue_spectral_effs = [list() for i in range(max_d2d+1)]
-    d2d_spectral_effs = [list() for i in range(max_d2d+1)]   
+    d2d_spectral_effs = [list() for i in range(max_d2d+1)]
+    jain_index = [list() for i in range(max_d2d+1)]
     done = False
     bag = list()
     aux_range = range(max_d2d+1)[1:]
@@ -52,7 +53,8 @@ def test(env: CompleteEnvironment3, framework: ExternalDQNFramework, max_d2d: in
                 break
         mue_spectral_effs[n_agents].append(env.mue_spectral_eff.item())
         d2d_spectral_effs[n_agents].append(env.d2d_spectral_eff.item())
-    return total_reward, mue_spectral_effs, d2d_spectral_effs, bag
+        jain_index[n_agents].append(gen.jain_index(env.sinr_d2ds))
+    return total_reward, mue_spectral_effs, d2d_spectral_effs, bag, jain_index
 
 n_mues = 1 # number of mues
 n_d2d = 2  # number of d2d pairs
@@ -121,7 +123,7 @@ framework.policy_net.load_state_dict(torch.load(f'/home/lucas/dev/sys-simulator-
 reward_function = rewards.dis_reward_tensor
 
 # policy 5 test
-total_reward, mue_spectral_effs, d2d_spectral_effs, bag = test(environment, framework, MAX_NUMBER_OF_AGENTS, 5000, 25)
+total_reward, mue_spectral_effs, d2d_spectral_effs, bag, jain_index = test(environment, framework, MAX_NUMBER_OF_AGENTS, 5000, 25)
 
 mue_success_rate = list()
 for i, m in enumerate(mue_spectral_effs):    
@@ -131,13 +133,16 @@ d2d_speffs_avg = list()
 for i, d in enumerate(d2d_spectral_effs):    
     d2d_speffs_avg.append(np.average(d))
 
+jain_index_avg = list()
+for i, j in enumerate(jain_index):    
+    jain_index_avg.append(np.average(j))
+
 log = list()
 for i, d in enumerate(zip(d2d_speffs_avg, mue_success_rate)):
     log.append(f'NUMBER OF D2D_USERS: {i+1}')
     log.append(f'D2D SPECTRAL EFFICIENCY - SCRIPT: {d[0]}')
     log.append(f'MUE SUCCESS RATE - SCRIPT: {d[1]}')
     log.append(f'-------------------------------------')
-
 
 filename = gen.path_leaf(__file__)
 filename = filename.split('.')[0]
@@ -163,20 +168,10 @@ ax2.set_ylabel('MUE Success Rate', color='tab:red')
 ax2.plot(mue_success_rate, '.', color='tab:red')
 fig2.tight_layout()
 
-
-# plt.figure(1)
-# plt.plot(list(range(len(d2d_spectral_effs))), d2d_spectral_effs, '.', label='Script')
-# plt.title('D2D spectral efficiencies')
-# plt.legend()
-
-# plt.figure(2)
-# threshold_eff = np.log2(1 + sinr_threshold_mue) * np.ones(len(mue_spectral_effs))
-# plt.plot(list(range(len(mue_spectral_effs))), mue_spectral_effs, '.', label='Script ')
-# plt.plot(list(range(len(mue_spectral_effs))), threshold_eff, label='Threshold')    
-
-# plt.title('MUE spectral efficiencies')
-# plt.legend()
-
+plt.figure(3)
+plt.hist(jain_index_avg)
+plt.xlabel('Average Jain Index')
+plt.ylabel('Number of D2D pairs in the RB')
 
 plt.show()
 

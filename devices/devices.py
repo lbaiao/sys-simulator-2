@@ -1,11 +1,10 @@
 import sys
 import os
-# insert at 1, 0 is the script path (or '' in REPL)
-# sys.path.insert(1, 'D:\\Dev\\sys-simulator-2')
 lucas_path = os.environ['LUCAS_PATH']
 sys.path.insert(1, lucas_path)
 
 from enum import Enum
+from pathloss.pathloss import pathloss_bs_users
 import numpy as np
 import scipy.spatial as spatial
 
@@ -16,7 +15,7 @@ class node:
     radius: BS coverage radius in meters
     """
     def __init__(self, **kargs):                            
-        self.tx_power = 0
+        self.tx_power = 1e-9
         pass
 
     def set_position(self, position):
@@ -36,6 +35,9 @@ class node:
     
     def set_sinr(self, sinr):
         self.sinr = sinr
+
+    def set_gain(self, gain: float):
+        self.gain = gain
     
 
 class base_station(node):
@@ -45,6 +47,7 @@ class base_station(node):
     radius: BS coverage radius in meters
     """
     def __init__(self, position, radius = 500):
+        super(base_station, self).__init__()
         self.position = position
         self.radius = radius
     def set_radius(self, radius):
@@ -56,7 +59,15 @@ class mobile_user(node):
     position: x,y tuple representing the device position coordinates    
     """
     def __init__(self, id):
+        super(mobile_user, self).__init__()
         self.id = f'MUE:{id}'
+
+    def get_tx_power(self, bs:base_station, snr: float, noise_power: float, margin: float, p_max: float):
+        tx_power = snr * noise_power * pathloss_bs_users(self.distance_to_bs)/ (self.gain * bs.gain)
+        tx_power *= margin
+        if tx_power > p_max:
+            tx_power = p_max
+        return tx_power
 
 class d2d_node_type(Enum):
     TX = 'TX'
@@ -68,6 +79,7 @@ class d2d_user(node):
     position: x,y tuple representing the device position coordinates    
     """
     def __init__(self, id: int, d2d_type: d2d_node_type, **kwargs):        
+        super(d2d_user, self).__init__()
         self.type = d2d_type
         self.id = f'DUE.{self.type.value}:{id}',
         

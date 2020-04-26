@@ -153,39 +153,16 @@ class ReplayMemory(object):
 #         return y
 
 
-class DQN(torch.nn.Module):
-    """ script23
-    """
-    def __init__(self):
-        super(DQN, self).__init__()
-        self.fc1 = torch.nn.Linear(6,5).cuda()
-        self.fc2 = torch.nn.Linear(5,5).cuda()
-        self.fc3 = torch.nn.Linear(5,5).cuda()
-        self.fc4 = torch.nn.Linear(5,5).cuda()
-        self.fc5 = torch.nn.Linear(5,5).cuda()
-        
-
-    def forward(self, state):
-        x = self.fc1(state).tanh().cuda()
-        x = self.fc2(x).tanh().cuda()
-        x = self.fc3(x).tanh().cuda()
-        # x = torch.nn.Dropout(0.2)(x)
-        x = self.fc4(x).tanh().cuda()
-        y = self.fc5(x).cuda()
-                
-        return y
-
-
 # class DQN(torch.nn.Module):
-#     """ Script 24
+#     """ script23
 #     """
 #     def __init__(self):
 #         super(DQN, self).__init__()
-#         self.fc1 = torch.nn.Linear(8,7).cuda()
-#         self.fc2 = torch.nn.Linear(7,7).cuda()
-#         self.fc3 = torch.nn.Linear(7,7).cuda()
-#         self.fc4 = torch.nn.Linear(7,7).cuda()
-#         self.fc5 = torch.nn.Linear(7,5).cuda()
+#         self.fc1 = torch.nn.Linear(6,5).cuda()
+#         self.fc2 = torch.nn.Linear(5,5).cuda()
+#         self.fc3 = torch.nn.Linear(5,5).cuda()
+#         self.fc4 = torch.nn.Linear(5,5).cuda()
+#         self.fc5 = torch.nn.Linear(5,5).cuda()
         
 
 #     def forward(self, state):
@@ -197,3 +174,26 @@ class DQN(torch.nn.Module):
 #         y = self.fc5(x).cuda()
                 
 #         return y
+
+
+class DQN(torch.nn.Module):
+    """ Script 24
+    """
+    def __init__(self):
+        super(DQN, self).__init__()
+        self.fc1 = torch.nn.Linear(8,7).cuda()
+        self.fc2 = torch.nn.Linear(7,7).cuda()
+        self.fc3 = torch.nn.Linear(7,7).cuda()
+        self.fc4 = torch.nn.Linear(7,7).cuda()
+        self.fc5 = torch.nn.Linear(7,5).cuda()
+        
+
+    def forward(self, state):
+        x = self.fc1(state).tanh().cuda()
+        x = self.fc2(x).tanh().cuda()
+        x = self.fc3(x).tanh().cuda()
+        # x = torch.nn.Dropout(0.2)(x)
+        x = self.fc4(x).tanh().cuda()
+        y = self.fc5(x).cuda()
+                
+        return y

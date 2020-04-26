@@ -2,7 +2,7 @@
 #     Nie, S., Fan, Z., Zhao, M., Gu, X. and Zhang, L., 2016, September. Q-learning based power control algorithm for D2D communication. 
 #     In 2016 IEEE 27th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications 
 #     (PIMRC) (pp. 1-6). IEEE.
-# devices positions are fixed. 
+# devices positions are fixed. Same as script 2_1, but we simulate for N = 2, 5, 10, and take the learning curves.
 
 import sys
 import os
@@ -27,7 +27,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 n_mues = 1 # number of mues
-n_d2d = 10  # number of d2d pairs
+n_d2d_list = [2,5,10]  # number of d2d pairs
 n_rb = n_mues   # number of RBs
 bs_radius = 500 #   bs radius in m
 
@@ -64,17 +64,15 @@ GAMMA = 0.98  # Discount factor
 C = 80  # C constant for the improved reward function
 
 # more parameters
-env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold,
-                                        n_mues, n_d2d, n_rb, bs_radius, c_param=C)
+
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = AgentParameters(EPSILON_MIN, EPSILON_DECAY, 1)
 learn_params = LearningParameters(ALPHA, GAMMA)
-
 actions = [i*0.82*p_max/5/1000 for i in range(5)] # best result
-agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-q_tables = [DistributedQTable(2, len(actions), learn_params) for a in agents]
+
 reward_function = rewards.dis_reward
-environment = DistributedEnvironment(env_params, reward_function)
+
+
 
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
@@ -96,7 +94,7 @@ def train(agents: List[Agent], env: DistributedEnvironment, params: TrainingPara
         total_reward += sum(rewards)
         if total_reward > best_reward:
             best_reward = total_reward
-        bag.append(q_tables[0].table.mean())
+        bag.append(np.mean([np.mean(q.table) for q in q_tables]))
         print("Episode#:{} sum reward:{} best_sum_reward:{} eps:{}".format(episode,
                                     total_reward, best_reward, agents[0].epsilon))
     
@@ -128,38 +126,27 @@ def test(agents: List[Agent], env: DistributedEnvironment, policies, iterations:
 
 # SCRIPT EXEC
 # training
-learned_policies, avg_q_values = train(agents, environment, train_params, q_tables)
+learning_curves = list()
+for n_d2d in n_d2d_list:
+    env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold,
+                                   n_mues, n_d2d, n_rb, bs_radius, c_param=C)
+    agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
+    q_tables = [DistributedQTable(2, len(actions), learn_params) for a in agents]
+    environment = DistributedEnvironment(env_params, reward_function) 
+    learned_policies, avg_q_values = train(agents, environment, train_params, q_tables)
+    learning_curves.append(avg_q_values)
+
 
 filename = gen.path_leaf(__file__)
 filename = filename.split('.')[0]
-np.save(f'{lucas_path}/models/{filename}', learned_policies)
-
-# testing
-# t_env = DistributedEnvironment(env_params, reward_function)
-# t_agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-t_env = copy.copy(environment)
-for i in range(50):
-    total_reward = test(agents, t_env, learned_policies, 20)
-    print(f'TEST #{i} REWARD: {total_reward}')
-
-success_rate = np.mean(np.array(t_env.mue_spectral_eff) > sinr_threshold)
-log = list()
-log.append(f'D2D SPECTRAL EFFICIENCY: {np.array(t_env.d2d_spectral_eff).mean()}')
-log.append(f'MUE SUCCESS RATE: {success_rate}')
-
-filename = f'{lucas_path}/logs/{filename}.txt'
-with open(filename, 'w') as log_file:
-    for l in log:
-        log_file.write(l)
-
-plot_spectral_effs(environment)
-plot_spectral_effs(t_env)
+np.save(f'{lucas_path}/data/{filename}', learning_curves)
 
 plt.figure()
-plt.plot(avg_q_values)
+for i, lc in enumerate(learning_curves):
+    plt.plot(lc, label=f'N={n_d2d_list[i]}')
 plt.xlabel('Iteration')
 plt.ylabel('Average Q-Values')
-
+plt.legend()
 plt.show()
 
 

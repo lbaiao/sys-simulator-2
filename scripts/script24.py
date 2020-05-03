@@ -176,11 +176,11 @@ with open(filename, 'wb') as f:
 # plt.ylabel('Average Spectral Efficiencies')
 # plt.legend()
 
-# plt.figure(1)
-# plt.plot(ext_framework.bag, '.')
-# plt.xlabel('Iteration')
-# plt.ylabel('Average Q-Values')
+plt.figure(1)
+plt.plot(ext_framework.bag, '.')
+plt.xlabel('Iteration')
+plt.ylabel('Average Q-Values')
 
-# plt.show()
+plt.show()
 
 

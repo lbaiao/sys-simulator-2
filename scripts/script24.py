@@ -70,7 +70,7 @@ GAMMA = 0.98  # Discount factor
 # C = 8000 # C constant for the improved reward function
 C = 80 # C constant for the improved reward function
 TARGET_UPDATE = 10
-MAX_NUMBER_OF_AGENTS = 10
+MAX_NUMBER_OF_AGENTS = 20
 
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_train,
@@ -176,11 +176,11 @@ with open(filename, 'wb') as f:
 # plt.ylabel('Average Spectral Efficiencies')
 # plt.legend()
 
-plt.figure(1)
-plt.plot(ext_framework.bag, '.')
-plt.xlabel('Iteration')
-plt.ylabel('Average Q-Values')
+# plt.figure(1)
+# plt.plot(ext_framework.bag, '.')
+# plt.xlabel('Iteration')
+# plt.ylabel('Average Q-Values')
 
-plt.show()
+# plt.show()
 
 

@@ -103,7 +103,7 @@ class CompleteEnvironment3(RLEnvironment):
         mue_distance_to_bs /= self.params.bs_radius
 
         
-        state = torch.tensor([[number_of_d2d_pairs, d2d_tx_distance_to_bs, d2d_rx_distance_to_mue, mue_distance_to_bs, self.avg_distances_to_bs, self.var_distances_to_bs, int(interference_indicator), int(not interference_indicator)]], device=self.device)
+        state = torch.tensor([[float(number_of_d2d_pairs), float(d2d_tx_distance_to_bs), float(d2d_rx_distance_to_mue), float(mue_distance_to_bs), float(self.avg_distances_to_bs), float(self.var_distances_to_bs), float(interference_indicator), float(not interference_indicator)]], device=self.device)
         # state = pd.DataFrame(state, columns=['number_of_d2d_pairs', 'd2d_tx_distance_to_bs', 'd2d_rx_distance_to_mue', 'mue_distance_to_bs', 'interference_indicator'])        
 
         return state

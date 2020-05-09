@@ -24,7 +24,7 @@ class CompleteEnvironment3(RLEnvironment):
     Environment implemented for solving the power allocation problem, for D2D devices in underlay mode, in the uplink,
     using a Deep Q-Learning algorithm. The returned states are based on agent conditions, in each RB, and consists of: number of d2d
     users in the same RB, agent distance to BS, distance between d2d_rx and MUE in the same RB, distance between MUE and BS,
-    distance between d2d agent tx and nearest other pair d2d rx, interference indicator.
+    average of the distances between devices, variance of the distance between devices, interference indicator.
     """
     def __init__(self, params: EnvironmentParameters, reward_function, **kwargs):
         self.params = params

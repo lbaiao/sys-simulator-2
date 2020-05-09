@@ -116,7 +116,7 @@ class CompleteEnvironment2(RLEnvironment):
         if sinr_m < self.params.sinr_threshold:     
             flag = False
 
-        rewards, mue_se, d2d_se = self.reward_function(sinr_m, sinr_d2ds, flag, self.params.c_param)
+        rewards, mue_se, d2d_se = self.reward_function(sinr_m, sinr_d2ds, flag, self.params.c_param, penalty=-5)
 
         done = False
         if self.early_stop:                        

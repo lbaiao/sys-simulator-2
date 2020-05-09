@@ -27,9 +27,12 @@ def plot_positions(bs: base_station, mues: List[mobile_user], d2d_txs: List[d2d_
     p2 = plt.plot(d2d_txs_x, d2d_txs_y, 'd', label='D2D TX')
     p3 = plt.plot(d2d_rxs_x, d2d_rxs_y, 'd', label='D2D RX')    
 
+    coordinates = [(str(i), d2d_txs_x[i], d2d_txs_y[i]) for i in range(len(d2d_txs))]
+    for c in coordinates: plt.annotate(c[0], (c[1], c[2]))
+
     patch = plt.Circle(bs.position, bs.radius, edgecolor='red', facecolor='None', linewidth=1.0, zorder=10)
     ax = plt.gca()
-    ax.add_patch(patch)
+    ax.add_patch(patch)    
     plt.xlim(left=-bs.radius-50)
     plt.xlim(right=bs.radius+50)
     plt.ylim(bottom=-bs.radius-50)

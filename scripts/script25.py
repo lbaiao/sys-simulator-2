@@ -1,4 +1,4 @@
-# Same as script 17, but with completeEnvironment2. This is the good one. Use this one.
+# Same as script 23, but with mod reward. Penalty=-5
 
 import sys
 import os

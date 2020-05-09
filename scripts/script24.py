@@ -1,4 +1,4 @@
-# Same as script 23, but with completeEnvironment3
+# Same as script 23, but with completeEnvironment3. Avoid using this one. It does not present good results.
 
 import sys
 import os

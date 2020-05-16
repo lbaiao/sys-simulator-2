@@ -1,4 +1,5 @@
-# Same as script 17, but with completeEnvironment2. This is the good one. Use this one.
+# Same as script 17, but with completeEnvironment2. This is the good one. Use this one. The algorithm is trained with N_D2D
+# varying from 1 to 10
 
 import sys
 import os
@@ -125,17 +126,17 @@ def train(framework: ExternalDQNFramework, env: CompleteEnvironment2, params: Tr
                         counts[j] += 1
                     else:
                         agent.get_action(framework, obs[j])
-                        actions[j] = agent.action_index                
+                        actions[j] = agent.action_index
                         counts[j] = 0
                         awaits[j] = np.random.choice(await_steps)
-                next_obs, rewards, done = env.step(agents)                
+                next_obs, rewards, done = env.step(agents)
                 i += 1
                 for j, agent in enumerate(agents):
                     framework.replay_memory.push(obs[j], actions[j], next_obs[j], rewards[j])
                 framework.learn()
                 obs = next_obs
-                total_reward += torch.sum(rewards)      
-                bag.append(total_reward.item())      
+                total_reward += torch.sum(rewards)
+                bag.append(total_reward.item())   
                 obs = next_obs
                 if episode % TARGET_UPDATE == 0:
                     framework.target_net.load_state_dict(framework.policy_net.state_dict())
@@ -146,7 +147,7 @@ def train(framework: ExternalDQNFramework, env: CompleteEnvironment2, params: Tr
 
             # some statistics
             mue_spectral_eff_bag.append(env.mue_spectral_eff)     # mue spectral eff
-            d2d_spectral_eff_bag.append(env.d2d_spectral_eff/env.params.n_d2d)   # average d2d spectral eff        
+            d2d_spectral_eff_bag.append(env.d2d_spectral_eff/env.params.n_d2d)   # average d2d spectral eff
         epsilon = agents[0].epsilon
 
     

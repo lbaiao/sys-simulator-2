@@ -11,7 +11,7 @@ from general import general as gen
 from devices.devices import node, base_station, mobile_user, d2d_user, d2d_node_type
 from pathloss import pathloss
 from plots.plots import plot_positions, plot_spectral_effs
-from q_learning.environments.completeEnvironment3 import CompleteEnvironment3
+from q_learning.environments.completeEnvironment2 import CompleteEnvironment2
 from dqn.agents.dqnAgent import ExternalDQNAgent
 from dqn.externalDQNFramework import ExternalDQNFramework
 from q_learning.q_table import DistributedQTable
@@ -26,18 +26,18 @@ import numpy as np
 import os
 import pickle
 
-def test(env: CompleteEnvironment3, framework: ExternalDQNFramework, max_d2d: int, num_episodes: int, episode_steps: int, x:List[int]):
+def test(env: CompleteEnvironment2, framework: ExternalDQNFramework, max_d2d: int, num_episodes: int, episode_steps: int, aux_range:List[int]):
     mue_spectral_effs = [list() for i in range(max_d2d+1)]
     d2d_spectral_effs = [list() for i in range(max_d2d+1)]
     action_counts = [list() for i in range(max_d2d+1)]
     equals_counts = [list() for i in range(max_d2d+1)]
     done = False
     bag = list()
-    aux_range = range(max_d2d+1)[1:]
+    # aux_range = range(max_d2d+1)[1:]
     for _ in range(num_episodes):
         actions = [i*0.82*p_max/5/1000 for i in range(5)] # best result
         aux_actions = len(actions)
-        n_agents = np.random.choice(x)
+        n_agents = np.random.choice(aux_range)
         agents = [ExternalDQNAgent(agent_params, actions) for i in range(n_agents)] # 1 agent per d2d tx        
         env.build_scenario(agents)
         done = False
@@ -112,16 +112,16 @@ agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, REPLAY_MEMORY_S
 
 actions = torch.tensor([i*0.82*p_max/5/1000 for i in range(5)])
 reward_function = rewards.dis_reward_tensor2
-environment = CompleteEnvironment3(env_params, reward_function)
+environment = CompleteEnvironment2(env_params, reward_function)
 
 framework = ExternalDQNFramework(agent_params)
-framework.policy_net.load_state_dict(torch.load(f'{lucas_path}/models/script24_2000.pt'))
+framework.policy_net.load_state_dict(torch.load(f'{lucas_path}/models/script23.pt'))
 
 reward_function = rewards.dis_reward_tensor
 
 # policy 5 test
-x = list(range(11))[1:]
-total_reward, mue_spectral_effs, d2d_spectral_effs, bag, action_counts_total, equals_counts_total = test(environment, framework, MAX_NUMBER_OF_AGENTS, 10000, 25, x)
+aux_range = list(range(11))[1:]
+total_reward, mue_spectral_effs, d2d_spectral_effs, bag, action_counts_total, equals_counts_total = test(environment, framework, MAX_NUMBER_OF_AGENTS, 10000, 10, aux_range)
 # total_reward, mue_spectral_effs, d2d_spectral_effs, bag, action_counts_total, equals_counts_total = test(environment, framework, MAX_NUMBER_OF_AGENTS, 10, 5, x)
 
 mue_success_rate = list()
@@ -177,11 +177,11 @@ ax2.plot(mue_success_rate, '.', color='tab:red')
 fig2.tight_layout()
 
 
-xi = list(range(len(x)))
+xi = list(range(len(aux_range)))
 ax = [0,1,2,3,4]
 axi = list(range(len(ax)))
 for i, c in enumerate(action_counts_total):
-    if i in x:
+    if i in aux_range:
         plt.figure()
         plt.plot(np.mean(c, axis=0)/i*100, '*',label='mean')
         plt.plot(np.std(c, axis=0)/i*100, 'x', label='std')
@@ -194,12 +194,12 @@ for i, c in enumerate(action_counts_total):
 mean_equals = np.array([np.mean(c) for c in equals_counts_total])
 std_equals = np.array([np.std(c) for c in equals_counts_total])
 plt.figure()
-plt.plot(mean_equals[x]*100, '*',label='mean')
-plt.plot(std_equals[x]*100, 'x', label='std')
+plt.plot(mean_equals[aux_range]*100, '*',label='mean')
+plt.plot(std_equals[aux_range]*100, 'x', label='std')
 plt.legend()
 plt.xlabel('Amount of D2D Devices')
 plt.ylabel('Average Equal Actions Ocurrency [%]')
-plt.xticks(xi, x)
+plt.xticks(xi, aux_range)
 
 plt.show()
 

@@ -94,6 +94,9 @@ class d2d_user(node):
 
     def set_link_id(self, link_id):
         self.link_id = link_id    
+
+    def set_distance_to_mue(self, distance):
+        self.distance_to_mue = distance
         
     @staticmethod
     def get_due_by_id(d2d_list, due_id):

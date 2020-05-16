@@ -112,7 +112,7 @@ agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, REPLAY_MEMORY_S
 
 actions = torch.tensor([i*0.82*p_max/5/1000 for i in range(5)])
 reward_function = rewards.dis_reward_tensor2
-environment = CompleteEnvironment3(env_params, reward_function, early_stop=1e-6, tolerance=10)
+environment = CompleteEnvironment3(env_params, reward_function)
 
 framework = ExternalDQNFramework(agent_params)
 framework.policy_net.load_state_dict(torch.load(f'{lucas_path}/models/script24_2000.pt'))

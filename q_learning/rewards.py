@@ -79,7 +79,7 @@ def dis_reward_tensor_portela(sinr_mue: float, sinr_d2ds: List[float], state: in
     coefs_1 = distances_1 / d1_max
     coefs_2 = distances_2 / d2_max
     betas = mu * (coefs_1 + coefs_2)
-    betas = torch.tensor(betas, device=device)
+    betas = torch.tensor(betas, device=device).double()
     
     mue_contrib = torch.log2(1 + torch.tensor(sinr_mue, device=device))
     sinr_d2ds = torch.tensor(sinr_d2ds, device=device)
@@ -102,7 +102,7 @@ def dis_reward_tensor_portela_inverse(sinr_mue: float, sinr_d2ds: List[float], s
     coefs_1 = distances_1 / d1_max
     coefs_2 = distances_2 / d2_max
     betas = mu * 1 / (coefs_2 + coefs_1)
-    betas = torch.tensor(betas, device=device)
+    betas = torch.tensor(betas, device=device).double()
     
     mue_contrib = torch.log2(1 + torch.tensor(sinr_mue, device=device))
     sinr_d2ds = torch.tensor(sinr_d2ds, device=device)

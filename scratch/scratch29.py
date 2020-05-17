@@ -99,7 +99,7 @@ ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
 C = 80 # C constant for the improved reward function
 TARGET_UPDATE = 10
-MAX_NUMBER_OF_AGENTS = 10
+MAX_NUMBER_OF_AGENTS = 20
 REPLAY_MEMORY_SIZE = 10000
 BATCH_SIZE = 128
 

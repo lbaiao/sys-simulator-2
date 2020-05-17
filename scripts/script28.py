@@ -1,16 +1,16 @@
-# Same as script23, but N_D2D vary from 1 to 20. We use CompleteEnvironment4 and dis_reward_tensor_portela. mu=.1
+# Same as script23, but N_D2D vary from 1 to 20. We use the dis_reward_tensor_mod. penalty=10
 
 import sys
 import os
 
-lucas_path = os.environ['LUCAS_PATH']
+lucas_path = os.getcwd()
 sys.path.insert(1, lucas_path)
 
 from general import general as gen
 from devices.devices import node, base_station, mobile_user, d2d_user, d2d_node_type
 from pathloss import pathloss
 from plots.plots import plot_positions, plot_spectral_effs
-from q_learning.environments.completeEnvironment4 import CompleteEnvironment4
+from q_learning.environments.completeEnvironment2 import CompleteEnvironment2
 from dqn.agents.dqnAgent import ExternalDQNAgent
 from dqn.externalDQNFramework import ExternalDQNFramework
 from dqn.replayMemory import ReplayMemory
@@ -65,7 +65,6 @@ GAMMA = 0.98  # Discount factor
 C = 80 # C constant for the improved reward function
 TARGET_UPDATE = 10
 MAX_NUMBER_OF_AGENTS = 10
-MU = .1
 
 # more parameters
 env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold_train,
@@ -76,14 +75,14 @@ agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 10000, 512, GAM
 ext_framework = ExternalDQNFramework(agent_params)
 # actions = [i*p_max/10/1000 for i in range(21)] # worst
 # actions = [i*0.80*p_max/10/1000 for i in range(21)] # best histogram
-reward_function = rewards.dis_reward_tensor_portela
-# environment = CompleteEnvironment4(env_params, reward_function, early_stop=1e-6, tolerance=10)
-environment = CompleteEnvironment4(env_params, reward_function, mu=MU)
+reward_function = rewards.dis_reward_tensor_mod
+# environment = CompleteEnvironment2(env_params, reward_function, early_stop=1e-6, tolerance=10)
+environment = CompleteEnvironment2(env_params, reward_function)
 
 
 # training function
 # TODO: colocar agente e d2d_device na mesma classe? fazer propriedade d2d_device no agente?
-def train(framework: ExternalDQNFramework, env: CompleteEnvironment4, params: TrainingParameters, agent_params: DQNAgentParameters, max_d2d: int):    
+def train(framework: ExternalDQNFramework, env: CompleteEnvironment2, params: TrainingParameters, agent_params: DQNAgentParameters, max_d2d: int):    
     best_reward = float('-inf')
     device = torch.device('cuda')
     mue_spectral_eff_bag = list()
@@ -152,7 +151,6 @@ def train(framework: ExternalDQNFramework, env: CompleteEnvironment4, params: Tr
 # SCRIPT EXEC
 # training
 mue_spectral_effs, d2d_spectral_effs = train(ext_framework, environment, train_params, agent_params, MAX_NUMBER_OF_AGENTS)
-spectral_effs = zip(mue_spectral_effs, d2d_spectral_effs)
 data = {
     'mue_spectral_effs': mue_spectral_effs,
     'd2d_spectral_effs': d2d_spectral_effs,

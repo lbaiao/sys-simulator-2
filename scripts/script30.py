@@ -1,4 +1,4 @@
-# Same as script23, but N_D2D vary from 1 to 20. We use CompleteEnvironment4 and dis_reward_tensor_portela. mu=.1
+# Same as script23, but N_D2D vary from 1 to 20. We use CompleteEnvironment4 and dis_reward_tensor_portela_inverse. mu=.1
 
 import sys
 import os
@@ -76,7 +76,7 @@ agent_params = DQNAgentParameters(EPSILON_MIN, EPSILON_DECAY, 1, 10000, 512, GAM
 ext_framework = ExternalDQNFramework(agent_params)
 # actions = [i*p_max/10/1000 for i in range(21)] # worst
 # actions = [i*0.80*p_max/10/1000 for i in range(21)] # best histogram
-reward_function = rewards.dis_reward_tensor_portela
+reward_function = rewards.dis_reward_tensor_portela_inverse
 # environment = CompleteEnvironment4(env_params, reward_function, early_stop=1e-6, tolerance=10)
 environment = CompleteEnvironment4(env_params, reward_function, mu=MU)
 

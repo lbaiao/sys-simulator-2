@@ -82,7 +82,7 @@ def dis_reward_tensor_portela(sinr_mue: float, sinr_d2ds: List[float], state: in
     betas = torch.tensor(betas, device=device).double()
     
     mue_contrib = torch.log2(1 + torch.tensor(sinr_mue, device=device))
-    sinr_d2ds = torch.tensor(sinr_d2ds, device=device)
+    sinr_d2ds = torch.tensor(sinr_d2ds, device=device).double()
     d2d_contrib = torch.sum(torch.log2(1 + sinr_d2ds))
     # d2d_contrib = torch.sum(torch.tensor([torch.log2(1 + s) for s in sinr_d2ds], device=device))
     rewards = torch.ones(len(sinr_d2ds))    
@@ -105,7 +105,7 @@ def dis_reward_tensor_portela_inverse(sinr_mue: float, sinr_d2ds: List[float], s
     betas = torch.tensor(betas, device=device).double()
     
     mue_contrib = torch.log2(1 + torch.tensor(sinr_mue, device=device))
-    sinr_d2ds = torch.tensor(sinr_d2ds, device=device)
+    sinr_d2ds = torch.tensor(sinr_d2ds, device=device).double()
     d2d_contrib = torch.sum(torch.log2(1 + sinr_d2ds))
     # d2d_contrib = torch.sum(torch.tensor([torch.log2(1 + s) for s in sinr_d2ds], device=device))
     rewards = torch.ones(len(sinr_d2ds))    

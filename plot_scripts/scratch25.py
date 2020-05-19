@@ -10,10 +10,13 @@ MAX_NUMBER_OF_AGENTS = 10
 aux_range = list(range(MAX_NUMBER_OF_AGENTS+1))[1:]
 
 action_counts_total = data['action_counts_total']
-d2d_speffs_avg = data['d2d_speffs_avg_total']
+d2d_spectral_effs = data['d2d_speffs_avg_total']
 mue_success_rate = data['mue_success_rate']
 equals_counts_total = data['equals_counts_total']
 
+d2d_speffs_avg = list()
+for i, d in enumerate(d2d_spectral_effs):    
+    d2d_speffs_avg.append(np.average(d))
 
 fig2, ax1 = plt.subplots()
 ax1.set_xlabel('Number of D2D pairs in the RB')

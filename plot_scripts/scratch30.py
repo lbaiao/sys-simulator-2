@@ -2,12 +2,11 @@ import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 
-filepath = 'D:/Dev/sys-simulator-2/data/scratch27.pickle'
+filepath = 'D:/Dev/sys-simulator-2/data/scratch30.pickle'
 file = open(filepath, 'rb')
 data = pickle.load(file)
 
-MAX_NUMBER_OF_AGENTS = 10
-aux_range = list(range(MAX_NUMBER_OF_AGENTS+1))[1:]
+aux_range = [10,15,20]
 
 action_counts_total = data['action_counts_total']
 d2d_spectral_effs = data['d2d_speffs_avg_total']

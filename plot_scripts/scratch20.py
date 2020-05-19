@@ -1,8 +1,9 @@
 import pickle
+from matplotlib.text import Text
 import matplotlib.pyplot as plt
 import numpy as np
 
-filepath = 'D:/Dev/sys-simulator-2/data/scratch27.pickle'
+filepath = 'D:/Dev/sys-simulator-2/data/scratch20.pickle'
 file = open(filepath, 'rb')
 data = pickle.load(file)
 
@@ -19,13 +20,15 @@ for i, d in enumerate(d2d_spectral_effs):
     d2d_speffs_avg.append(np.average(d))
 
 fig2, ax1 = plt.subplots()
-ax1.set_xlabel('Number of D2D pairs in the RB')
-ax1.set_ylabel('D2D Average Spectral Efficiency [bps/Hz]', color='tab:blue')
-ax1.plot(d2d_speffs_avg, '.', color='tab:blue')
+ax1.set_xlabel('Number of D2D pairs in the RB', fontsize='x-large', )
+ax1.set_ylabel('D2D Average Spectral Efficiency [bps/Hz]', color='tab:blue', fontsize='x-large')
+ax1.plot(d2d_speffs_avg, '.', color='tab:blue', markersize=10)
+ax1.tick_params(axis='both', labelsize=12)
 
 ax2 = ax1.twinx()
-ax2.set_ylabel('MUE Success Rate', color='tab:red')
-ax2.plot(mue_success_rate, '.', color='tab:red')
+ax2.set_ylabel('MUE Success Rate', color='tab:red', fontsize='x-large')
+ax2.plot(mue_success_rate, '.', color='tab:red', markersize=10)
+ax2.tick_params(axis='both', labelsize=12)
 fig2.tight_layout()
 
 

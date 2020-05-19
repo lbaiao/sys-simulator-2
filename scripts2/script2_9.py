@@ -52,7 +52,7 @@ sinr_threshold = gen.db_to_power(sinr_threshold)
 
 # q-learning parameters
 MAX_NUM_EPISODES = 3000
-ITERATIONS = 100
+ITERATIONS = 300
 TEST_STEPS = 100
 # MAX_NUM_EPISODES = 10
 # ITERATIONS = 1

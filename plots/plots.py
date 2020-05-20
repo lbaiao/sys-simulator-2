@@ -106,7 +106,7 @@ def plot_positions_actions_pie(bs: base_station, mues: List[mobile_user], d2d_tx
     d2d_rxs_x = [i.position[0] for i in d2d_rxs]
     d2d_rxs_y = [i.position[1] for i in d2d_rxs]
 
-    f, (ax1, ax2) = plt.subplots(1, 2)
+    f, (ax1, ax2) = plt.subplots(1, 2, figsize=(14,6))
 
     p0 = ax1.plot(bs_x, bs_y, '*', label='BS')
     p1 = ax1.plot(mues_x, mues_y, '*', label='MUEs')

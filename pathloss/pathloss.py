@@ -1,8 +1,8 @@
 import sys
 import os
 
-lucas_path = os.environ['LUCAS_PATH']
-sys.path.insert(1, lucas_path)
+# lucas_path = os.environ['LUCAS_PATH']
+# sys.path.insert(1, lucas_path)
 
 import numpy as np
 

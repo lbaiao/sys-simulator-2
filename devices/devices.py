@@ -1,7 +1,7 @@
 import sys
 import os
-lucas_path = os.environ['LUCAS_PATH']
-sys.path.insert(1, lucas_path)
+# lucas_path = os.environ['LUCAS_PATH']
+# sys.path.insert(1, lucas_path)
 
 from enum import Enum
 from pathloss.pathloss import pathloss_bs_users

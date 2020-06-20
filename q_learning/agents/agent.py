@@ -1,7 +1,7 @@
 import os
 import sys
-lucas_path = os.environ['LUCAS_PATH']
-sys.path.insert(1, lucas_path)
+# lucas_path = os.environ['LUCAS_PATH']
+# sys.path.insert(1, lucas_path)
 
 import numpy as np
 from q_learning.q_table import QTable

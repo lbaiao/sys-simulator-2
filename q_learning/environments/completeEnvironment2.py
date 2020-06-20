@@ -1,7 +1,7 @@
 import sys
 import os
-lucas_path = os.environ['LUCAS_PATH']
-sys.path.insert(1, lucas_path)
+# lucas_path = os.environ['LUCAS_PATH']
+# sys.path.insert(1, lucas_path)
 
 from devices.devices import base_station, mobile_user, d2d_user, d2d_node_type
 from general import general as gen
@@ -29,7 +29,8 @@ class CompleteEnvironment2(RLEnvironment):
         # self.actions = [i*params.p_max/10 for i in range(11)]
         super(CompleteEnvironment2, self).__init__(params, reward_function, **kwargs)
         self.states = [0,0,1]
-        self.device = torch.device('cuda')        
+        self.device = \
+            torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
 
     def build_scenario(self, agents: List[DistanceAgent]):
@@ -70,17 +71,20 @@ class CompleteEnvironment2(RLEnvironment):
 
         # print('SCENARIO BUILT')
 
-
     def get_state(self, agent: DistanceAgent):
-        sinr = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power, self.params.bs_gain, self.params.user_gain)
-        (index, d2d_tx) = [(index, p[0]) for index, p in enumerate(self.d2d_pairs) if p[0].id == agent.id][0]                
+        sinr = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0],
+                        self.bs, self.params.noise_power,
+                        self.params.bs_gain, self.params.user_gain)
+        (index, d2d_tx) =\
+            [(index, p[0]) for index, p
+                in enumerate(self.d2d_pairs) if p[0].id == agent.id][0]
         d2d_rx = self.d2d_pairs[index][1]
 
         number_of_d2d_pairs = len(self.d2d_pairs)
         d2d_tx_distance_to_bs = d2d_tx.distance_to_bs
         d2d_rx_distance_to_mue = euclidean(d2d_rx.position, self.mue.position)
         mue_distance_to_bs = self.mue.distance_to_bs
-             
+
         interference_indicator = sinr > self.params.sinr_threshold
 
         # normalization
@@ -88,11 +92,13 @@ class CompleteEnvironment2(RLEnvironment):
         d2d_rx_distance_to_mue /= 2*self.params.bs_radius
         mue_distance_to_bs /= self.params.bs_radius
 
-        
-        state = torch.tensor([[number_of_d2d_pairs, d2d_tx_distance_to_bs, d2d_rx_distance_to_mue, mue_distance_to_bs, int(interference_indicator), int(not interference_indicator)]], device=self.device)
+        state = torch.tensor(
+            [[number_of_d2d_pairs, d2d_tx_distance_to_bs,
+                d2d_rx_distance_to_mue, mue_distance_to_bs,
+                int(interference_indicator),
+                int(not interference_indicator)]]).to(self.device)
 
         return state
-
 
     def step(self, agents: List[DistanceAgent]):
         for agent in agents:
@@ -100,27 +106,32 @@ class CompleteEnvironment2(RLEnvironment):
                 if agent.id == pair[0].id:
                     pair[0].tx_power = agent.action
 
-        mue_tx_power = self.mue.get_tx_power(self.bs, self.params.sinr_threshold, self.params.noise_power, self.params.mue_margin, self.params.p_max)
+        mue_tx_power = self.mue.get_tx_power(
+            self.bs, self.params.sinr_threshold, self.params.noise_power,
+            self.params.mue_margin, self.params.p_max)
         self.mue.set_tx_power(mue_tx_power)
-        sinr_m = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power, self.params.bs_gain, self.params.user_gain)
+        sinr_m = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0],
+                          self.bs, self.params.noise_power,
+                          self.params.bs_gain, self.params.user_gain)
 
         sinr_d2ds = list()
-        for p in self.d2d_pairs:                
+        for p in self.d2d_pairs:
             if p[0].rb == self.rb:
                 sinr_d = sinr_d2d(p[0], p[1], list(zip(*self.d2d_pairs))[0], self.mue, self.params.noise_power, self.params.user_gain)
                 sinr_d2ds.append(sinr_d)
 
         states = [self.get_state(a) for a in agents]
-        
+
         flag = True
-        if sinr_m < self.params.sinr_threshold:     
+        if sinr_m < self.params.sinr_threshold:
             flag = False
 
         rewards, mue_se, d2d_se = self.reward_function(sinr_m, sinr_d2ds, flag, self.params.c_param, penalty=5)
 
         done = False
-        if self.early_stop:                        
-            if torch.abs(torch.sum(rewards) - self.reward) <= self.change_tolerance:
+        if self.early_stop:
+            if torch.abs(torch.sum(rewards) - self.reward) \
+                        <= self.change_tolerance:
                 done = True
 
         self.reward = torch.sum(rewards)
@@ -129,8 +140,9 @@ class CompleteEnvironment2(RLEnvironment):
         self.d2d_spectral_eff = d2d_se
 
         return states, rewards, done
-    
-    def get_state_index(self, agent_distance: int, mue_distance: int, interference: bool):
+
+    def get_state_index(self, agent_distance: int,
+                        mue_distance: int, interference: bool):
         if interference:
             state_index = 10*agent_distance + mue_distance + 100
             return state_index
@@ -138,10 +150,5 @@ class CompleteEnvironment2(RLEnvironment):
             state_index = 10*agent_distance + mue_distance
             return state_index
 
-    
     def set_n_d2d(self, n_d2d):
         self.n_d2d = n_d2d
-
-
-        
-

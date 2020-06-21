@@ -48,7 +48,7 @@ sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
 
 # q-learning parameters
 STEPS_PER_EPISODE = 10
-MAX_NUM_EPISODES = 20000      # long training
+MAX_NUM_EPISODES = 2000      # long training
 C = 80  # C constant for the improved reward function
 MAX_NUMBER_OF_AGENTS = 10
 

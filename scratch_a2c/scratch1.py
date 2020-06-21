@@ -52,7 +52,7 @@ def test(env: CompleteEnvironmentA2C, framework: ActorCritic,
         now = (time.clock() - start)/60
         print(f'Episode {ep}. Elapsed time: {now} minutes.')
         # action_counts[n_agents].append(gen.action_counts(env.sinr_d2ds))
-    return total_reward, mue_spectral_effs, d2d_spectral_effs, bag
+    return mue_spectral_effs, d2d_spectral_effs, bag
 
 
 n_mues = 1  # number of mues
@@ -81,7 +81,7 @@ sinr_threshold_mue = gen.db_to_power(sinr_threshold_mue)
 
 # q-learning parameters
 STEPS_PER_EPISODE = 20
-MAX_NUM_EPISODES = 2000
+MAX_NUM_EPISODES = 50
 C = 80  # C constant for the improved reward function
 MAX_NUMBER_OF_AGENTS = 10
 
@@ -114,8 +114,9 @@ reward_function = rewards.dis_reward_tensor
 
 # policy 5 test
 aux_range = list(range(MAX_NUMBER_OF_AGENTS+1))[1:]
-total_reward, mue_spectral_effs, d2d_spectral_effs, bag, = \
-    test(environment, framework, MAX_NUMBER_OF_AGENTS, 2000, 10, aux_range)
+mue_spectral_effs, d2d_spectral_effs, bag, = \
+    test(environment, framework, MAX_NUMBER_OF_AGENTS, MAX_NUM_EPISODES,
+         STEPS_PER_EPISODE, aux_range)
 
 mue_success_rate = list()
 for i, m in enumerate(mue_spectral_effs):

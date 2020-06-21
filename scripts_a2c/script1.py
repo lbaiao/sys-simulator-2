@@ -56,7 +56,7 @@ C = 80  # C constant for the improved reward function
 TARGET_UPDATE = 10
 MAX_NUMBER_OF_AGENTS = 10
 
-HIDDEN_SIZE = 256
+HIDDEN_SIZE = 128
 LEARNING_RATE = 3e-4
 # mu = 0.82*p_max/5/2000
 # std = mu/6
@@ -151,9 +151,9 @@ data['mean_rewards'] = mean_rewards
 filename = gen.path_leaf(__file__)
 filename = filename.split('.')[0]
 filename_model = filename
-filename = f'{cwd}/data/{filename}.pickle'
+filename = f'{cwd}/data/a2c/{filename}.pickle'
 torch.save(
     a2c.state_dict(),
-    f'{cwd}/models/{filename_model}.pt')
+    f'{cwd}/models/a2c/{filename_model}.pt')
 with open(filename, 'wb') as f:
     pickle.dump(data, f)

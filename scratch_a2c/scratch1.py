@@ -85,7 +85,7 @@ MAX_NUM_EPISODES = 2000
 C = 80  # C constant for the improved reward function
 MAX_NUMBER_OF_AGENTS = 10
 
-HIDDEN_SIZE = 256
+HIDDEN_SIZE = 128
 LEARNING_RATE = 3e-4
 # mu = 0.82*p_max/5/2000
 # std = mu/6
@@ -146,7 +146,7 @@ data = {
 with open(pickle_filename, 'wb') as file:
     pickle.dump(data, file)
 
-filename = f'{cwd}/logs/{filename}.txt'
+filename = f'{cwd}/logs/a2c/{filename}.txt'
 file = open(filename, 'w')
 
 for lg in log:

@@ -17,6 +17,7 @@ from typing import List
 import torch
 import numpy as np
 import pickle
+import time
 
 from q_learning.environments.completeEnvironmentA2C \
     import CompleteEnvironmentA2C
@@ -32,7 +33,8 @@ def test(env: CompleteEnvironmentA2C, framework: ActorCritic,
     done = False
     bag = list()
     # aux_range = range(max_d2d+1)[1:]
-    for _ in range(num_episodes):
+    start = time.clock()
+    for i in range(num_episodes):
         n_agents = np.random.choice(aux_range)
         agents = [Agent() for _ in range(n_agents)]
         env.build_scenario(agents)
@@ -47,7 +49,8 @@ def test(env: CompleteEnvironmentA2C, framework: ActorCritic,
             i += 1
         mue_spectral_effs[n_agents].append(env.mue_spectral_eff.item())
         d2d_spectral_effs[n_agents].append(env.d2d_spectral_eff.item())
-
+        now = (time.clock() - start)/60
+        print(f'Episode {i}. Elapsed time: {now} minutes.')
         # action_counts[n_agents].append(gen.action_counts(env.sinr_d2ds))
     return total_reward, mue_spectral_effs, d2d_spectral_effs, bag
 

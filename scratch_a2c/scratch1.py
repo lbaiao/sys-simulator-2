@@ -3,12 +3,16 @@
 # We use script26 model. We simulate for N_D2D=1 till 10
 
 import os
+import sys
 
-from general import general as gen
+lucas_path = os.getcwd()
+sys.path.insert(1, lucas_path)
+
+import general.general as gen
 from q_learning import rewards
 from parameters.parameters import EnvironmentParameters, TrainingParameters
 from typing import List
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 
 import torch
 import numpy as np

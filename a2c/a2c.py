@@ -26,11 +26,19 @@ class ActorCritic(nn.Module):
             nn.Tanh(),
             nn.Linear(hidden_size, hidden_size),
             nn.Tanh(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.Tanh(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.Tanh(),
             nn.Linear(hidden_size, 1)
         ).to(self.device)
 
         self.actor = nn.Sequential(
             nn.Linear(num_inputs, hidden_size),
+            nn.Tanh(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.Tanh(),
+            nn.Linear(hidden_size, hidden_size),
             nn.Tanh(),
             nn.Linear(hidden_size, hidden_size),
             nn.Tanh(),

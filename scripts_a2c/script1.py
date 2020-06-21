@@ -43,17 +43,8 @@ sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
 
 # q-learning parameters
 STEPS_PER_EPISODE = 10
-EPSILON_MIN = 0.05
-EPSILON_DECAY = 0.8375*1e-4    # long training
-# EPSILON_DECAY = 3.35*1e-4    # medium training
 MAX_NUM_EPISODES = 20000      # long training
-# MAX_NUM_EPISODES = 480      # medium training
-# MAX_NUM_EPISODES = 2      # quick test
-ALPHA = 0.2  # Learning rate
-GAMMA = 0.98  # Discount factor
-# C = 8000 # C constant for the improved reward function
 C = 80  # C constant for the improved reward function
-TARGET_UPDATE = 10
 MAX_NUMBER_OF_AGENTS = 10
 
 HIDDEN_SIZE = 128

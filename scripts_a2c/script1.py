@@ -2,33 +2,18 @@
 # to train a single A2C network. The algorithm is trained with N_D2D
 # varying from 1 to 10.
 
-import sys
 import os
-
-lucas_path = os.getcwd()
-sys.path.insert(1, lucas_path)
-
 from general import general as gen
-from devices.devices import node, base_station, \
-    mobile_user, d2d_user, d2d_node_type
-from pathloss import pathloss
-from plots.plots import plot_positions, plot_spectral_effs
 from q_learning.environments.completeEnvironmentA2C \
     import CompleteEnvironmentA2C
 from q_learning import rewards
 from parameters.parameters import EnvironmentParameters,\
-    TrainingParameters, DQNAgentParameters, LearningParameters
-from typing import List
-from matplotlib import pyplot as plt
-
+    TrainingParameters
 from a2c.agent import Agent
 from a2c.a2c import ActorCritic, compute_returns
 
 import torch
 from torch import optim
-import math
-import numpy as np
-import os
 import pickle
 import random
 
@@ -166,9 +151,9 @@ data['mean_rewards'] = mean_rewards
 filename = gen.path_leaf(__file__)
 filename = filename.split('.')[0]
 filename_model = filename
-filename = f'{lucas_path}/data/{filename}.pickle'
+filename = f'{cwd}/data/{filename}.pickle'
 torch.save(
     a2c.state_dict(),
-    f'{lucas_path}/models/{filename_model}.pt')
+    f'{cwd}/models/{filename_model}.pt')
 with open(filename, 'wb') as f:
     pickle.dump(data, f)

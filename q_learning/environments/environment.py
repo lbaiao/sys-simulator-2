@@ -86,7 +86,7 @@ class RLEnvironment:
     def get_state(self):
         flag = 1
         sinr = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0], self.bs, self.params.noise_power, self.params.bs_gain, self.params.user_gain)
-        if sinr < self.params.sinr_threshold:            
+        if sinr < self.params.sinr_threshold:
             flag = 0
         return flag
 

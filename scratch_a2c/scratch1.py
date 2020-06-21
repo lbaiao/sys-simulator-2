@@ -112,7 +112,7 @@ reward_function = rewards.dis_reward_tensor2
 environment = CompleteEnvironmentA2C(env_params, reward_function)
 
 framework = ActorCritic(6, 1, HIDDEN_SIZE, mu, std)
-framework.policy_net.load_state_dict(torch.load(f'{cwd}/models/script1.pt'))
+framework.load_state_dict(torch.load(f'{cwd}/models/script1.pt'))
 
 reward_function = rewards.dis_reward_tensor
 

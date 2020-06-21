@@ -3,6 +3,11 @@
 # varying from 1 to 10.
 
 import os
+import sys
+
+lucas_path = os.getcwd()
+sys.path.insert(1, lucas_path)
+
 from general import general as gen
 from q_learning.environments.completeEnvironmentA2C \
     import CompleteEnvironmentA2C

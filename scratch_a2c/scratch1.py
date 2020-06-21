@@ -77,17 +77,10 @@ user_gain = gen.db_to_power(user_gain)
 sinr_threshold_mue = gen.db_to_power(sinr_threshold_mue)
 
 # q-learning parameters
-STEPS_PER_EPISODE = 4000
-EPSILON_MIN = 0.01
-EPSILON_DECAY = 100 * EPSILON_MIN / STEPS_PER_EPISODE
-MAX_NUM_EPISODES = int(1.2/EPSILON_DECAY)
-ALPHA = 0.05  # Learning rate
-GAMMA = 0.98  # Discount factor
+STEPS_PER_EPISODE = 20
+MAX_NUM_EPISODES = 2000
 C = 80  # C constant for the improved reward function
-TARGET_UPDATE = 10
 MAX_NUMBER_OF_AGENTS = 10
-REPLAY_MEMORY_SIZE = 10000
-BATCH_SIZE = 128
 
 HIDDEN_SIZE = 256
 LEARNING_RATE = 3e-4

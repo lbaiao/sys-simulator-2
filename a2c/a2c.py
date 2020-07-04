@@ -3,13 +3,36 @@ import torch.nn as nn
 from torch.distributions import Normal
 
 
-def compute_returns(next_value, rewards, masks, gamma=0.99):
-    R = next_value
-    returns = []
+def compute_gae_returns(device, rewards: torch.Tensor,
+                        values: torch.Tensor, gamma=0.99, lbda=0.95):
+    gae = torch.zeros(len(rewards)).to(device)
+    R = torch.zeros(len(rewards)).to(device)
+    values = values.detach()
+    advantages = torch.zeros(rewards.shape).to(device)
+    returns = torch.zeros(rewards.shape).to(device).detach()
     for step in reversed(range(len(rewards))):
-        R = rewards[step] + gamma * R * masks[step]
-        returns.insert(0, R)
-    return returns
+        # GAE
+        delta = \
+            rewards[:, step] + gamma * values[:, step + 1] - values[:, step]
+        gae = delta + gamma * lbda * gae
+        advantages[:, step] = gae + values[:, step]
+        # returns
+        R = rewards[:, step] + gamma * R
+        returns[:, step] = R
+    # normalization
+    for i in range(advantages.shape[0]):
+        advantages[i] = (advantages[i] - torch.mean(advantages[i])) / \
+                        (torch.std(advantages[i]) + 1e-9)
+        returns[i] = (returns[i] - torch.mean(returns[i])) / \
+                     (torch.std(returns[i]) + 1e-9)
+    return advantages, returns
+
+
+def choose_action(mu, std):
+    dist = Normal(mu, std)
+    action = dist.sample()
+    log_prob = dist.log_prob(action)
+    return action, log_prob
 
 
 class ActorCritic(nn.Module):
@@ -23,13 +46,17 @@ class ActorCritic(nn.Module):
 
         self.critic = nn.Sequential(
             nn.Linear(num_inputs, hidden_size),
-            nn.ReLU(),
+            nn.Tanh(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.Tanh(),
             nn.Linear(hidden_size, 1)
         ).to(self.device)
 
         self.actor = nn.Sequential(
             nn.Linear(num_inputs, hidden_size),
-            nn.ReLU(),
+            nn.Tanh(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.Tanh(),
             nn.Linear(hidden_size, num_outputs),
             nn.Softmax(dim=1),
         ).to(self.device)
@@ -45,7 +72,7 @@ class ActorCritic(nn.Module):
 
     def forward(self, x):
         value = self.critic(x).to(self.device)
-        mu = self.actor(x)
+        mu = self.actor(x.view(1, -1))
         std = self.log_std.exp().expand_as(mu).to(self.device)
         dist = Normal(mu, std)
         return dist, value

@@ -2,158 +2,134 @@
 # to train a single A2C network. The algorithm is trained with N_D2D
 # varying from 1 to 10.
 
-import os
 from general import general as gen
 from q_learning.environments.completeEnvironmentA2C \
     import CompleteEnvironmentA2C
-from q_learning import rewards
-from parameters.parameters import EnvironmentParameters,\
-    TrainingParameters
+from q_learning.rewards import dis_reward_tensor
+from parameters.parameters import EnvironmentParameters
 from a2c.agent import Agent
-from a2c.a2c import ActorCritic, compute_returns
-
-import torch
+from a2c.a2c import ActorCritic, compute_gae_returns
 from torch import optim
+from torch import nn
+import torch
+import os
 import pickle
 import random
 
-n_mues = 1  # number of mues
-n_d2d = 2  # number of d2d pairs
-n_rb = n_mues  # number of RBs
-bs_radius = 500  # bs radius in m
 
-rb_bandwidth = 180*1e3  # rb bandwidth in Hz
-d2d_pair_distance = 50  # d2d pair distance in m
-p_max = 23  # max tx power in dBm
-noise_power = -116  # noise power per RB in dBm
-bs_gain = 17    # macro bs antenna gain in dBi
-user_gain = 4   # user antenna gain in dBi
-sinr_threshold_train = 6  # mue sinr threshold in dB for training
-sinr_threshold_mue = 6  # true mue sinr threshold in dB
-mue_margin = .5e4
-
-# conversions from dB to pow
-p_max = p_max - 30
-p_max = gen.db_to_power(p_max)
-noise_power = noise_power - 30
-noise_power = gen.db_to_power(noise_power)
-bs_gain = gen.db_to_power(bs_gain)
-user_gain = gen.db_to_power(user_gain)
-sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
-
-# q-learning parameters
-STEPS_PER_EPISODE = 10
-EPSILON_MIN = 0.05
-EPSILON_DECAY = 0.8375*1e-4    # long training
-# EPSILON_DECAY = 3.35*1e-4    # medium training
-MAX_NUM_EPISODES = 20000      # long training
-# MAX_NUM_EPISODES = 480      # medium training
-# MAX_NUM_EPISODES = 2      # quick test
-ALPHA = 0.2  # Learning rate
-GAMMA = 0.98  # Discount factor
-# C = 8000 # C constant for the improved reward function
-C = 80  # C constant for the improved reward function
-TARGET_UPDATE = 10
-MAX_NUMBER_OF_AGENTS = 10
-
-HIDDEN_SIZE = 256
-LEARNING_RATE = 3e-4
-# mu = 0.82*p_max/5/2000
-# std = mu/6
-mu = p_max*1e-8
-std = mu/100
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-# more parameters
-env_params = EnvironmentParameters(
-    rb_bandwidth, d2d_pair_distance, p_max, noise_power,
-    bs_gain, user_gain, sinr_threshold_train,
-    n_mues, n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin)
-train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
-reward_function = rewards.dis_reward_tensor
-environment = CompleteEnvironmentA2C(env_params, reward_function)
-a2c = ActorCritic(6, 1, HIDDEN_SIZE, mu, std)
-optimizer = optim.Adam(a2c.parameters(), lr=LEARNING_RATE)
-
-episode = 0
-mue_spectral_eff_bag = list()
-d2d_spectral_eff_bag = list()
-mean_rewards = []
-while episode < MAX_NUM_EPISODES:
-    log_probs = []
-    values = []
-    rewards = []
-    masks = []
-    entropy = 0
-    best_reward = float('-inf')
-    device = torch.device('cuda')
-    aux_range = range(MAX_NUMBER_OF_AGENTS+1)[1:]
-    n_agents = random.choice(aux_range)
-    agents = [Agent() for _ in range(n_agents)]
-    environment.build_scenario(agents)
-    obs = [environment.get_state(a) for a in agents]
-    i = 0
-    done = False
-    while not done and i < STEPS_PER_EPISODE:
-        actions = torch.zeros([len(agents)], device=device)
-
+def run():
+    # environment physical parameters
+    n_mues = 1  # number of mues
+    n_d2d = 2  # number of d2d pairs
+    n_rb = n_mues  # number of RBs
+    bs_radius = 500  # bs radius in m
+    rb_bandwidth = 180*1e3  # rb bandwidth in Hz
+    d2d_pair_distance = 50  # d2d pair distance in m
+    p_max = 23  # max tx power in dBm
+    noise_power = -116  # noise power per RB in dBm
+    bs_gain = 17    # macro bs antenna gain in dBi
+    user_gain = 4   # user antenna gain in dBi
+    sinr_threshold_train = 6  # mue sinr threshold in dB for training
+    mue_margin = .5e4
+    # conversions from dB to pow
+    p_max = p_max - 30
+    p_max = gen.db_to_power(p_max)
+    noise_power = noise_power - 30
+    noise_power = gen.db_to_power(noise_power)
+    bs_gain = gen.db_to_power(bs_gain)
+    user_gain = gen.db_to_power(user_gain)
+    sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
+    # ai training parameters
+    STEPS_PER_EPISODE = 20
+    MAX_NUM_EPISODES = 27000      # long training
+    # C = 8000 # C constant for the improved reward function
+    C = 80  # C constant for the improved reward function
+    MAX_NUMBER_OF_AGENTS = 10
+    HIDDEN_SIZE = 256
+    LEARNING_RATE = 3e-4
+    # mu = 0.82*p_max/5/2000
+    # std = mu/6
+    mu = p_max*1e-8
+    std = mu/100
+    # torch device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # parameters classes initialization
+    env_params = EnvironmentParameters(
+        rb_bandwidth, d2d_pair_distance, p_max, noise_power,
+        bs_gain, user_gain, sinr_threshold_train,
+        n_mues, n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin)
+    # environment initialization
+    reward_function = dis_reward_tensor
+    environment = CompleteEnvironmentA2C(env_params, reward_function)
+    # a2c initialization
+    a2c = ActorCritic(6, 1, HIDDEN_SIZE, mu, std)
+    actor_optimizer = optim.Adam(a2c.actor.parameters(), lr=LEARNING_RATE)
+    critic_optimizer = optim.Adam(a2c.critic.parameters(), lr=LEARNING_RATE)
+    # training loop
+    episode = 0
+    mean_rewards = []
+    while episode < MAX_NUM_EPISODES:
+        # entropy = 0
+        aux_range = range(MAX_NUMBER_OF_AGENTS+1)[1:]
+        n_agents = random.choice(aux_range)
+        agents = [Agent() for _ in range(n_agents)]
+        environment.build_scenario(agents)
+        obs = [environment.get_state(a) for a in agents]
+        log_probs = torch.zeros((n_agents, STEPS_PER_EPISODE)).to(device)
+        values = torch.zeros((n_agents, STEPS_PER_EPISODE+1)).to(device)
+        rewards = torch.zeros((n_agents, STEPS_PER_EPISODE)).to(device)
+        i = 0
+        done = False
+        while not done and i < STEPS_PER_EPISODE:
+            # agents choose their actions
+            for j, agent in enumerate(agents):
+                action, dist, value = agent.act(a2c, obs[j])
+                log_prob = dist.log_prob(action)
+                # entropy += dist.entropy().mean()
+                log_probs[j][i] = log_prob
+                values[j][i] = value
+            # perform a environment step
+            next_obs_t, rewards_t, done = environment.step(agents)
+            rewards[:, i] = torch.FloatTensor(rewards_t)
+            i += 1
+            obs = next_obs_t
+        # gae and returns
+        next_obs_t = torch.cat(obs, 0).to(device)
         for j, agent in enumerate(agents):
-            action, dist, value = agent.act(a2c, obs[j])
-            actions[j] = action
-            log_prob = dist.log_prob(action)
-            entropy += dist.entropy().mean()
-
-            log_probs.append(log_prob)
-            values.append(value)
-
-        next_obs_t, rewards_t, done = environment.step(agents)
-        rewards.append(torch.FloatTensor(rewards_t).unsqueeze(1).to(device))
-        aux = (1 - done) * torch.ones(n_agents).to(device)
-        masks.append(aux)
-        i += 1
-        obs = next_obs_t
-
-    next_obs = torch.cat(next_obs_t, 0).to(device)
-    next_value = list()
-    for j, agent in enumerate(agents):
-        _, _, next_value_t = agents[0].act(a2c, next_obs_t[j])
-        next_value.append(next_value_t)
-    next_value = torch.cat(next_value, 0).to(device)
-    returns = compute_returns(next_value, rewards, masks)
-
-    log_probs = torch.cat(log_probs)
-    returns = torch.cat(returns).detach()
-    values = torch.cat(values)
-
-    advantage = returns - values
-
-    actor_loss = -(log_probs * advantage.detach()).mean()
-    critic_loss = advantage.pow(2).mean()
-
-    loss = actor_loss + 0.5 * critic_loss - 0.001 * entropy
-
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-    episode += 1
-
-    m_reward = torch.mean(torch.cat(rewards)).item()
-    mean_rewards.append(m_reward)
-    print("Episode#:{} mean reward:{}".format(
-        episode, m_reward))
-
-cwd = os.getcwd()
-
-data = {}
-data['mean_rewards'] = mean_rewards
-
-filename = gen.path_leaf(__file__)
-filename = filename.split('.')[0]
-filename_model = filename
-filename = f'{cwd}/data/{filename}.pickle'
-torch.save(
-    a2c.state_dict(),
-    f'{cwd}/models/{filename_model}.pt')
-with open(filename, 'wb') as f:
-    pickle.dump(data, f)
+            _, _, next_value_t = agents[0].act(a2c, next_obs_t[j])
+            values[j][i] = next_value_t
+        advantages, returns = compute_gae_returns(device, rewards, values)
+        # update critic
+        values_critic = values[:, :-1].reshape(1, -1).to(device)
+        returns_critic = returns.view(1, -1).to(device)
+        critic_loss = nn.functional.mse_loss(values_critic, returns_critic)
+        critic_optimizer.zero_grad()
+        critic_loss.backward()
+        critic_optimizer.step()
+        # update actor
+        aux = torch.mul(advantages, log_probs)
+        aux = torch.sum(aux, axis=0)
+        actor_loss = -torch.mean(aux)
+        actor_optimizer.zero_grad()
+        actor_loss.backward()
+        actor_optimizer.step()
+        # print training info
+        episode += 1
+        m_reward = torch.mean(rewards).item()
+        mean_rewards.append(m_reward)
+        print("Episode#:{} mean reward:{}".format(
+            episode, m_reward))
+    # save training data into a file
+    cwd = os.getcwd()
+    data = {}
+    data['mean_rewards'] = mean_rewards
+    filename = gen.path_leaf(__file__)
+    filename = filename.split('.')[0]
+    filename_model = filename
+    filename = f'{cwd}/data/{filename}.pickle'
+    # save the a2c models
+    torch.save(
+        a2c.state_dict(),
+        f'{cwd}/models/{filename_model}.pt')
+    with open(filename, 'wb') as f:
+        pickle.dump(data, f)

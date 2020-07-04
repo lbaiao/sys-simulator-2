@@ -163,7 +163,6 @@ class DQN(torch.nn.Module):
         self.fc3 = torch.nn.Linear(5,5).cuda()
         self.fc4 = torch.nn.Linear(5,5).cuda()
         self.fc5 = torch.nn.Linear(5,5).cuda()
-        
 
     def forward(self, state):
         x = self.fc1(state).tanh().cuda()
@@ -172,7 +171,7 @@ class DQN(torch.nn.Module):
         # x = torch.nn.Dropout(0.2)(x)
         x = self.fc4(x).tanh().cuda()
         y = self.fc5(x).cuda()
-                
+
         return y
 
 

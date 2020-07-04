@@ -1,16 +1,9 @@
-import sys
-import os
-
-# lucas_path = os.environ['LUCAS_PATH']
-# sys.path.insert(1, lucas_path)
-
 import numpy as np
 import random
 import math
 import ntpath
 
 from typing import List
-import math
 import scipy.spatial as spatial
 from devices.devices import d2d_user, mobile_user, base_station
 
@@ -161,19 +154,22 @@ def get_d2d_links(d2d_nodes_distances_table, d2d_nodes, channel):
         for i in it_index:
             for j in it_index:
                 if smallest_distance['distance'] >= d2d_nodes_distances_table[i][j] and i!=j:
-                    smallest_distance['table_position'] = (i,j)
+                    smallest_distance['table_position'] = (i, j)
                     smallest_distance['distance'] = d2d_nodes_distances_table[i][j]
         x = smallest_distance['table_position'][0]
         y = smallest_distance['table_position'][1]
-        d2d_pairs_table[f'D2D_LINK:{d2d_pairs_index}'] = ([f'{d2d_nodes[x].id}', f'{d2d_nodes[y].id}'], smallest_distance['distance'])                
+        d2d_pairs_table[f'D2D_LINK:{d2d_pairs_index}'] = \
+            ([f'{d2d_nodes[x].id}',
+             f'{d2d_nodes[y].id}'], smallest_distance['distance'])
         d2d_nodes[x].set_link_id(f'D2D_LINK:{d2d_pairs_index}')
         d2d_nodes[y].set_link_id(f'D2D_LINK:{d2d_pairs_index}')
         it_index.pop(it_index.index(x))
         it_index.pop(it_index.index(y))        
         d2d_pairs_index = d2d_pairs_index+1
-        smallest_distance = {'table_position': (99,99), 'distance': 1e6}    
+        smallest_distance = {'table_position': (99, 99), 'distance': 1e6}   
     for i in d2d_pairs_table.keys():
-        d2d_pairs_pathloss_table[i] = channel.calculate_pathloss(d2d_pairs_table[i][1])
+        d2d_pairs_pathloss_table[i] = \
+            channel.calculate_pathloss(d2d_pairs_table[i][1])
     return d2d_pairs_table, d2d_pairs_pathloss_table
 
 

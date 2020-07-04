@@ -126,10 +126,10 @@ def run():
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
     filename_model = filename
-    filename = f'{cwd}/data/{filename}.pickle'
+    filename = f'{cwd}/data/a2c/{filename}.pickle'
     # save the a2c models
     torch.save(
         a2c.state_dict(),
-        f'{cwd}/models/{filename_model}.pt')
+        f'{cwd}/models/a2c/{filename_model}.pt')
     with open(filename, 'wb') as f:
         pickle.dump(data, f)

@@ -41,7 +41,7 @@ def run():
     sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
     # ai training parameters
     STEPS_PER_EPISODE = 20
-    MAX_NUM_EPISODES = 27000      # long training
+    MAX_NUM_EPISODES = 2700      # long training
     # C = 8000 # C constant for the improved reward function
     C = 80  # C constant for the improved reward function
     MAX_NUMBER_OF_AGENTS = 10
@@ -67,7 +67,8 @@ def run():
     critic_optimizer = optim.Adam(a2c.critic.parameters(), lr=LEARNING_RATE)
     # training loop
     episode = 0
-    mean_rewards = []
+    d2d_spectral_effs = []
+    mue_spectral_effs = []
     while episode < MAX_NUM_EPISODES:
         # entropy = 0
         aux_range = range(MAX_NUMBER_OF_AGENTS+1)[1:]
@@ -116,13 +117,15 @@ def run():
         # print training info
         episode += 1
         m_reward = torch.mean(rewards).item()
-        mean_rewards.append(m_reward)
+        d2d_spectral_effs.append(environment.d2d_spectral_eff)
+        mue_spectral_effs.append(environment.mue_spectral_eff)
         print("Episode#:{} mean reward:{}".format(
             episode, m_reward))
     # save training data into a file
     cwd = os.getcwd()
     data = {}
-    data['mean_rewards'] = mean_rewards
+    data['d2d_spectral_effs'] = d2d_spectral_effs
+    data['mue_spectral_effs'] = mue_spectral_effs
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
     filename_model = filename

@@ -44,7 +44,7 @@ def run():
     # C = 8000 # C constant for the improved reward function
     C = 80  # C constant for the improved reward function
     MAX_NUMBER_OF_AGENTS = 10
-    HIDDEN_SIZE = 32
+    HIDDEN_SIZE = 1024
     LEARNING_RATE = 3e-4
     # mu = 0.82*p_max/5/2000
     # std = mu/6
@@ -62,8 +62,8 @@ def run():
     environment = CompleteEnvironmentA2C(env_params, reward_function)
     # a2c initialization
     a2c = ActorCritic(6, 1, HIDDEN_SIZE, mu, std)
-    actor_optimizer = optim.Adam(a2c.actor.parameters(), lr=LEARNING_RATE)
-    critic_optimizer = optim.Adam(a2c.critic.parameters(), lr=LEARNING_RATE)
+    actor_optimizer = optim.SGD(a2c.actor.parameters(), lr=LEARNING_RATE)
+    critic_optimizer = optim.SGD(a2c.critic.parameters(), lr=LEARNING_RATE)
     # training loop
     episode = 0
     d2d_spectral_effs = []

@@ -47,16 +47,16 @@ class ActorCritic(nn.Module):
         self.critic = nn.Sequential(
             nn.Linear(num_inputs, hidden_size),
             nn.Tanh(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.Tanh(),
+            # nn.Linear(hidden_size, hidden_size),
+            # nn.Tanh(),
             nn.Linear(hidden_size, 1)
         ).to(self.device)
 
         self.actor = nn.Sequential(
             nn.Linear(num_inputs, hidden_size),
             nn.Tanh(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.Tanh(),
+            # nn.Linear(hidden_size, hidden_size),
+            # nn.Tanh(),
             nn.Linear(hidden_size, num_outputs),
             nn.Softmax(dim=1),
         ).to(self.device)

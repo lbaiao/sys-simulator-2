@@ -9,8 +9,7 @@ from q_learning.rewards import dis_reward_tensor
 from parameters.parameters import EnvironmentParameters
 from a2c.agent import Agent
 from a2c.a2c import ActorCritic, compute_gae_returns
-from torch import optim
-from torch import nn
+from torch import optim, nn
 import torch
 import os
 import pickle
@@ -101,19 +100,19 @@ def run():
             values[j][i] = next_value_t
         advantages, returns = compute_gae_returns(device, rewards, values)
         # update critic
-        # values_critic = values[:, :-1].reshape(1, -1).to(device)
-        # returns_critic = returns.view(1, -1).to(device)
-        # critic_loss = nn.functional.mse_loss(values_critic, returns_critic)
-        # critic_optimizer.zero_grad()
-        # critic_loss.backward()
-        # critic_optimizer.step()
-        # # update actor
-        # aux = torch.mul(advantages, log_probs)
-        # aux = torch.sum(aux, axis=0)
-        # actor_loss = -torch.mean(aux)
-        # actor_optimizer.zero_grad()
-        # actor_loss.backward()
-        # actor_optimizer.step()
+        values_critic = values[:, :-1].reshape(1, -1).to(device)
+        returns_critic = returns.view(1, -1).to(device)
+        critic_loss = nn.functional.mse_loss(values_critic, returns_critic)
+        critic_optimizer.zero_grad()
+        critic_loss.backward()
+        critic_optimizer.step()
+        # update actor
+        aux = torch.mul(advantages, log_probs)
+        aux = torch.sum(aux, axis=0)
+        actor_loss = -torch.mean(aux)
+        actor_optimizer.zero_grad()
+        actor_loss.backward()
+        actor_optimizer.step()
         # print training info
         episode += 1
         m_reward = torch.mean(rewards).item()

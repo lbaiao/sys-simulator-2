@@ -2,23 +2,16 @@
 # We also measure how many times the devices chose the same tx power.
 # We use script26 model. We simulate for N_D2D=1 till 10
 
-import os
-import sys
-
-lucas_path = os.getcwd()
-sys.path.insert(1, lucas_path)
 
 import general.general as gen
+import os
 from q_learning import rewards
-from parameters.parameters import EnvironmentParameters, TrainingParameters
+from parameters.parameters import EnvironmentParameters
 from typing import List
-# from matplotlib import pyplot as plt
-
 import torch
 import numpy as np
 import pickle
 import time
-
 from q_learning.environments.completeEnvironmentA2C \
     import CompleteEnvironmentA2C
 from a2c.agent import Agent
@@ -41,7 +34,7 @@ def test(env: CompleteEnvironmentA2C, framework: ActorCritic,
         done = False
         obs = [env.get_state(a) for a in agents]
         i = 0
-        while not done and i < STEPS_PER_EPISODE:
+        while not done and i < episode_steps:
             for j, agent in enumerate(agents):
                 action, dist, value = agent.act(framework, obs[j])
             next_obs, rewards, done = env.step(agents)
@@ -55,112 +48,93 @@ def test(env: CompleteEnvironmentA2C, framework: ActorCritic,
     return mue_spectral_effs, d2d_spectral_effs, bag
 
 
-n_mues = 1  # number of mues
-n_d2d = 2  # number of d2d pairs
-n_rb = n_mues   # number of RBs
-bs_radius = 500  # bs radius in m
+def run():
+    n_mues = 1  # number of mues
+    n_d2d = 2  # number of d2d pairs
+    n_rb = n_mues   # number of RBs
+    bs_radius = 500  # bs radius in m
+    rb_bandwidth = 180*1e3  # rb bandwidth in Hz
+    d2d_pair_distance = 50  # d2d pair distance in m
+    p_max = 23  # max tx power in dBm
+    noise_power = -116  # noise power per RB in dBm
+    bs_gain = 17    # macro bs antenna gain in dBi
+    user_gain = 4   # user antenna gain in dBi
+    sinr_threshold_mue = 6  # true mue sinr threshold in dB
+    mue_margin = .5e4
+    # conversions from dB to pow
+    p_max = p_max - 30
+    p_max = gen.db_to_power(p_max)
+    noise_power = noise_power - 30
+    noise_power = gen.db_to_power(noise_power)
+    bs_gain = gen.db_to_power(bs_gain)
+    user_gain = gen.db_to_power(user_gain)
+    sinr_threshold_mue = gen.db_to_power(sinr_threshold_mue)
+    # q-learning parameters
+    STEPS_PER_EPISODE = 20
+    MAX_NUM_EPISODES = 2000
+    C = 80  # C constant for the improved reward function
+    MAX_NUMBER_OF_AGENTS = 10
 
-rb_bandwidth = 180*1e3  # rb bandwidth in Hz
-d2d_pair_distance = 50  # d2d pair distance in m
-p_max = 23  # max tx power in dBm
-noise_power = -116  # noise power per RB in dBm
-bs_gain = 17    # macro bs antenna gain in dBi
-user_gain = 4   # user antenna gain in dBi
-sinr_threshold_mue = 6  # true mue sinr threshold in dB
-mue_margin = .5e4
+    HIDDEN_SIZE = 32
+    # mu = 0.82*p_max/5/2000
+    # std = mu/6
+    mu = p_max*1e-8
+    std = mu/100
 
+    # more parameters
+    cwd = os.getcwd()
 
-# conversions from dB to pow
-p_max = p_max - 30
-p_max = gen.db_to_power(p_max)
-noise_power = noise_power - 30
-noise_power = gen.db_to_power(noise_power)
-bs_gain = gen.db_to_power(bs_gain)
-user_gain = gen.db_to_power(user_gain)
-sinr_threshold_mue = gen.db_to_power(sinr_threshold_mue)
+    env_params = EnvironmentParameters(
+        rb_bandwidth, d2d_pair_distance, p_max, noise_power,
+        bs_gain, user_gain, sinr_threshold_mue,
+        n_mues, n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin)
 
-# q-learning parameters
-STEPS_PER_EPISODE = 20
-MAX_NUM_EPISODES = 2000
-C = 80  # C constant for the improved reward function
-MAX_NUMBER_OF_AGENTS = 10
+    reward_function = rewards.dis_reward_tensor2
+    environment = CompleteEnvironmentA2C(env_params, reward_function)
 
-HIDDEN_SIZE = 64
-LEARNING_RATE = 3e-4
-# mu = 0.82*p_max/5/2000
-# std = mu/6
-mu = p_max*1e-8
-std = mu/100
+    framework = ActorCritic(6, 1, HIDDEN_SIZE, mu, std)
+    framework.load_state_dict(torch.load(f'{cwd}/models/a2c/script1.pt'))
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    reward_function = rewards.dis_reward_tensor
 
-# more parameters
-cwd = os.getcwd()
+    # policy 5 test
+    aux_range = list(range(MAX_NUMBER_OF_AGENTS+1))[1:]
+    mue_spectral_effs, d2d_spectral_effs, bag, = \
+        test(environment, framework, MAX_NUMBER_OF_AGENTS, MAX_NUM_EPISODES,
+             STEPS_PER_EPISODE, aux_range)
 
-env_params = EnvironmentParameters(
-    rb_bandwidth, d2d_pair_distance, p_max, noise_power,
-    bs_gain, user_gain, sinr_threshold_mue,
-    n_mues, n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin)
-train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
+    mue_success_rate = list()
+    for i, m in enumerate(mue_spectral_effs):
+        mue_success_rate.append(
+            np.average(m > np.log2(1 + sinr_threshold_mue)))
 
-actions = torch.tensor([i*0.82*p_max/5/1000 for i in range(5)])
-reward_function = rewards.dis_reward_tensor2
-environment = CompleteEnvironmentA2C(env_params, reward_function)
+    d2d_speffs_avg = list()
+    for i, d in enumerate(d2d_spectral_effs):
+        d2d_speffs_avg.append(np.average(d))
 
-framework = ActorCritic(6, 1, HIDDEN_SIZE, mu, std)
-framework.load_state_dict(torch.load(f'{cwd}/models/a2c/script1.pt'))
+    log = list()
+    for i, d in enumerate(zip(d2d_speffs_avg, mue_success_rate)):
+        log.append(f'NUMBER OF D2D_USERS: {i+1}')
+        log.append(f'D2D SPECTRAL EFFICIENCY - SCRIPT: {d[0]}')
+        log.append(f'MUE SUCCESS RATE - SCRIPT: {d[1]}')
+        log.append('-------------------------------------')
 
-reward_function = rewards.dis_reward_tensor
+    filename = gen.path_leaf(__file__)
+    filename = filename.split('.')[0]
 
-# policy 5 test
-aux_range = list(range(MAX_NUMBER_OF_AGENTS+1))[1:]
-mue_spectral_effs, d2d_spectral_effs, bag, = \
-    test(environment, framework, MAX_NUMBER_OF_AGENTS, MAX_NUM_EPISODES,
-         STEPS_PER_EPISODE, aux_range)
+    pickle_filename = f'{cwd}/data/a2c/{filename}.pickle'
 
-mue_success_rate = list()
-for i, m in enumerate(mue_spectral_effs):
-    mue_success_rate.append(np.average(m > np.log2(1 + sinr_threshold_mue)))
+    data = {
+        'd2d_speffs_avg_total': d2d_spectral_effs,
+        'mue_success_rate': mue_success_rate,
+    }
 
-d2d_speffs_avg = list()
-for i, d in enumerate(d2d_spectral_effs):
-    d2d_speffs_avg.append(np.average(d))
+    with open(pickle_filename, 'wb') as file:
+        pickle.dump(data, file)
 
-log = list()
-for i, d in enumerate(zip(d2d_speffs_avg, mue_success_rate)):
-    log.append(f'NUMBER OF D2D_USERS: {i+1}')
-    log.append(f'D2D SPECTRAL EFFICIENCY - SCRIPT: {d[0]}')
-    log.append(f'MUE SUCCESS RATE - SCRIPT: {d[1]}')
-    log.append('-------------------------------------')
+    filename = f'{cwd}/logs/a2c/{filename}.txt'
+    file = open(filename, 'w')
 
-filename = gen.path_leaf(__file__)
-filename = filename.split('.')[0]
-
-pickle_filename = f'{cwd}/data/a2c/{filename}.pickle'
-
-data = {
-    'd2d_speffs_avg_total': d2d_spectral_effs,
-    'mue_success_rate': mue_success_rate,
-}
-
-with open(pickle_filename, 'wb') as file:
-    pickle.dump(data, file)
-
-filename = f'{cwd}/logs/a2c/{filename}.txt'
-file = open(filename, 'w')
-
-for lg in log:
-    file.write(f'{lg}\n')
-file.close()
-
-# fig2, ax1 = plt.subplots()
-# ax1.set_xlabel('Number of D2D pairs in the RB')
-# ax1.set_ylabel('D2D Average Spectral Efficiency [bps/Hz]', color='tab:blue')
-# ax1.plot(d2d_speffs_avg, '.', color='tab:blue')
-
-# ax2 = ax1.twinx()
-# ax2.set_ylabel('MUE Success Rate', color='tab:red')
-# ax2.plot(mue_success_rate, '.', color='tab:red')
-# fig2.tight_layout()
-
-# plt.show()
+    for lg in log:
+        file.write(f'{lg}\n')
+    file.close()

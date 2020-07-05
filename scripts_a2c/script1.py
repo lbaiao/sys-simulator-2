@@ -48,8 +48,8 @@ def run():
     LEARNING_RATE = 3e-4
     # mu = 0.82*p_max/5/2000
     # std = mu/6
-    mu = p_max*1e-8
-    std = mu/100
+    mu = 0
+    std = 0.1
     # torch device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # parameters classes initialization

@@ -46,7 +46,7 @@ def dis_reward_tensor(sinr_mue: float, sinr_d2ds: List[float],
 
 
 def dis_reward_tensor_mod(sinr_mue: float, sinr_d2ds: List[float], state: int, C: float,*args, **kwargs):
-    penalty = kwargs['penalty']    
+    penalty = kwargs['penalty']
     device = torch.device('cuda')
     mue_contrib = torch.log2(1 + torch.tensor(sinr_mue, device=device))
     sinr_d2ds = torch.tensor(sinr_d2ds, device=device)

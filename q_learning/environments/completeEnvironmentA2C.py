@@ -78,6 +78,7 @@ class CompleteEnvironmentA2C(RLEnvironment):
         d2d_tx_distance_to_bs /= self.params.bs_radius
         d2d_rx_distance_to_mue /= 2*self.params.bs_radius
         mue_distance_to_bs /= self.params.bs_radius
+        number_of_d2d_pairs /= 10
 
         state = torch.tensor(
             [number_of_d2d_pairs, d2d_tx_distance_to_bs,

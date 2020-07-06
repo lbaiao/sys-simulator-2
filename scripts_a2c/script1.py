@@ -10,6 +10,7 @@ from parameters.parameters import EnvironmentParameters
 from a2c.agent import Agent
 from a2c.a2c import ActorCritic, compute_gae_returns
 from torch import optim, nn
+from copy import deepcopy
 import torch
 import os
 import pickle
@@ -80,10 +81,13 @@ def run():
         rewards = torch.zeros((n_agents, STEPS_PER_EPISODE)).to(device)
         i = 0
         done = False
+        # actions = []  # used for debug purposes
         while not done and i < STEPS_PER_EPISODE:
             # agents choose their actions
+            # actions_t = []  # used for debug purposes
             for j, agent in enumerate(agents):
                 action, dist, value = agent.act(a2c, obs[j])
+                # actions_t.append(action)    # used for debug purposes
                 log_prob = dist.log_prob(action)
                 # entropy += dist.entropy().mean()
                 log_probs[j][i] = log_prob
@@ -91,7 +95,9 @@ def run():
             # perform a environment step
             next_obs_t, rewards_t, done = environment.step(agents)
             rewards[:, i] = torch.FloatTensor(rewards_t)
+            # actions.append(actions_t)   # used for debug purposes
             i += 1
+            # last_states = deepcopy(obs)  # used for debug purposes
             obs = next_obs_t
         # gae and returns
         next_obs_t = torch.cat(obs, 0).to(device)

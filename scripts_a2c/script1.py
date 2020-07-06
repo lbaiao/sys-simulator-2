@@ -46,7 +46,7 @@ def run():
     C = 80  # C constant for the improved reward function
     MAX_NUMBER_OF_AGENTS = 10
     HIDDEN_SIZE = 256
-    LEARNING_RATE = 9
+    LEARNING_RATE = .9999
     # mu = 0.82*p_max/5/2000
     # std = mu/6
     mu = 0

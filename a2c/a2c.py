@@ -8,9 +8,10 @@ def compute_gae_returns(device, rewards: torch.Tensor,
     gae = torch.zeros(len(rewards)).to(device)
     R = torch.zeros(len(rewards)).to(device)
     values = values.detach()
+    rewards = rewards.detach()
     advantages = torch.zeros(rewards.shape).to(device)
     returns = torch.zeros(rewards.shape).to(device).detach()
-    for step in reversed(range(len(rewards))):
+    for step in reversed(range(rewards.shape[1])):
         # GAE
         delta = \
             rewards[:, step] + gamma * values[:, step + 1] - values[:, step]

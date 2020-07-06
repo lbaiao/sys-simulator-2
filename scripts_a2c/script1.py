@@ -46,7 +46,7 @@ def run():
     C = 80  # C constant for the improved reward function
     MAX_NUMBER_OF_AGENTS = 10
     HIDDEN_SIZE = 256
-    LEARNING_RATE = .2
+    LEARNING_RATE = 3*1e-2
     # mu = 0.82*p_max/5/2000
     # std = mu/6
     mu = 0
@@ -115,7 +115,7 @@ def run():
         # update actor
         aux = torch.mul(advantages, log_probs)
         aux = torch.sum(aux, axis=0)
-        actor_loss = -torch.mean(aux)
+        actor_loss = -torch.mean(aux) * 1e3
         actor_optimizer.zero_grad()
         actor_loss.backward()
         actor_optimizer.step()

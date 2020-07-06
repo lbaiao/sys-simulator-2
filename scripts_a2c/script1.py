@@ -5,7 +5,7 @@
 from general import general as gen
 from q_learning.environments.completeEnvironmentA2C \
     import CompleteEnvironmentA2C
-from q_learning.rewards import dis_reward_tensor_mod
+from q_learning.rewards import dis_reward_tensor
 from parameters.parameters import EnvironmentParameters
 from a2c.agent import Agent
 from a2c.a2c import ActorCritic, compute_gae_returns
@@ -59,7 +59,7 @@ def run():
         bs_gain, user_gain, sinr_threshold_train,
         n_mues, n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin)
     # environment initialization
-    reward_function = dis_reward_tensor_mod
+    reward_function = dis_reward_tensor
     environment = CompleteEnvironmentA2C(env_params, reward_function)
     # a2c initialization
     a2c = ActorCritic(6, 1, HIDDEN_SIZE, mu, std)

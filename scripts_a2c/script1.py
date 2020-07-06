@@ -5,16 +5,16 @@
 from general import general as gen
 from q_learning.environments.completeEnvironmentA2C \
     import CompleteEnvironmentA2C
-from q_learning.rewards import dis_reward_tensor
+from q_learning.rewards import dis_reward_tensor_mod
 from parameters.parameters import EnvironmentParameters
 from a2c.agent import Agent
 from a2c.a2c import ActorCritic, compute_gae_returns
 from torch import optim, nn
-from copy import deepcopy
 import torch
 import os
 import pickle
 import random
+# from copy import deepcopy
 
 
 def run():
@@ -46,7 +46,7 @@ def run():
     C = 80  # C constant for the improved reward function
     MAX_NUMBER_OF_AGENTS = 10
     HIDDEN_SIZE = 256
-    LEARNING_RATE = 1e-2
+    LEARNING_RATE = .9
     # mu = 0.82*p_max/5/2000
     # std = mu/6
     mu = 0
@@ -59,7 +59,7 @@ def run():
         bs_gain, user_gain, sinr_threshold_train,
         n_mues, n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin)
     # environment initialization
-    reward_function = dis_reward_tensor
+    reward_function = dis_reward_tensor_mod
     environment = CompleteEnvironmentA2C(env_params, reward_function)
     # a2c initialization
     a2c = ActorCritic(6, 1, HIDDEN_SIZE, mu, std)

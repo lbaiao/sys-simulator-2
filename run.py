@@ -2,12 +2,7 @@ import os
 
 # pulls the code most recent version
 os.system('git pull origin devel')
-# import up-to-date dependencies
-from scripts_a2c.script1 import run
-from scratch_a2c.scratch1 import run as run_test
-# run training and tests
-run()
-run_test()
+os.system('python exec.py')
 # commit new results
 os.system('git add data/*')
 os.system('git add data/a2c/*')

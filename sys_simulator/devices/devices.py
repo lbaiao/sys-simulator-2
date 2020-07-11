@@ -4,7 +4,7 @@ import os
 # sys.path.insert(1, lucas_path)
 
 from enum import Enum
-from pathloss.pathloss import pathloss_bs_users
+from sys_simulator.pathloss.pathloss import pathloss_bs_users
 import numpy as np
 import scipy.spatial as spatial
 

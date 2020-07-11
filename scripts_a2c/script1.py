@@ -2,13 +2,13 @@
 # to train a single A2C network. The algorithm is trained with N_D2D
 # varying from 1 to 10.
 
-from general import general as gen
-from q_learning.environments.completeEnvironmentA2C \
+from sys_simulator.general import general as gen
+from sys_simulator.q_learning.environments.completeEnvironmentA2C \
     import CompleteEnvironmentA2C
-from q_learning.rewards import dis_reward_tensor
-from parameters.parameters import EnvironmentParameters
-from a2c.agent import Agent
-from a2c.a2c import ActorCritic, compute_gae_returns
+from sys_simulator.q_learning.rewards import dis_reward_tensor
+from sys_simulator.parameters.parameters import EnvironmentParameters
+from sys_simulator.a2c.agent import Agent
+from sys_simulator.a2c.a2c import ActorCritic, compute_gae_returns
 from torch import optim, nn
 import torch
 import os

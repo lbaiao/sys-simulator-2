@@ -3,14 +3,14 @@ import os
 # lucas_path = os.environ['LUCAS_PATH']
 # sys.path.insert(1, lucas_path)
 
-from devices.devices import base_station, mobile_user, d2d_user, d2d_node_type
-from general import general as gen
-from sinr.sinr import sinr_d2d, sinr_mue
-from q_learning.agents.agent import Agent
+from sys_simulator.devices.devices import base_station, mobile_user, d2d_user, d2d_node_type
+from sys_simulator.general import general as gen
+from sys_simulator.sinr.sinr import sinr_d2d, sinr_mue
+from sys_simulator.q_learning.agents.agent import Agent
 from typing import List, Callable
-from parameters.parameters import EnvironmentParameters
-from sinr.sinr import sinr_d2d, sinr_mue
-from q_learning.rewards import centralized_reward, mod_reward
+from sys_simulator.parameters.parameters import EnvironmentParameters
+from sys_simulator.sinr.sinr import sinr_d2d, sinr_mue
+from sys_simulator.q_learning.rewards import centralized_reward, mod_reward
 
 import numpy as np
 

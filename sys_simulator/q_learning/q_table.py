@@ -3,7 +3,7 @@ import os
 # lucas_path = os.environ['LUCAS_PATH']
 # sys.path.insert(1, lucas_path)
 
-from parameters.parameters import LearningParameters
+from sys_simulator.parameters.parameters import LearningParameters
 import numpy as np
 import torch
 

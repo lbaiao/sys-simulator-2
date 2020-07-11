@@ -15,8 +15,7 @@ def compute_gae_returns(device, rewards: torch.Tensor,
         # GAE
         delta = \
             rewards[:, step] + gamma * values[:, step + 1] - values[:, step]
-        gae = delta + gamma * lbda * gae
-        advantages[:, step] = gae + values[:, step]
+        advantages[:, step] = gae = delta + gamma * lbda * gae
         # returns
         R = rewards[:, step] + gamma * R
         returns[:, step] = R

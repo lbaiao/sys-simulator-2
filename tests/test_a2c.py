@@ -1,5 +1,9 @@
-from a2c.a2c import compute_gae_returns
+from sys_simulator.a2c.a2c import compute_gae_returns
 import torch
+
+
+# set device
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 def test_gae():
@@ -7,21 +11,29 @@ def test_gae():
     values_n = [1, -1, 0, 2]
     rewards_n = [1, 2, -1]
     N = 3
+    GAMMA = 1
+    LAMBDA = 1
     values = []
     rewards = []
     # create tensor structure
-    for n in N:
+    for n in range(N):
         values.append(values_n)
         rewards.append(rewards_n)
-    values = torch.tensor(values)
-    rewards = torch.tensor(rewards)
+    values = torch.tensor(values).to(device)
+    rewards = torch.tensor(rewards).to(device)
     # compute gae
-    advantages = compute_gae_returns(rewards, values)
+    advantages, _ = compute_gae_returns(device, rewards, values,
+                                        GAMMA, LAMBDA)
     # correct answer
     ans = []
-    for n in N:
-        ans.append([3, 4, 1])
-    ans = torch.tensor(ans)
+    for n in range(N):
+        ans.append([3., 4., 1.])
+    ans = torch.tensor(ans).to(device)
+    for i in range(ans.shape[0]):
+        ans[i] = (ans[i] - torch.mean(ans[i])) / \
+                        (torch.std(ans[i]) + 1e-9)
     # check it is correct
-    equal_values = ans == advantages
-    assert equal_values.mean() == 1
+    assert torch.all(ans == advantages)
+
+
+test_gae()

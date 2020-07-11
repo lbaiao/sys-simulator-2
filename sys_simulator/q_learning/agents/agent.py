@@ -4,8 +4,8 @@ import sys
 # sys.path.insert(1, lucas_path)
 
 import numpy as np
-from q_learning.q_table import QTable
-from parameters.parameters import AgentParameters
+from sys_simulator.q_learning.q_table import QTable
+from sys_simulator.parameters.parameters import AgentParameters
 from typing import List
 
 class Agent:

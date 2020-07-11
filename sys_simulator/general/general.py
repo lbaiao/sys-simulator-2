@@ -5,7 +5,7 @@ import ntpath
 
 from typing import List
 import scipy.spatial as spatial
-from devices.devices import d2d_user, mobile_user, base_station
+from sys_simulator.devices.devices import d2d_user, mobile_user, base_station
 
 
 def bits_gen(n):

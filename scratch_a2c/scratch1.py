@@ -3,19 +3,19 @@
 # We use script26 model. We simulate for N_D2D=1 till 10
 
 
-import general.general as gen
+import sys_simulator.general.general as gen
 import os
-from q_learning import rewards
-from parameters.parameters import EnvironmentParameters
+from sys_simulator.q_learning import rewards
+from sys_simulator.parameters.parameters import EnvironmentParameters
 from typing import List
 import torch
 import numpy as np
 import pickle
 import time
-from q_learning.environments.completeEnvironmentA2C \
+from sys_simulator.q_learning.environments.completeEnvironmentA2C \
     import CompleteEnvironmentA2C
-from a2c.agent import Agent
-from a2c.a2c import ActorCritic
+from sys_simulator.a2c.agent import Agent
+from sys_simulator.a2c.a2c import ActorCritic
 
 
 def test(env: CompleteEnvironmentA2C, framework: ActorCritic,

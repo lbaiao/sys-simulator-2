@@ -5,8 +5,8 @@ import os
 # sys.path.insert(1, lucas_path)
 
 from typing import List
-from pathloss import pathloss
-from devices.devices import d2d_user, mobile_user, d2d_node_type, base_station
+from sys_simulator.pathloss import pathloss
+from sys_simulator.devices.devices import d2d_user, mobile_user, d2d_node_type, base_station
 
 from scipy.spatial.distance import euclidean
 

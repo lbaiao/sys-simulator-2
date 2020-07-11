@@ -1,5 +1,5 @@
 import torch
-from a2c.a2c import ActorCritic
+from sys_simulator.a2c.a2c import ActorCritic
 
 
 class Agent:

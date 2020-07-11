@@ -35,6 +35,3 @@ def test_gae():
                         (torch.std(ans[i]) + 1e-9)
     # check it is correct
     assert torch.all(ans == advantages)
-
-
-test_gae()

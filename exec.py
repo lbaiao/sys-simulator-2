@@ -1,4 +1,4 @@
-from scripts_a2c.script1 import run_training
+from scripts_a2c.script1 import run as run_training
 from scratch_a2c.scratch1 import run as run_test
 
 

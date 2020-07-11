@@ -29,6 +29,7 @@ def test_gae():
     for n in range(N):
         ans.append([3., 4., 1.])
     ans = torch.tensor(ans).to(device)
+    # normalization
     for i in range(ans.shape[0]):
         ans[i] = (ans[i] - torch.mean(ans[i])) / \
                         (torch.std(ans[i]) + 1e-9)

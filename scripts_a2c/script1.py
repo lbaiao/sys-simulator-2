@@ -115,7 +115,7 @@ def run():
         # update actor
         aux = torch.mul(advantages, log_probs)
         aux = torch.sum(aux, axis=1)
-        actor_loss = -torch.mean(aux)
+        actor_loss = -torch.mean(aux) * 10
         actor_optimizer.zero_grad()
         actor_loss.backward()
         actor_optimizer.step()

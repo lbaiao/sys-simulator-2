@@ -47,6 +47,7 @@ def run():
     MAX_NUMBER_OF_AGENTS = 10
     HIDDEN_SIZE = 256
     LEARNING_RATE = 3e-2
+    BETA = 1e-2
     # mu = 0.82*p_max/5/2000
     # std = mu/6
     mu = 0
@@ -79,6 +80,7 @@ def run():
         log_probs = torch.zeros((n_agents, STEPS_PER_EPISODE)).to(device)
         values = torch.zeros((n_agents, STEPS_PER_EPISODE+1)).to(device)
         rewards = torch.zeros((n_agents, STEPS_PER_EPISODE)).to(device)
+        entropy = torch.zeros((n_agents, STEPS_PER_EPISODE)).to(device)
         i = 0
         done = False
         # actions = []  # used for debug purposes
@@ -92,6 +94,7 @@ def run():
                 # entropy += dist.entropy().mean()
                 log_probs[j][i] = log_prob
                 values[j][i] = value
+                entropy[j][i] = dist.entropy()
             # perform a environment step
             next_obs_t, rewards_t, done = environment.step(agents)
             rewards[:, i] = torch.FloatTensor(rewards_t)
@@ -114,6 +117,7 @@ def run():
         critic_optimizer.step()
         # update actor
         aux = torch.mul(advantages, log_probs)
+        aux -= BETA * entropy
         aux = torch.sum(aux, axis=1)
         actor_loss = -torch.mean(aux)
         actor_optimizer.zero_grad()

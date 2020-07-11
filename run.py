@@ -3,7 +3,7 @@ from scratch_a2c.scratch1 import run as run_test
 import os
 
 # pulls the code most recent version
-# os.system('git pull origin devel')
+os.system('git pull origin devel')
 # run training and tests
 run()
 run_test()

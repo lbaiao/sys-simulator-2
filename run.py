@@ -1,3 +1,6 @@
+# Automated script for training, testing and saving
+# results and models. Avoid editing this script. You must
+# manually git pull if you edit this script.
 import os
 
 # pulls the code most recent version

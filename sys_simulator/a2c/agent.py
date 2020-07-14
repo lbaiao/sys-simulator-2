@@ -14,7 +14,7 @@ class Agent:
 
     def act(self, a2c: ActorCritic, obs: torch.TensorType):
         dist, value = a2c(obs)
-        self.action = (dist.sample()*5e-4).item()
+        self.action = (dist.sample()*1e-5).item()
 
         return self.action, dist, value
 

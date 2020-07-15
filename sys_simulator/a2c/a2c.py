@@ -77,7 +77,7 @@ class ActorCritic(nn.Module):
 class ActorCriticDiscrete(nn.Module):
     def __init__(self, num_inputs, num_outputs,
                  hidden_size, mean=0.0, std=0.1):
-        super(ActorCritic, self).__init__()
+        super(ActorCriticDiscrete, self).__init__()
         self.mean = mean
         self.std = std
         self.device =\

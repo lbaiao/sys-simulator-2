@@ -6,6 +6,7 @@ class Agent:
     def __init__(self):
         self.bag = list()
         self.action = 0
+        self.action_index = 0
         self.device =\
             torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -15,8 +16,12 @@ class Agent:
     def act(self, a2c: ActorCritic, obs: torch.TensorType):
         dist, value = a2c(obs)
         self.action = (dist.sample()*1e-4).item()
-
         return self.action, dist, value
+
+    def act_discrete(self, a2c: ActorCritic, obs: torch.TensorType):
+        dist, value = a2c(obs)
+        self.action_index = dist.sample()
+        return self.action_index, dist, value
 
     def get_action(self):
         return self.action

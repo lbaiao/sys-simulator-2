@@ -15,12 +15,12 @@ import time
 from sys_simulator.q_learning.environments.completeEnvironmentA2C \
     import CompleteEnvironmentA2C
 from sys_simulator.a2c.agent import Agent
-from sys_simulator.a2c.a2c import ActorCritic
+from sys_simulator.a2c.a2c import ActorCriticDiscrete
 
 
-def test(env: CompleteEnvironmentA2C, framework: ActorCritic,
+def test(env: CompleteEnvironmentA2C, framework: ActorCriticDiscrete,
          max_d2d: int, num_episodes: int, episode_steps: int,
-         aux_range: List[int]):
+         aux_range: List[int], actions: List[float]):
     mue_spectral_effs = [list() for i in range(max_d2d+1)]
     d2d_spectral_effs = [list() for i in range(max_d2d+1)]
     done = False
@@ -36,8 +36,9 @@ def test(env: CompleteEnvironmentA2C, framework: ActorCritic,
         i = 0
         while not done and i < episode_steps:
             for j, agent in enumerate(agents):
-                action, dist, value = agent.act(framework, obs[j])
-            next_obs, rewards, done = env.step(agents)
+                action_index, _, _ = agent.act_discrete(framework, obs[j])
+                agent.set_action(actions[action_index])
+            next_obs, _, done = env.step(agents)
             obs = next_obs
             i += 1
         mue_spectral_effs[n_agents].append(env.mue_spectral_eff.item())
@@ -74,7 +75,7 @@ def run():
     MAX_NUM_EPISODES = 2000
     C = 80  # C constant for the improved reward function
     MAX_NUMBER_OF_AGENTS = 10
-
+    NUM_ACTIONS = 5
     HIDDEN_SIZE = 256
     # mu = 0.82*p_max/5/2000
     # std = mu/6
@@ -92,16 +93,17 @@ def run():
     reward_function = rewards.dis_reward_tensor2
     environment = CompleteEnvironmentA2C(env_params, reward_function)
 
-    framework = ActorCritic(6, 1, HIDDEN_SIZE, mu, std)
-    framework.load_state_dict(torch.load(f'{cwd}/models/a2c/script1.pt'))
+    framework = ActorCriticDiscrete(6, NUM_ACTIONS, HIDDEN_SIZE, mu, std)
+    framework.load_state_dict(torch.load(f'{cwd}/models/a2c/script2.pt'))
 
     reward_function = rewards.dis_reward_tensor
 
     # policy 5 test
     aux_range = list(range(MAX_NUMBER_OF_AGENTS+1))[1:]
+    actions = [i*0.82*p_max/5/1000 for i in range(NUM_ACTIONS)]  # best result
     mue_spectral_effs, d2d_spectral_effs, bag, = \
         test(environment, framework, MAX_NUMBER_OF_AGENTS, MAX_NUM_EPISODES,
-             STEPS_PER_EPISODE, aux_range)
+             STEPS_PER_EPISODE, aux_range, actions)
 
     mue_success_rate = list()
     for i, m in enumerate(mue_spectral_effs):

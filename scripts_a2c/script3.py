@@ -1,6 +1,4 @@
-# A2C script, but with completeEnvironment2. It uses multiple agents
-# to train a single A2C network for contious-value actions.
-# The algorithm is trained with N_D2D varying from 1 to 10.
+# Similar script 2 but with the hybrid A2c discrete.
 
 from sys_simulator.general import general as gen
 from sys_simulator.q_learning.environments.completeEnvironmentA2C \
@@ -8,7 +6,8 @@ from sys_simulator.q_learning.environments.completeEnvironmentA2C \
 from sys_simulator.q_learning.rewards import dis_reward_tensor
 from sys_simulator.parameters.parameters import EnvironmentParameters
 from sys_simulator.a2c.agent import Agent
-from sys_simulator.a2c.a2c import ActorCritic, compute_gae_returns
+from sys_simulator.a2c.a2c import ActorCriticDiscreteHybrid, \
+    compute_gae_returns
 from torch import optim, nn
 import torch
 import os
@@ -40,12 +39,13 @@ def run():
     user_gain = gen.db_to_power(user_gain)
     sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
     # ai training parameters
-    STEPS_PER_EPISODE = 20 * 5
-    MAX_NUM_EPISODES = 2700 * 1 / 5    # long training
+    STEPS_PER_EPISODE = 20
+    MAX_NUM_EPISODES = 2700 * 1
     # C = 8000 # C constant for the improved reward function
     C = 80  # C constant for the improved reward function
     MAX_NUMBER_OF_AGENTS = 10
-    HIDDEN_SIZE = 256
+    NUM_ACTIONS = 5
+    HIDDEN_SIZE = 32
     LEARNING_RATE = 3e-2
     BETA = 1e-2
     # mu = 0.82*p_max/5/2000
@@ -63,13 +63,14 @@ def run():
     reward_function = dis_reward_tensor
     environment = CompleteEnvironmentA2C(env_params, reward_function)
     # a2c initialization
-    a2c = ActorCritic(6, 1, HIDDEN_SIZE, mu, std)
-    actor_optimizer = optim.Adam(a2c.actor.parameters(), lr=LEARNING_RATE)
-    critic_optimizer = optim.Adam(a2c.critic.parameters(), lr=LEARNING_RATE)
+    a2c = ActorCriticDiscreteHybrid(6, NUM_ACTIONS, HIDDEN_SIZE, mu, std)
+    actor_optimizer = optim.RMSprop(a2c.actor.parameters(), lr=LEARNING_RATE)
+    critic_optimizer = optim.RMSprop(a2c.critic.parameters(), lr=LEARNING_RATE)
     # training loop
     episode = 0
     d2d_spectral_effs = []
     mue_spectral_effs = []
+    actions = [i*0.82*p_max/5/1000 for i in range(NUM_ACTIONS)]  # best result
     while episode < MAX_NUM_EPISODES:
         # entropy = 0
         aux_range = range(MAX_NUMBER_OF_AGENTS+1)[1:]
@@ -88,9 +89,10 @@ def run():
             # agents choose their actions
             # actions_t = []  # used for debug purposes
             for j, agent in enumerate(agents):
-                action, dist, value = agent.act(a2c, obs[j])
+                action_index, dist, value = agent.act_discrete(a2c, obs[j])
+                agent.set_action(actions[action_index.item()])
                 # actions_t.append(action)    # used for debug purposes
-                log_prob = dist.log_prob(action)
+                log_prob = dist.log_prob(action_index)
                 # entropy += dist.entropy().mean()
                 log_probs[j][i] = log_prob
                 values[j][i] = value
@@ -113,9 +115,10 @@ def run():
         returns_critic = returns.view(1, -1).to(device)
         critic_loss = nn.functional.mse_loss(values_critic, returns_critic)
         critic_optimizer.zero_grad()
-        critic_loss.backward()
+        critic_loss.backward(retain_graph=True)
         critic_optimizer.step()
         # update actor
+        a2c.common.zero_grad()
         aux = torch.mul(advantages, log_probs)
         aux -= BETA * entropy
         aux = torch.sum(aux, axis=1)

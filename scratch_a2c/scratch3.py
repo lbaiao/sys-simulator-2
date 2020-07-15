@@ -13,10 +13,10 @@ import time
 from sys_simulator.q_learning.environments.completeEnvironmentA2C \
     import CompleteEnvironmentA2C
 from sys_simulator.a2c.agent import Agent
-from sys_simulator.a2c.a2c import ActorCriticDiscrete
+from sys_simulator.a2c.a2c import ActorCriticDiscreteHybrid
 
 
-def test(env: CompleteEnvironmentA2C, framework: ActorCriticDiscrete,
+def test(env: CompleteEnvironmentA2C, framework: ActorCriticDiscreteHybrid,
          max_d2d: int, num_episodes: int, episode_steps: int,
          aux_range: List[int], actions: List[float]):
     mue_spectral_effs = [list() for i in range(max_d2d+1)]
@@ -69,8 +69,10 @@ def run():
     user_gain = gen.db_to_power(user_gain)
     sinr_threshold_mue = gen.db_to_power(sinr_threshold_mue)
     # q-learning parameters
-    STEPS_PER_EPISODE = 20
-    MAX_NUM_EPISODES = 2000
+    # STEPS_PER_EPISODE = 20
+    # MAX_NUM_EPISODES = 2000
+    STEPS_PER_EPISODE = 10
+    MAX_NUM_EPISODES = 2
     C = 80  # C constant for the improved reward function
     MAX_NUMBER_OF_AGENTS = 10
     NUM_ACTIONS = 5
@@ -91,8 +93,8 @@ def run():
     reward_function = rewards.dis_reward_tensor2
     environment = CompleteEnvironmentA2C(env_params, reward_function)
 
-    framework = ActorCriticDiscrete(6, NUM_ACTIONS, HIDDEN_SIZE, mu, std)
-    framework.load_state_dict(torch.load(f'{cwd}/models/a2c/script2.pt'))
+    framework = ActorCriticDiscreteHybrid(6, NUM_ACTIONS, HIDDEN_SIZE, mu, std)
+    framework.load_state_dict(torch.load(f'{cwd}/models/a2c/script3.pt'))
 
     reward_function = rewards.dis_reward_tensor
 

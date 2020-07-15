@@ -109,3 +109,40 @@ class ActorCriticDiscrete(nn.Module):
         probs = self.actor(x.view(1, -1))
         dist = Categorical(probs)
         return dist, value
+
+
+class ActorCriticDiscreteHybrid(nn.Module):
+    def __init__(self, num_inputs, num_outputs,
+                 hidden_size, mean=0.0, std=0.1):
+        super(ActorCriticDiscreteHybrid, self).__init__()
+        self.mean = mean
+        self.std = std
+        self.device =\
+            torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.common = nn.Sequential(
+            nn.Linear(num_inputs, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU()
+        ).to(self.device)
+
+        self.critic = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, 1)
+        ).to(self.device)
+
+        self.actor = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, num_outputs),
+            nn.Softmax(dim=1),
+        ).to(self.device)
+
+    def forward(self, x):
+        common = self.common(x)
+        value = self.critic(common).to(self.device)
+        probs = self.actor(common.view(1, -1))
+        dist = Categorical(probs)
+        return dist, value

@@ -1,7 +1,4 @@
-#  Similar to scratch18.py, but the model is trained till 20 devices.
-# We also measure how many times the devices chose the same tx power.
-# We use script26 model. We simulate for N_D2D=1 till 10
-
+#  Testing for a2c/script1
 
 import sys_simulator.general.general as gen
 import os

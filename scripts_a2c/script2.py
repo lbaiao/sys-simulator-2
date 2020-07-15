@@ -1,6 +1,4 @@
-# A2C script, but with completeEnvironment2. It uses multiple agents
-# to train a single A2C network. The algorithm is trained with N_D2D
-# varying from 1 to 10.
+# Similar script 1 but with discrete-value actions.
 
 from sys_simulator.general import general as gen
 from sys_simulator.q_learning.environments.completeEnvironmentA2C \

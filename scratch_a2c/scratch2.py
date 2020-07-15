@@ -37,7 +37,7 @@ def test(env: CompleteEnvironmentA2C, framework: ActorCriticDiscrete,
         while not done and i < episode_steps:
             for j, agent in enumerate(agents):
                 action_index, _, _ = agent.act_discrete(framework, obs[j])
-                agent.set_action(actions[action_index])
+                agent.set_action(actions[action_index.item()])
             next_obs, _, done = env.step(agents)
             obs = next_obs
             i += 1

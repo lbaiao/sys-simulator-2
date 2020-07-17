@@ -38,8 +38,8 @@ def run():
     user_gain = gen.db_to_power(user_gain)
     sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
     # ai training parameters
-    STEPS_PER_EPISODE = 20 * 5
-    MAX_NUM_EPISODES = 2700 * 1 / 5    # long training
+    STEPS_PER_EPISODE = 20 * 2
+    MAX_NUM_EPISODES = 2700 * 3   # long training
     # C = 8000 # C constant for the improved reward function
     C = 80  # C constant for the improved reward function
     MAX_NUMBER_OF_AGENTS = 10

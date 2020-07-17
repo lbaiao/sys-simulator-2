@@ -88,7 +88,8 @@ class CompleteEnvironmentA2C2(RLEnvironment):
                 d2d_rx_distance_to_mue, mue_distance_to_bs,
                 d2d_tx.sinr, sinr,
                 int(interference_indicator),
-                int(not interference_indicator)]).to(self.device)
+                int(not interference_indicator)
+             ]).float().to(self.device)
         state = state.unsqueeze(0)
 
         return state

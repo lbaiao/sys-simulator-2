@@ -59,12 +59,12 @@ class ActorCritic(nn.Module):
 
         self.log_std = nn.Parameter(torch.ones(1, num_outputs) * std)
 
-        # def init_weights(m):
-        #     if isinstance(m, nn.Linear):
-        #         nn.init.normal_(m.weight, mean=self.mean, std=self.std)
-        #         nn.init.constant_(m.bias, 0.0)
+        def init_weights(m):
+            if isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, mean=self.mean, std=self.std)
+                nn.init.constant_(m.bias, 0.0)
 
-        # self.apply(init_weights)
+        self.apply(init_weights)
 
     def forward(self, x):
         value = self.critic(x).to(self.device)

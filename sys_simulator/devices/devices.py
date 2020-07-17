@@ -10,6 +10,7 @@ class node:
     """
     def __init__(self, **kargs):
         self.tx_power = 1e-9
+        self.sinr = 1e-9
         pass
 
     def set_position(self, position):
@@ -44,7 +45,7 @@ class base_station(node):
         super(base_station, self).__init__()
         self.position = position
         self.radius = radius
-        
+
     def set_radius(self, radius):
         self.radius = radius
 

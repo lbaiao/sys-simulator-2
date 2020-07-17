@@ -1,12 +1,6 @@
-import sys
-import os
-# lucas_path = os.environ['LUCAS_PATH']
-# sys.path.insert(1, lucas_path)
-
 from enum import Enum
 from sys_simulator.pathloss.pathloss import pathloss_bs_users
-import numpy as np
-import scipy.spatial as spatial
+
 
 class node:
     """
@@ -50,8 +44,10 @@ class base_station(node):
         super(base_station, self).__init__()
         self.position = position
         self.radius = radius
+        
     def set_radius(self, radius):
         self.radius = radius
+
 
 class mobile_user(node):
     """

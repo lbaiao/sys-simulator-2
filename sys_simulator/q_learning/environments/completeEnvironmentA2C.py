@@ -1,4 +1,5 @@
-from sys_simulator.devices.devices import base_station, mobile_user, d2d_user, d2d_node_type
+from sys_simulator.devices.devices \
+    import base_station, mobile_user, d2d_user, d2d_node_type
 from sys_simulator.general import general as gen
 from sys_simulator.sinr.sinr import sinr_d2d, sinr_mue
 from sys_simulator.q_learning.agents.distanceAgent import DistanceAgent

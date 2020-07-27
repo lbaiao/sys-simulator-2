@@ -5,7 +5,7 @@ import os
 from sys_simulator import env_variables
 
 # set the production mode
-os.environ[env_variables.MODE] = os.environ[env_variables.MODE_PRODUCTION]
+os.environ[env_variables.MODE] = env_variables.MODE_PRODUCTION
 # pulls the code most recent version
 os.system('git pull origin devel')
 os.system('python exec.py')

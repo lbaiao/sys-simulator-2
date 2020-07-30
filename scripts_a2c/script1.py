@@ -119,7 +119,8 @@ def run():
         aux = torch.mul(advantages, log_probs)
         aux -= BETA * entropy
         aux = torch.sum(aux, axis=1)
-        actor_loss = -torch.mean(aux)
+        # actor_loss = -torch.mean(aux)
+        actor_loss = -.9  # testing
         actor_optimizer.zero_grad()
         actor_loss.backward()
         actor_optimizer.step()

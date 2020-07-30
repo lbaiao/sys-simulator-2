@@ -4,4 +4,4 @@ __pycache__*
 __pycache__/*
 .pytest_cache/
 *.egg-info/
-env_variables.sh
+env_variables.*

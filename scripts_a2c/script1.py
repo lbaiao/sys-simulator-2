@@ -64,8 +64,8 @@ def run():
     environment = CompleteEnvironmentA2C(env_params, reward_function)
     # a2c initialization
     a2c = ActorCritic(6, 1, HIDDEN_SIZE, mu, std)
-    actor_optimizer = optim.Adam(a2c.actor.parameters(), lr=LEARNING_RATE)
-    critic_optimizer = optim.Adam(a2c.critic.parameters(), lr=LEARNING_RATE)
+    actor_optimizer = optim.SGD(a2c.actor.parameters(), lr=LEARNING_RATE)
+    critic_optimizer = optim.SGD(a2c.critic.parameters(), lr=LEARNING_RATE)
     # training loop
     episode = 0
     d2d_spectral_effs = []
@@ -116,11 +116,13 @@ def run():
         critic_loss.backward()
         critic_optimizer.step()
         # update actor
+        advantages.detach()
+        log_probs.detach()
         aux = torch.mul(advantages, log_probs)
         aux -= BETA * entropy
         aux = torch.sum(aux, axis=1)
-        # actor_loss = -torch.mean(aux)
-        actor_loss = -.9  # testing
+        actor_loss = -torch.mean(aux)
+        # actor_loss = -(torch.mean(aux)+.9)  # testing
         actor_optimizer.zero_grad()
         actor_loss.backward()
         actor_optimizer.step()

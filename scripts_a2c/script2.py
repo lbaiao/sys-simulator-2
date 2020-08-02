@@ -63,8 +63,10 @@ def run():
     environment = CompleteEnvironmentA2C(env_params, reward_function)
     # a2c initialization
     a2c = ActorCriticDiscrete(6, NUM_ACTIONS, HIDDEN_SIZE, mu, std)
-    actor_optimizer = optim.Adam(a2c.actor.parameters(), lr=LEARNING_RATE)
-    critic_optimizer = optim.Adam(a2c.critic.parameters(), lr=LEARNING_RATE)
+    actor_optimizer = optim.Adam(a2c.actor.parameters(),
+                                 lr=LEARNING_RATE, eps=1e-3)
+    critic_optimizer = optim.Adam(a2c.critic.parameters(),
+                                  lr=LEARNING_RATE, eps=1e-3)
     # training loop
     episode = 0
     d2d_spectral_effs = []

@@ -40,6 +40,8 @@ def run():
     # ai training parameters
     STEPS_PER_EPISODE = 20
     MAX_NUM_EPISODES = 2700 * 1
+    # STEPS_PER_EPISODE = 10
+    # MAX_NUM_EPISODES = 2
     # C = 8000 # C constant for the improved reward function
     C = 80  # C constant for the improved reward function
     MAX_NUMBER_OF_AGENTS = 10
@@ -63,10 +65,14 @@ def run():
     environment = CompleteEnvironmentA2C(env_params, reward_function)
     # a2c initialization
     a2c = ActorCriticDiscrete(6, NUM_ACTIONS, HIDDEN_SIZE, mu, std)
-    actor_optimizer = optim.Adam(a2c.actor.parameters(),
-                                 lr=LEARNING_RATE, eps=1e-3)
-    critic_optimizer = optim.Adam(a2c.critic.parameters(),
-                                  lr=LEARNING_RATE, eps=1e-3)
+    # actor_optimizer = optim.Adam(a2c.actor.parameters(),
+    #                             lr=LEARNING_RATE, eps=1e-3)
+    # critic_optimizer = optim.Adam(a2c.critic.parameters(),
+    #                              lr=LEARNING_RATE, eps=1e-3)
+    actor_optimizer = optim.SGD(a2c.actor.parameters(),
+                                lr=LEARNING_RATE)
+    critic_optimizer = optim.SGD(a2c.critic.parameters(),
+                                 lr=LEARNING_RATE)
     # training loop
     episode = 0
     d2d_spectral_effs = []

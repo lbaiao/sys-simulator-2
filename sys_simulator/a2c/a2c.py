@@ -1,16 +1,21 @@
 import torch
 import torch.nn as nn
+from torch.functional import F
 from torch.distributions import Normal, Categorical
 
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 def compute_gae_returns(device, rewards: torch.Tensor,
-                        values: torch.Tensor, gamma=0.99, lbda=0.95):
+                        values: torch.Tensor, gamma=0.99, lbda=0.95,):
     gae = torch.zeros(len(rewards)).to(device)
     R = torch.zeros(len(rewards)).to(device)
     values = values.detach()
-    rewards = rewards.detach()
+    # rewards = rewards.detach()
     advantages = torch.zeros(rewards.shape).to(device)
-    returns = torch.zeros(rewards.shape).to(device).detach()
+    # returns = torch.zeros(rewards.shape).to(device).detach()
+    returns = torch.zeros(rewards.shape).to(device)
     for step in reversed(range(rewards.shape[1])):
         # GAE
         delta = \
@@ -146,3 +151,105 @@ class ActorCriticDiscreteHybrid(nn.Module):
         probs = self.actor(common.view(1, -1))
         dist = Categorical(probs)
         return dist, value
+
+
+class ActorLSTMDiscrete(nn.Module):
+    def __init__(self, num_inputs, num_outputs,
+                 hidden_size, num_rnn_layers=1):
+        super(ActorLSTMDiscrete, self).__init__()
+        # actor layers
+        self.l1 = nn.Linear(num_inputs, hidden_size).to(device)
+        self.lstm = nn.LSTM(hidden_size, hidden_size,
+                            num_rnn_layers).to(device)
+        self.l2 = nn.Linear(hidden_size, num_outputs).to(device)
+        self.num_rnn_layers = num_rnn_layers
+
+    def forward(self, input, hidden_h, hidden_c):
+        x = self.l1(input)
+        x = F.relu(x)
+        x = x.view(1, 1, -1)
+        x, (hidden_h, hidden_c) = self.lstm(x, (hidden_h, hidden_c))
+        x = self.l2(x)
+        probs = F.softmax(x, dim=1)
+        dist = Categorical(probs.view(1, -1))
+        return dist, hidden_h, hidden_c
+
+    def initHidden(self):
+        hidden_h = torch.zeros(self.num_rnn_layers, 1, self.hidden_size,
+                               device=self.device)
+        hidden_c = torch.zeros(self.num_rnn_layers, 1,
+                               self.hidden_size, device=self.device)
+        return hidden_h.clone(), hidden_c.clone()
+
+
+class CriticLSTM(nn.Module):
+    def __init__(self, num_inputs, hidden_size, num_rnn_layers=1):
+        super(CriticLSTM, self).__init__()
+        # actor layers
+        self.l1 = nn.Linear(num_inputs, hidden_size).to(device)
+        self.lstm = nn.LSTM(hidden_size, 1).to(device)
+        self.num_rnn_layers = num_rnn_layers
+
+    def forward(self, input, hidden_h, hidden_c):
+        x = self.l1(input)
+        x = F.relu(x)
+        value, hidden_h, hidden_c = self.lstm(x)
+        return value, hidden_h, hidden_c
+
+    def init_hidden(self):
+        hidden_h = torch.zeros(self.num_rnn_layers, 1, self.hidden_size,
+                               device=self.device)
+        hidden_c = torch.zeros(self.num_rnn_layers, 1,
+                               self.hidden_size, device=self.device)
+        return hidden_h, hidden_c
+
+
+class CriticMLP(nn.Module):
+    def __init__(self, num_inputs, hidden_size):
+        super(CriticMLP, self).__init__()
+        self.l1 = nn.Linear(num_inputs, hidden_size).to(device)
+        self.l2 = nn.Linear(hidden_size, hidden_size).to(device)
+        self.l3 = nn.Linear(hidden_size, 1).to(device)
+
+    def forward(self, input):
+        x = self.l1(input)
+        x = torch.tanh(x)
+        x = self.l2(x)
+        x = torch.tanh(x)
+        value = self.l3(x)
+        return value
+
+
+class A2CLSTMDiscrete(nn.Module):
+    def __init__(self, num_inputs, num_outputs,
+                 hidden_size, num_rnn_layers=1):
+        super(A2CLSTMDiscrete, self).__init__()
+        # actor layers
+        self.l1 = nn.Linear(num_inputs, hidden_size).to(device)
+        self.lstm = nn.LSTM(hidden_size, hidden_size,
+                            num_rnn_layers).to(device)
+        self.l2 = nn.Linear(hidden_size, num_outputs).to(device)
+        self.num_rnn_layers = num_rnn_layers
+        self.critic = nn.Sequential(
+            nn.Linear(num_inputs, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, 1)
+        ).to(device)
+
+    def forward(self, input, hidden_h, hidden_c):
+        x = self.l1(input)
+        x = F.relu(x)
+        x = x.view(1, 1, -1)
+        x, (hidden_h, hidden_c) = self.lstm(x, (hidden_h, hidden_c))
+        x = self.l2(x)
+        probs = F.softmax(x, dim=1)
+        dist = Categorical(probs.view(1, -1))
+        value = self.critic(input).to(device)
+        return dist, value, hidden_h, hidden_c
+
+    def initHidden(self):
+        hidden_h = torch.zeros(self.num_rnn_layers, 1, self.hidden_size,
+                               device=device)
+        hidden_c = torch.zeros(self.num_rnn_layers, 1,
+                               self.hidden_size, device=device)
+        return hidden_h.clone(), hidden_c.clone()

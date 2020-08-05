@@ -80,6 +80,8 @@ def run():
     actions = [i*0.82*p_max/5/1000 for i in range(NUM_ACTIONS)]  # best result
     while episode < MAX_NUM_EPISODES:
         # entropy = 0
+        critic_optimizer.zero_grad()
+        actor_optimizer.zero_grad()
         aux_range = range(MAX_NUMBER_OF_AGENTS+1)[1:]
         n_agents = random.choice(aux_range)
         agents = [Agent() for _ in range(n_agents)]
@@ -121,7 +123,6 @@ def run():
         values_critic = values[:, :-1].reshape(1, -1).to(device)
         returns_critic = returns.view(1, -1).to(device)
         critic_loss = nn.functional.mse_loss(values_critic, returns_critic)
-        critic_optimizer.zero_grad()
         critic_loss.backward()
         critic_optimizer.step()
         # update actor
@@ -129,7 +130,6 @@ def run():
         aux -= BETA * entropy
         aux = torch.sum(aux, axis=1)
         actor_loss = -torch.mean(aux)
-        actor_optimizer.zero_grad()
         actor_loss.backward()
         actor_optimizer.step()
         # print training info

@@ -46,7 +46,7 @@ def run():
     C = 80  # C constant for the improved reward function
     MAX_NUMBER_OF_AGENTS = 10
     NUM_ACTIONS = 5
-    HIDDEN_SIZE = 32
+    HIDDEN_SIZE = 128
     LEARNING_RATE = 3e-3
     BETA = 2e-2
     # mu = 0.82*p_max/5/2000
@@ -54,6 +54,7 @@ def run():
     mu = 0
     std = 0.1
     # torch device
+    # torch.autograd.set_detect_anomaly(True)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # parameters classes initialization
     env_params = EnvironmentParameters(

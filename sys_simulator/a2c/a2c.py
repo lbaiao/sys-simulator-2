@@ -25,12 +25,12 @@ def compute_gae_returns(device, rewards: torch.Tensor,
         R = rewards[:, step] + gamma * R
         returns[:, step] = R
     # normalization
-    with torch.no_grad():
-        for i in range(advantages.shape[0]):
-            advantages[i] = (advantages[i] - torch.mean(advantages[i])) / \
-                            (torch.std(advantages[i]) + 1e-9)
-            returns[i] = (returns[i] - torch.mean(returns[i])) / \
-                         (torch.std(returns[i]) + 1e-9)
+    # with torch.no_grad():
+    #     for i in range(advantages.shape[0]):
+    #         advantages[i] = (advantages[i] - torch.mean(advantages[i])) / \
+    #                         (torch.std(advantages[i]) + 1e-9)
+    #         returns[i] = (returns[i] - torch.mean(returns[i])) / \
+    #                      (torch.std(returns[i]) + 1e-9)
     return advantages, returns
 
 

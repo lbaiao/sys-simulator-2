@@ -1,5 +1,5 @@
 import torch
-from sys_simulator.a2c.a2c import ActorCritic
+from sys_simulator.a2c.a2c import A2CLSTMDiscrete, ActorCritic
 
 
 class Agent:
@@ -22,6 +22,13 @@ class Agent:
         dist, value = a2c(obs)
         self.action_index = dist.sample()
         return self.action_index, dist, value
+
+    def act_lstm_discrete(self, a2c: A2CLSTMDiscrete,
+                          obs, actor_hidden_h, actor_hidden_c):
+        dist, value, actor_hidden_h, actor_hidden_c = \
+            a2c(obs, actor_hidden_h, actor_hidden_c)
+        self.action_index = dist.sample()
+        return self.action_index, dist, value, actor_hidden_h, actor_hidden_c
 
     def get_action(self):
         return self.action

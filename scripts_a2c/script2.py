@@ -42,12 +42,12 @@ def run():
     MAX_NUM_EPISODES = int(2700 * .2)
     # STEPS_PER_EPISODE = 10
     # MAX_NUM_EPISODES = 2
+    # C = 8000  # C constant for the improved reward function
     C = 80  # C constant for the improved reward function
-    # C = 80  # C constant for the improved reward function
     MAX_NUMBER_OF_AGENTS = 10
     NUM_ACTIONS = 5
     HIDDEN_SIZE = 256
-    LEARNING_RATE = 3e-2
+    LEARNING_RATE = 1e-1
     BETA = 2e-2
     # mu = 0.82*p_max/5/2000
     # std = mu/6

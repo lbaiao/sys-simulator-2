@@ -47,7 +47,7 @@ def run():
     MAX_NUMBER_OF_AGENTS = 10
     NUM_ACTIONS = 5
     HIDDEN_SIZE = 128
-    LEARNING_RATE = 3e-3
+    LEARNING_RATE = 3e-2
     BETA = 2e-2
     # mu = 0.82*p_max/5/2000
     # std = mu/6

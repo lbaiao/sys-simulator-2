@@ -218,7 +218,10 @@ class A2CLSTMDiscrete(nn.Module):
                  hidden_size, num_rnn_layers=1):
         super(A2CLSTMDiscrete, self).__init__()
         # actor layers
-        self.l1 = nn.Linear(num_inputs, hidden_size).to(device)
+        self.l1 = nn.Linear(
+            num_inputs + 2*hidden_size,
+            hidden_size
+        ).to(device)
         self.lstm = nn.LSTM(hidden_size, hidden_size,
                             num_rnn_layers).to(device)
         self.l2 = nn.Linear(hidden_size, num_outputs).to(device)
@@ -230,7 +233,7 @@ class A2CLSTMDiscrete(nn.Module):
         ).to(device)
 
     def forward(self, input, hidden_h, hidden_c):
-        x = self.l1(input)
+        x = self.l1(torch.cat((input, hidden_h[0], hidden_c[0]), dim=1))
         x = F.relu(x)
         x = x.view(1, 1, -1)
         x, (hidden_h, hidden_c) = self.lstm(x, (hidden_h, hidden_c))

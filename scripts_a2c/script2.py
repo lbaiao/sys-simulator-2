@@ -39,7 +39,7 @@ def run():
     sinr_threshold_train = gen.db_to_power(sinr_threshold_train)
     # ai training parameters
     STEPS_PER_EPISODE = 20
-    MAX_NUM_EPISODES = 2700 * 1
+    MAX_NUM_EPISODES = int(2700 * .2)
     # STEPS_PER_EPISODE = 10
     # MAX_NUM_EPISODES = 2
     # C = 8000 # C constant for the improved reward function

@@ -9,3 +9,4 @@ C = 80  # C constant for the improved reward function
     HIDDEN_SIZE = 256
     LEARNING_RATE = 3e-2
     BETA = 2e-2
+    MAX_NUM_EPISODES = int(2700 * .2)

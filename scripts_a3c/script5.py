@@ -15,11 +15,14 @@ def test(q):
     q.put('hello')
 
 
-def cuda_train(net, q):
-    data = q.get()
+def cuda_train(net, device, q):
+    # data = q.get().to(device)
+    # data = q.get()
+    data = torch.randn((5, 2)).to(device)
+    net.to(device)
     x = net(data)
-    print(x)
-    q.put('success')
+    q.put(x.detach().cpu().numpy())
+    # q.put('success')
 
 
 class Model(nn.Module):
@@ -45,12 +48,13 @@ if __name__ == '__main__':
     hidden_size = 8
     # multiprocessing parameters
     num_processes = 2
-    net = Model(input_size, output_size, hidden_size).to(device)
+    net = Model(input_size, output_size, hidden_size)
     net.share_memory()
     q = mp.Queue()
-    q.put(torch.randn((5, 2)).to(device))
-    p = mp.Process(target=cuda_train, args=(net, q))
+    # q.put(torch.randn((5, 2)))
+    p = mp.Process(target=cuda_train, args=(net, device, q))
     # p = mp.Process(target=test, args=(q,))
     p.start()
+    print(q.get())
     # print(q.get())
     p.join()

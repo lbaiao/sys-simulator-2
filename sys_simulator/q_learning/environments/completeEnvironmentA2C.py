@@ -85,7 +85,8 @@ class CompleteEnvironmentA2C(RLEnvironment):
             [number_of_d2d_pairs, d2d_tx_distance_to_bs,
                 d2d_rx_distance_to_mue, mue_distance_to_bs,
                 int(interference_indicator),
-                int(not interference_indicator)]).to(self.device)
+                int(not interference_indicator)]
+        ).to(self.device)
         state = state.unsqueeze(0)
 
         return state

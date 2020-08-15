@@ -1,52 +1,54 @@
-import sys
-import os
-# lucas_path = os.environ['LUCAS_PATH']
-# sys.path.insert(1, lucas_path)
-
-from devices.devices import base_station, mobile_user, d2d_user, d2d_node_type
-from general import general as gen
-from sinr.sinr import sinr_d2d, sinr_mue
-from q_learning.agents.distanceAgent import DistanceAgent
-from q_learning.environments.environment import RLEnvironment
-from typing import List, Callable
-from parameters.parameters import LearningParameters, EnvironmentParameters
-from sinr.sinr import sinr_d2d, sinr_mue
-from q_learning.rewards import centralized_reward, mod_reward
+from sys_simulator.devices.devices \
+    import base_station, mobile_user, d2d_user, d2d_node_type
+from sys_simulator.general import general as gen
+from sys_simulator.sinr.sinr import sinr_d2d, sinr_mue
+from sys_simulator.q_learning.agents.distanceAgent import DistanceAgent
+from sys_simulator.q_learning.environments.environment import RLEnvironment
+from typing import List
+from sys_simulator.parameters.parameters import EnvironmentParameters
 from scipy.spatial.distance import euclidean
-
-import numpy as np
 # import pandas as pd
 import torch
 
 
 class CompleteEnvironment2(RLEnvironment):
     """
-    Same as Complete Environment, but the distance from D2D TX to the closest D2D RX from another pair is not considered.
+    Same as Complete Environment, but the distance from D2D TX to the
+    closest D2D RX from another pair is not considered.
     """
-    def __init__(self, params: EnvironmentParameters, reward_function, **kwargs):
+    def __init__(self, params: EnvironmentParameters,
+                 reward_function, **kwargs):
         self.params = params
-        # TODO: há como tornar as ações contínuas? quais e quantos níveis de potência devem existir?
+        # TODO: há como tornar as ações contínuas? quais e quantos
+        # níveis de potência devem existir?
         # self.actions = [i*params.p_max/10 for i in range(11)]
-        super(CompleteEnvironment2, self).__init__(params, reward_function, **kwargs)
-        self.states = [0,0,1]
+        super(CompleteEnvironment2, self).__init__(params,
+                                                   reward_function, **kwargs)
+        self.states = [0, 0, 1]
         self.device = \
             torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    
+        self.sinr_d2ds = []
 
     def build_scenario(self, agents: List[DistanceAgent]):
         # declaring the bs, mues and d2d pairs
-        self.bs = base_station((0,0), radius = self.params.bs_radius)
+        self.sinr_d2ds = []
+        self.bs = base_station((0, 0),
+                               radius=self.params.bs_radius)
         self.bs.set_gain(self.params.bs_gain)
         self.mue = mobile_user(0)
         self.mue.set_gain(self.params.user_gain)
-        self.d2d_pairs = [ (d2d_user(x, d2d_node_type.TX), d2d_user(x, d2d_node_type.RX)) for x in range(len(agents)) ]
+        self.d2d_pairs = [(d2d_user(x, d2d_node_type.TX),
+                           d2d_user(x, d2d_node_type.RX))
+                          for x in range(len(agents))]
         self.rb = 1
         self.distances = [1/10*i*self.bs.radius for i in range(11)]
 
-        # distributing nodes in the bs radius        
+        # distributing nodes in the bs radius
         gen.distribute_nodes([self.mue], self.bs)
         for p in self.d2d_pairs:
-            gen.distribute_pair_fixed_distance( p, self.bs, self.params.d2d_pair_distance)
+            gen.distribute_pair_fixed_distance(
+                p, self.bs, self.params.d2d_pair_distance
+            )
             for d in p:
                 d.set_distance_d2d(self.params.d2d_pair_distance)
                 d.set_gain(self.params.user_gain)
@@ -55,7 +57,8 @@ class CompleteEnvironment2(RLEnvironment):
         # plot_positions(bs, mues, d2d_txs, d2d_rxs)
 
         # rb allocation
-        # TODO: definir um metodo de alocacao de RBs. Nesta primeira simulacao, estou alocando todos para o mesmo RB. 
+        # TODO: definir um metodo de alocacao de RBs. Nesta primeira simulacao,
+        # estou alocando todos para o mesmo RB.
         # alocarei aleatoriamente nas proximas simulações
         self.mue.set_rb(self.rb)
 
@@ -63,7 +66,8 @@ class CompleteEnvironment2(RLEnvironment):
             p[0].set_rb(self.rb)
             p[1].set_rb(self.rb)
 
-        # TODO: como determinar a potencia de transmissao do mue? vou setar pmax por enquanto
+        # TODO: como determinar a potencia de transmissao do mue?
+        # vou setar pmax por enquanto
         self.mue.set_tx_power(self.params.p_max)
 
         for i in range(len(agents)):
@@ -117,8 +121,12 @@ class CompleteEnvironment2(RLEnvironment):
         sinr_d2ds = list()
         for p in self.d2d_pairs:
             if p[0].rb == self.rb:
-                sinr_d = sinr_d2d(p[0], p[1], list(zip(*self.d2d_pairs))[0], self.mue, self.params.noise_power, self.params.user_gain)
+                sinr_d = sinr_d2d(
+                    p[0], p[1], list(zip(*self.d2d_pairs))[0], self.mue,
+                    self.params.noise_power, self.params.user_gain
+                )
                 sinr_d2ds.append(sinr_d)
+        self.sinr_d2ds.append(sinr_d2ds)
 
         states = [self.get_state(a) for a in agents]
 
@@ -126,7 +134,9 @@ class CompleteEnvironment2(RLEnvironment):
         if sinr_m < self.params.sinr_threshold:
             flag = False
 
-        rewards, mue_se, d2d_se = self.reward_function(sinr_m, sinr_d2ds, flag, self.params.c_param, penalty=5)
+        rewards, mue_se, d2d_se = self.reward_function(
+            sinr_m, sinr_d2ds, flag, self.params.c_param, penalty=5
+        )
 
         done = False
         if self.early_stop:

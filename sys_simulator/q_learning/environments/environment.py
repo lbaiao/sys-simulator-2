@@ -35,7 +35,7 @@ class RLEnvironment:
         self.done = False        
         self.mue_spectral_eff = list()
         self.d2d_spectral_eff = list()
-        self.reward_function = reward_function        
+        self.reward_function = reward_function
         self.early_stop = False
         self.tolerance = 0  
         self.tolerance_count = 0        

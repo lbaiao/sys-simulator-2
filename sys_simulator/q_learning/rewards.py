@@ -11,23 +11,25 @@ def centralized_reward(sinr_mue: float, sinr_d2ds: List[float], *args, **kwargs)
     return reward, mue_contrib, d2d_contrib
 
 
-def mod_reward(sinr_mue: float, sinr_d2ds: List[float], state: int, *args, **kwargs):
+def mod_reward(sinr_mue: float, sinr_d2ds: List[float],
+               state: int, *args, **kwargs):
     mue_contrib = np.log2(1 + sinr_mue)
     d2d_contrib = sum([np.log2(1 + s) for s in sinr_d2ds])
     if state:
-        reward = mue_contrib + d2d_contrib    
+        reward = mue_contrib + d2d_contrib
     else:
         reward = -1
     return reward, mue_contrib, d2d_contrib
 
 
-def dis_reward(sinr_mue: float, sinr_d2ds: List[float], state: int, C: float, *args, **kwargs):
+def dis_reward(sinr_mue: float, sinr_d2ds: List[float], state: int,
+               C: float, *args, **kwargs):
     mue_contrib = np.log2(1 + sinr_mue)
     d2d_contrib = sum([np.log2(1 + s) for s in sinr_d2ds])
-    rewards = -1 * np.ones(len(sinr_d2ds))    
+    rewards = -1 * np.ones(len(sinr_d2ds))
     if state:
         for i in range(len(sinr_d2ds)):
-            rewards[i] = 1/C * np.log2(1 + sinr_d2ds[i])        
+            rewards[i] = 1/C * np.log2(1 + sinr_d2ds[i])
     return rewards, mue_contrib, d2d_contrib
 
 
@@ -45,34 +47,39 @@ def dis_reward_tensor(sinr_mue: float, sinr_d2ds: List[float],
     return rewards, mue_contrib, d2d_contrib
 
 
-def dis_reward_tensor_mod(sinr_mue: float, sinr_d2ds: List[float], state: int, C: float,*args, **kwargs):
+def dis_reward_tensor_mod(sinr_mue: float, sinr_d2ds: List[float],
+                          state: int, C: float, *args, **kwargs):
     penalty = kwargs['penalty']
     device = torch.device('cuda')
     mue_contrib = torch.log2(1 + torch.tensor(sinr_mue, device=device))
     sinr_d2ds = torch.tensor(sinr_d2ds, device=device)
     d2d_contrib = torch.sum(torch.log2(1 + sinr_d2ds))
-    # d2d_contrib = torch.sum(torch.tensor([torch.log2(1 + s) for s in sinr_d2ds], device=device))
-    rewards = -penalty * torch.ones(len(sinr_d2ds))    
+    # d2d_contrib = torch.sum(torch.tensor([torch.log2(1 + s)
+    # for s in sinr_d2ds], device=device))
+    rewards = -penalty * torch.ones(len(sinr_d2ds))
     if state:
         for i in range(len(sinr_d2ds)):
-            rewards[i] = 1/C * torch.log2(1 + sinr_d2ds[i])        
+            rewards[i] = 1/C * torch.log2(1 + sinr_d2ds[i])
     return rewards, mue_contrib, d2d_contrib
 
 
-def dis_reward_tensor2(sinr_mue: float, sinr_d2ds: List[float], state: int, C: float, *args, **kwargs):
+def dis_reward_tensor2(sinr_mue: float, sinr_d2ds: List[float],
+                       state: int, C: float, *args, **kwargs):
     device = torch.device('cuda')
     mue_contrib = torch.log2(1 + torch.tensor(sinr_mue, device=device))
     sinr_d2ds = torch.tensor(sinr_d2ds, device=device)
     d2d_contrib = torch.sum(torch.log2(1 + sinr_d2ds))
-    # d2d_contrib = torch.sum(torch.tensor([torch.log2(1 + s) for s in sinr_d2ds], device=device))
-    rewards = -10/C * torch.ones(len(sinr_d2ds))    
+    rewards = -10/C * torch.ones(len(sinr_d2ds))
     if state:
         for i in range(len(sinr_d2ds)):
-            rewards[i] = 1/C * torch.log2(1 + sinr_d2ds[i])        
+            rewards[i] = 1/C * torch.log2(1 + sinr_d2ds[i])
     return rewards, mue_contrib, d2d_contrib
 
 
-def dis_reward_tensor_portela(sinr_mue: float, sinr_d2ds: List[float], state: int, C: float,  distances_1: List[float], distances_2: List[float], mu: float, *args, **kwargs):
+def dis_reward_tensor_portela(sinr_mue: float, sinr_d2ds: List[float],
+                              state: int, C: float,  distances_1: List[float],
+                              distances_2: List[float], mu: float,
+                              *args, **kwargs):
     device = torch.device('cuda')
     
     d1_max = np.max(distances_1)
@@ -95,7 +102,11 @@ def dis_reward_tensor_portela(sinr_mue: float, sinr_d2ds: List[float], state: in
     return rewards, mue_contrib, d2d_contrib
 
 
-def dis_reward_tensor_portela_inverse(sinr_mue: float, sinr_d2ds: List[float], state: int, C: float,  distances_1: List[float], distances_2: List[float], mu: float, *args, **kwargs):
+def dis_reward_tensor_portela_inverse(
+    sinr_mue: float, sinr_d2ds: List[float], state: int, C: float,
+    distances_1: List[float], distances_2: List[float],
+    mu: float, *args, **kwargs
+):
     device = torch.device('cuda')
     
     d1_max = np.max(distances_1)

@@ -1,5 +1,6 @@
 import torch
-from sys_simulator.a2c.a2c import A2CLSTMDiscrete, ActorCritic
+from sys_simulator.a2c.a2c import \
+    A2CLSTMDiscrete, ActorCritic, ActorCriticDiscrete
 
 
 class Agent:
@@ -18,9 +19,12 @@ class Agent:
         self.action = (dist.sample()*1e-4).item()
         return self.action, dist, value
 
-    def act_discrete(self, a2c: ActorCritic, obs: torch.TensorType):
-        dist, value = a2c(obs)
+    def act_discrete(self, a2c: ActorCriticDiscrete, obs: torch.TensorType):
+        dist, value, probs = a2c(obs)
         self.action_index = dist.sample()
+        # for debugging
+        # if self.action_index > 4:
+        #     print('problems')
         return self.action_index, dist, value
 
     def act_lstm_discrete(self, a2c: A2CLSTMDiscrete,

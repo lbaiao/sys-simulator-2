@@ -8,6 +8,7 @@ from typing import List
 from sys_simulator.parameters.parameters import EnvironmentParameters
 from scipy.spatial.distance import euclidean
 import torch
+import numpy as np
 
 
 class CompleteEnvironmentA2C2(RLEnvironment):
@@ -82,11 +83,12 @@ class CompleteEnvironmentA2C2(RLEnvironment):
         d2d_rx_distance_to_mue /= 2*self.params.bs_radius
         mue_distance_to_bs /= self.params.bs_radius
         number_of_d2d_pairs /= 10
+        speff = np.log10(sinr)
 
         state = torch.tensor(
             [number_of_d2d_pairs, d2d_tx_distance_to_bs,
                 d2d_rx_distance_to_mue, mue_distance_to_bs,
-                d2d_tx.sinr, sinr,
+                d2d_tx.sinr, speff,
                 int(interference_indicator),
                 int(not interference_indicator)
              ]).float().to(self.device)

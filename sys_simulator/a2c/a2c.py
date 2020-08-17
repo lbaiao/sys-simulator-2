@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.functional import F
 from torch.distributions import Normal, Categorical
+import math
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -91,13 +92,13 @@ class ActorCriticDiscrete(nn.Module):
 
         self.critic = nn.Sequential(
             nn.Linear(num_inputs, hidden_size),
-            nn.ReLU(),
+            nn.Tanh(),
             nn.Linear(hidden_size, 1)
         ).to(self.device)
 
         self.actor = nn.Sequential(
             nn.Linear(num_inputs, hidden_size),
-            nn.ReLU(),
+            nn.Tanh(),
             nn.Linear(hidden_size, num_outputs),
             nn.Softmax(dim=1),
         ).to(self.device)
@@ -105,8 +106,11 @@ class ActorCriticDiscrete(nn.Module):
     def forward(self, x):
         value = self.critic(x).to(self.device)
         probs = self.actor(x.view(1, -1))
+        # # for debugging
+        # if math.isnan(probs[0][0].item()):
+        #     print('problems')
         dist = Categorical(probs)
-        return dist, value
+        return dist, value, probs
 
 
 class ActorCriticDiscreteHybrid(nn.Module):
@@ -164,6 +168,9 @@ class ActorLSTMDiscrete(nn.Module):
         x, (hidden_h, hidden_c) = self.lstm(x, (hidden_h, hidden_c))
         x = self.l2(x)
         probs = F.softmax(x, dim=1)
+        # for debugging
+        # if torch.sum(probs) > 1:
+        #     print('problems')
         dist = Categorical(probs.view(1, -1))
         return dist, hidden_h, hidden_c
 

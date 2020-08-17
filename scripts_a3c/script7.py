@@ -66,7 +66,7 @@ def run():
     reward_function = dis_reward_tensor
     environment = CompleteEnvironmentA2C2(env_params, reward_function)
     # a2c initialization
-    a2c = ActorCriticDiscrete(6, NUM_ACTIONS, HIDDEN_SIZE, mu, std)
+    a2c = ActorCriticDiscrete(8, NUM_ACTIONS, HIDDEN_SIZE, mu, std)
     # actor_optimizer = optim.Adam(a2c.actor.parameters(),
     #                             lr=LEARNING_RATE, eps=1e-3)
     # critic_optimizer = optim.Adam(a2c.critic.parameters(),

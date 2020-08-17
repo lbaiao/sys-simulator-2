@@ -94,7 +94,7 @@ def run():
     reward_function = rewards.dis_reward_tensor2
     environment = CompleteEnvironmentA2C(env_params, reward_function)
 
-    framework = ActorCriticDiscrete(6, NUM_ACTIONS, HIDDEN_SIZE, mu, std)
+    framework = ActorCriticDiscrete(8, NUM_ACTIONS, HIDDEN_SIZE, mu, std)
     framework.load_state_dict(torch.load(f'{cwd}/models/a3c/script7.pt'))
 
     reward_function = rewards.dis_reward_tensor

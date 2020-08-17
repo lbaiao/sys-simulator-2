@@ -66,7 +66,8 @@ def run():
     reward_function = dis_reward_tensor
     environment = CompleteEnvironmentA2C2(env_params, reward_function)
     # a2c initialization
-    a2c = ActorCriticDiscrete(8, NUM_ACTIONS, HIDDEN_SIZE, mu, std)
+    a2c = ActorCriticDiscrete(environment.state_space_size,
+                              NUM_ACTIONS, HIDDEN_SIZE, mu, std)
     # actor_optimizer = optim.Adam(a2c.actor.parameters(),
     #                             lr=LEARNING_RATE, eps=1e-3)
     # critic_optimizer = optim.Adam(a2c.critic.parameters(),
@@ -123,7 +124,7 @@ def run():
             # gae and returns
             next_obs_t = torch.cat(obs, 0).to(device)
             for j, agent in enumerate(agents):
-                _, _, next_value_t = agents[0].act(a2c, next_obs_t[j])
+                _, _, next_value_t = agents[0].act_discrete(a2c, next_obs_t[j])
                 values[j][i] = next_value_t
             values_total.append(values)
             log_probs_total.append(log_probs)

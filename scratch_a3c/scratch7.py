@@ -10,13 +10,13 @@ import torch
 import numpy as np
 import pickle
 import time
-from sys_simulator.q_learning.environments.completeEnvironmentA2C \
-    import CompleteEnvironmentA2C
+from sys_simulator.q_learning.environments.completeEnvironmentA2C2 \
+    import CompleteEnvironmentA2C2
 from sys_simulator.a2c.agent import Agent
 from sys_simulator.a2c.a2c import ActorCriticDiscrete
 
 
-def test(env: CompleteEnvironmentA2C, framework: ActorCriticDiscrete,
+def test(env: CompleteEnvironmentA2C2, framework: ActorCriticDiscrete,
          max_d2d: int, num_episodes: int, episode_steps: int,
          aux_range: List[int], actions: List[float]):
     mue_spectral_effs = [list() for i in range(max_d2d+1)]
@@ -92,9 +92,10 @@ def run():
         n_mues, n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin)
 
     reward_function = rewards.dis_reward_tensor2
-    environment = CompleteEnvironmentA2C(env_params, reward_function)
+    environment = CompleteEnvironmentA2C2(env_params, reward_function)
 
-    framework = ActorCriticDiscrete(8, NUM_ACTIONS, HIDDEN_SIZE, mu, std)
+    framework = ActorCriticDiscrete(environment.state_space_size,
+                                    NUM_ACTIONS, HIDDEN_SIZE, mu, std)
     framework.load_state_dict(torch.load(f'{cwd}/models/a3c/script7.pt'))
 
     reward_function = rewards.dis_reward_tensor

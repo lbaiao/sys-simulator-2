@@ -48,7 +48,7 @@ def run():
     MAX_NUMBER_OF_AGENTS = 10
     NUM_ACTIONS = 5
     HIDDEN_SIZE = 256
-    LEARNING_RATE = 1e-3
+    LEARNING_RATE = 1e-4
     BETA = 2e-1
     # mu = 0.82*p_max/5/2000
     # std = mu/6
@@ -80,7 +80,7 @@ def run():
     episode = 0
     d2d_spectral_effs = []
     mue_spectral_effs = []
-    actions = np.linspace(4.5e-5, 6e-5, 5)[::-1] * p_max
+    actions = np.linspace(4.5e-5, 5.5e-5, 5)[::-1] * p_max
     actions[0] = 0.0
     values_total = []
     log_probs_total = []

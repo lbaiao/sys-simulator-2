@@ -105,19 +105,21 @@ class CompleteEnvironment2(RLEnvironment):
         return state
 
     def step(self, agents: List[DistanceAgent]):
+        # allocate agents tx power
         for agent in agents:
             for pair in self.d2d_pairs:
                 if agent.id == pair[0].id:
                     pair[0].tx_power = agent.action
-
+        # mue_tx_power
         mue_tx_power = self.mue.get_tx_power(
             self.bs, self.params.sinr_threshold, self.params.noise_power,
             self.params.mue_margin, self.params.p_max)
         self.mue.set_tx_power(mue_tx_power)
+        # mue sinr
         sinr_m = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0],
                           self.bs, self.params.noise_power,
                           self.params.bs_gain, self.params.user_gain)
-
+        # d2d pairs sinr
         sinr_d2ds = list()
         for p in self.d2d_pairs:
             if p[0].rb == self.rb:
@@ -127,28 +129,27 @@ class CompleteEnvironment2(RLEnvironment):
                 )
                 sinr_d2ds.append(sinr_d)
         self.sinr_d2ds.append(sinr_d2ds)
-
+        # get the states
         states = [self.get_state(a) for a in agents]
-
         flag = True
         if sinr_m < self.params.sinr_threshold:
             flag = False
-
+        # rewards
         rewards, mue_se, d2d_se = self.reward_function(
             sinr_m, sinr_d2ds, flag, self.params.c_param, penalty=5
         )
-
+        # early stopping
         done = False
         if self.early_stop:
             if torch.abs(torch.sum(rewards) - self.reward) \
                         <= self.change_tolerance:
                 done = True
-
+        # total reward
         self.reward = torch.sum(rewards)
-
+        # spectral efficiencies
         self.mue_spectral_eff = mue_se
         self.d2d_spectral_eff = d2d_se
-
+        # end
         return states, rewards, done
 
     def get_state_index(self, agent_distance: int,

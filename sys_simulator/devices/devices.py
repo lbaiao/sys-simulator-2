@@ -53,14 +53,18 @@ class base_station(node):
 class mobile_user(node):
     """
     class representing the mobile_user
-    position: x,y tuple representing the device position coordinates    
+    position: x,y tuple representing the device position coordinates
     """
     def __init__(self, id):
         super(mobile_user, self).__init__()
         self.id = f'MUE:{id}'
 
-    def get_tx_power(self, bs: base_station, snr: float, noise_power: float, margin: float, p_max: float):
-        tx_power = snr * noise_power * pathloss_bs_users(self.distance_to_bs)/ (self.gain * bs.gain)
+    def get_tx_power(
+            self, bs: base_station, snr: float,
+            noise_power: float, margin: float, p_max: float
+    ):
+        tx_power = snr * noise_power * \
+            pathloss_bs_users(self.distance_to_bs) / (self.gain * bs.gain)
         tx_power *= margin
         if tx_power > p_max:
             tx_power = p_max

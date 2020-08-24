@@ -1,19 +1,14 @@
-import os
 import random
 import torch
-import numpy as np
-from pprint import pprint
 from collections import namedtuple
-from parameters.parameters import AgentParameters
-from typing import List
 
 # see: https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
 
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
-class ReplayMemory(object):
 
+class ReplayMemory(object):
     def __init__(self, capacity):
         self.capacity = int(capacity)
         self.memory = []
@@ -158,11 +153,11 @@ class DQN(torch.nn.Module):
     """
     def __init__(self):
         super(DQN, self).__init__()
-        self.fc1 = torch.nn.Linear(6,5).cuda()
-        self.fc2 = torch.nn.Linear(5,5).cuda()
-        self.fc3 = torch.nn.Linear(5,5).cuda()
-        self.fc4 = torch.nn.Linear(5,5).cuda()
-        self.fc5 = torch.nn.Linear(5,5).cuda()
+        self.fc1 = torch.nn.Linear(6, 5).cuda()
+        self.fc2 = torch.nn.Linear(5, 5).cuda()
+        self.fc3 = torch.nn.Linear(5, 5).cuda()
+        self.fc4 = torch.nn.Linear(5, 5).cuda()
+        self.fc5 = torch.nn.Linear(5, 5).cuda()
 
     def forward(self, state):
         x = self.fc1(state).tanh().cuda()

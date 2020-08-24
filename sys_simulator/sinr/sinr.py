@@ -1,17 +1,10 @@
-import sys
-import os
-
-# lucas_path = os.environ['LUCAS_PATH']
-# sys.path.insert(1, lucas_path)
-
 from typing import List
 from sys_simulator.pathloss import pathloss
-from sys_simulator.devices.devices import d2d_user, mobile_user, d2d_node_type, base_station
-
+from sys_simulator.devices.devices \
+    import d2d_user, mobile_user, d2d_node_type, base_station
 from scipy.spatial.distance import euclidean
 
-# TODO: a potencia do ruido deve ser multiplicada pelo ganho da antena receptora?
-# TODO: o ganho deve ser levado em conta também na transmissão?
+
 def sinr_d2d(d2d_tx: d2d_user, d2d_rx: d2d_user, d2d_devices: List[d2d_user], mue: mobile_user, noise_power: float, user_gain: float):    
     d2d_tx_contrib = d2d_tx.tx_power / pathloss.pathloss_users(d2d_tx.distance_d2d/1000) * user_gain**2
     d2d_rx_mue_distance = euclidean(d2d_rx.position, mue.position)

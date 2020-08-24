@@ -30,8 +30,8 @@ def test_gae():
         ans.append([3., 4., 1.])
     ans = torch.tensor(ans).to(device)
     # normalization
-    for i in range(ans.shape[0]):
-        ans[i] = (ans[i] - torch.mean(ans[i])) / \
-                        (torch.std(ans[i]) + 1e-9)
+    # for i in range(ans.shape[0]):
+    #     ans[i] = (ans[i] - torch.mean(ans[i])) / \
+    #                     (torch.std(ans[i]) + 1e-9)
     # check it is correct
     assert torch.all(ans == advantages)

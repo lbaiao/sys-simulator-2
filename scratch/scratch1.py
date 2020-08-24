@@ -16,9 +16,13 @@ from sys_simulator.a2c.agent import Agent
 import random
 
 
-def test(env: CompleteEnvironment2, n_agents: int,
-         num_episodes: int, episode_steps: int,
-         actions: List[float]):
+def test_random(env: CompleteEnvironment2, n_agents: int,
+                num_episodes: int, episode_steps: int,
+                actions: List[float]):
+    """
+    in this test, the agents choose their actions randomly,
+    by selecting a random index in `actions_indexes`
+    """
     mue_spectral_effs = []
     d2d_spectral_effs = []
     sinr_d2ds = []
@@ -34,6 +38,41 @@ def test(env: CompleteEnvironment2, n_agents: int,
         while not done and i < episode_steps:
             for _, agent in enumerate(agents):
                 action_index = random.choice(actions_indexes)
+                bag.append(action_index)
+                agent.action_index = action_index
+                agent.action = actions[action_index]
+            _, _, done = env.step(agents)
+            i += 1
+        mue_spectral_effs.append(env.mue_spectral_eff.item())
+        d2d_spectral_effs.append(env.d2d_spectral_eff.item())
+        sinr_d2ds += env.sinr_d2ds
+        now = (time.time() - start)/60
+        print(f'Episode {ep}. Elapsed time: {now} minutes.')
+        # action_counts[n_agents].append(gen.action_counts(env.sinr_d2ds))
+    return mue_spectral_effs, d2d_spectral_effs, sinr_d2ds, bag
+
+
+def test(env: CompleteEnvironment2, n_agents: int,
+         num_episodes: int, episode_steps: int,
+         actions, action_index: int):
+    """
+    in this tests, the agents choose the same action, which
+    is defined by `action_index`, which statys constant throghout
+    the whole test
+    """
+    mue_spectral_effs = []
+    d2d_spectral_effs = []
+    sinr_d2ds = []
+    done = False
+    bag = list()
+    start = time.time()
+    for ep in range(num_episodes):
+        agents = [Agent() for _ in range(n_agents)]
+        env.build_scenario(agents)
+        done = False
+        i = 0
+        while not done and i < episode_steps:
+            for _, agent in enumerate(agents):
                 bag.append(action_index)
                 agent.action_index = action_index
                 agent.action = actions[action_index]
@@ -71,7 +110,7 @@ def run():
     sinr_threshold_mue = gen.db_to_power(sinr_threshold_mue)
     # q-learning parameters
     STEPS_PER_EPISODE = 1
-    MAX_NUM_EPISODES = 20
+    MAX_NUM_EPISODES = 2000
     C = 80  # C constant for the improved reward function
     NUM_ACTIONS = 5
     # more parameters
@@ -87,9 +126,12 @@ def run():
     # actions
     actions = [i*0.82*p_max/5/1000 for i in range(NUM_ACTIONS)]  # best result
     # test func call
+    # mue_spectral_effs, d2d_spectral_effs, sinr_d2ds, bag = \
+    #     test_random(environment, N_D2D, MAX_NUM_EPISODES,
+    #          STEPS_PER_EPISODE, actions)
     mue_spectral_effs, d2d_spectral_effs, sinr_d2ds, bag = \
         test(environment, N_D2D, MAX_NUM_EPISODES,
-             STEPS_PER_EPISODE, actions)
+             STEPS_PER_EPISODE, actions, 3)
     # mue success rate
     mue_success_rate = list()
     for i, m in enumerate(mue_spectral_effs):

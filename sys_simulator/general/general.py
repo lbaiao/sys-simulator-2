@@ -1,8 +1,8 @@
+import time
 import numpy as np
 import random
 import math
 import ntpath
-
 from typing import List
 import scipy.spatial as spatial
 from sys_simulator.devices.devices import d2d_user, mobile_user, base_station
@@ -27,8 +27,8 @@ def upsample(input, factor):
 def downsample(input, factor):
     output = []
     for i in range(0, len(input)):
-        if i%factor == 0:
-            output.append(input[i])           
+        if i % factor == 0:
+            output.append(input[i])
     return output
 
 
@@ -37,14 +37,14 @@ def ber(tx_signal, rx_signal):
 
 
 def bpsk_theoric(snr):
-    #snr in dB    
-    snr_mag = [10**(x/10) for x in snr]        
+    # snr in dB
+    snr_mag = [10**(x/10) for x in snr]
     return [0.5*math.erfc(np.sqrt(i)) for i in snr_mag]
 
 
 def distribute_users(mobile_users: List[mobile_user], d2d_users: List[d2d_user], base_station: base_station):
     center = base_station.position
-    radius = base_station.radius    
+    radius = base_station.radius
     for m in mobile_users:
         x = (np.random.rand()-0.5)*2*radius+center[0]
         y = (np.random.rand()-0.5)*2*(1-np.sqrt(radius**2-x**2))+center[1]
@@ -180,3 +180,17 @@ def path_leaf(path):
 
 def jain_index(vec: List[float]):
     return np.sum(vec) ** 2 / (len(vec)*np.sum([v ** 2 for v in vec]))
+
+
+def asMinutes(s):
+    m = math.floor(s / 60)
+    s -= m * 60
+    return '%dm %ds' % (m, s)
+
+
+def timeSince(since, percent):
+    now = time.time()
+    s = now - since
+    es = s / (percent)
+    rs = es - s
+    return '%s (- %s)' % (asMinutes(s), asMinutes(rs))

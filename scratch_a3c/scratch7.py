@@ -82,15 +82,12 @@ def run():
     # std = mu/6
     mu = p_max*1e-8
     std = mu/100
-
     # more parameters
     cwd = os.getcwd()
-
     env_params = EnvironmentParameters(
         rb_bandwidth, d2d_pair_distance, p_max, noise_power,
         bs_gain, user_gain, sinr_threshold_mue,
         n_mues, n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin)
-
     reward_function = rewards.dis_reward_tensor2
     environment = CompleteEnvironmentA2C2(env_params, reward_function)
 
@@ -102,7 +99,7 @@ def run():
 
     # policy 5 test
     aux_range = list(range(MAX_NUMBER_OF_AGENTS+1))[1:]
-    actions = [p_max/10**i for i in range(NUM_ACTIONS)][::-1]
+    actions = np.linspace(1e-4, 1e-3, 5)[::-1] * p_max
     mue_spectral_effs, d2d_spectral_effs, bag, = \
         test(environment, framework, MAX_NUMBER_OF_AGENTS, MAX_NUM_EPISODES,
              STEPS_PER_EPISODE, aux_range, actions)

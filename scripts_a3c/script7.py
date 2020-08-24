@@ -12,6 +12,7 @@ import torch
 import os
 import pickle
 import random
+import numpy as np
 # from copy import deepcopy
 
 
@@ -80,7 +81,7 @@ def run():
     episode = 0
     d2d_spectral_effs = []
     mue_spectral_effs = []
-    actions = [p_max/10**i for i in range(NUM_ACTIONS)][::-1]
+    actions = np.linspace(1e-4, 1e-3, 5)[::-1] * p_max
     values_total = []
     log_probs_total = []
     rewards_total = []

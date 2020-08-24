@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from torch.functional import F
 from torch.distributions import Normal, Categorical
-import math
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

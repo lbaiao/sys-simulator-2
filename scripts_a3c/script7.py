@@ -80,7 +80,9 @@ def run():
     episode = 0
     d2d_spectral_effs = []
     mue_spectral_effs = []
-    actions = np.linspace(2e-5, 8e-5, 5)[::-1] * p_max
+    actions = np.linspace(2e-5, 6e-5, 5)[::-1] * p_max
+    actions[0] = 0.0
+    np.con
     values_total = []
     log_probs_total = []
     rewards_total = []

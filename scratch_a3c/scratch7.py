@@ -98,7 +98,7 @@ def run():
 
     # policy 5 test
     aux_range = list(range(MAX_NUMBER_OF_AGENTS+1))[1:]
-    actions = np.linspace(1e-5, 1e-4, 5)[::-1] * p_max
+    actions = np.linspace(2e-5, 8e-5, 5)[::-1] * p_max
     mue_spectral_effs, d2d_spectral_effs, bag, = \
         test(environment, framework, MAX_NUMBER_OF_AGENTS, MAX_NUM_EPISODES,
              STEPS_PER_EPISODE, aux_range, actions)

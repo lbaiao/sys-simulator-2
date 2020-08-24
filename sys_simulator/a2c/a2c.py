@@ -92,13 +92,13 @@ class ActorCriticDiscrete(nn.Module):
 
         self.critic = nn.Sequential(
             nn.Linear(num_inputs, hidden_size),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Linear(hidden_size, 1)
         ).to(self.device)
 
         self.actor = nn.Sequential(
             nn.Linear(num_inputs, hidden_size),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Linear(hidden_size, num_outputs),
             nn.Softmax(dim=1),
         ).to(self.device)
@@ -106,8 +106,8 @@ class ActorCriticDiscrete(nn.Module):
     def forward(self, x):
         value = self.critic(x).to(self.device)
         probs = self.actor(x.view(1, -1))
-        # # for debugging
-        # if math.isnan(probs[0][0].item()):
+        # for debugging
+        # if torch.isnan(probs).any():
         #     print('problems')
         dist = Categorical(probs)
         return dist, value, probs

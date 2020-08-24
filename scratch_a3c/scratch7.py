@@ -72,7 +72,6 @@ def run():
     # q-learning parameters
     STEPS_PER_EPISODE = 20
     MAX_NUM_EPISODES = 2000
-    # STEPS_PER_EPISODE = 5
     # MAX_NUM_EPISODES = 2
     C = 80  # C constant for the improved reward function
     MAX_NUMBER_OF_AGENTS = 10

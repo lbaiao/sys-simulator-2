@@ -8,7 +8,6 @@ from typing import List
 from sys_simulator.parameters.parameters import EnvironmentParameters
 from scipy.spatial.distance import euclidean
 import torch
-import numpy as np
 
 
 class CompleteEnvironmentA2C2(RLEnvironment):
@@ -24,7 +23,7 @@ class CompleteEnvironmentA2C2(RLEnvironment):
         self.states = [0, 0, 1]
         self.device = \
             torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.state_space_size = 8
+        self.state_space_size = 7
         self.action_space_size = 1
 
     def build_scenario(self, agents: List[DistanceAgent]):
@@ -83,12 +82,13 @@ class CompleteEnvironmentA2C2(RLEnvironment):
         d2d_rx_distance_to_mue /= 2*self.params.bs_radius
         mue_distance_to_bs /= self.params.bs_radius
         number_of_d2d_pairs /= 10
-        speff = np.log10(sinr)
+        # speff = np.clip(np.log10(sinr), 0, 100) / 100
+        # speff = np.clip(sinr, 0, 1e10) / 1e10
 
         state = torch.tensor(
             [number_of_d2d_pairs, d2d_tx_distance_to_bs,
                 d2d_rx_distance_to_mue, mue_distance_to_bs,
-                d2d_tx.sinr, speff,
+                d2d_tx.sinr,
                 int(interference_indicator),
                 int(not interference_indicator)
              ]).float().to(self.device)

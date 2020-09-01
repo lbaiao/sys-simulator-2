@@ -47,7 +47,6 @@ class RLEnvironment:
             if 'tolerance' in kwargs:
                 self.tolerance = kwargs['tolerance']                
 
-
     def build_scenario(self, agents: List[Agent]):
         # declaring the bs, mues and d2d pairs
         self.bs = base_station((0,0), radius = self.params.bs_radius)

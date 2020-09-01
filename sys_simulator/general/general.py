@@ -5,7 +5,8 @@ import math
 import ntpath
 from typing import List
 import scipy.spatial as spatial
-from sys_simulator.devices.devices import d2d_user, mobile_user, base_station
+from torch import device
+from sys_simulator.devices.devices import d2d_user, mobile_user, base_station, node
 
 
 def bits_gen(n):
@@ -61,8 +62,10 @@ def distribute_nodes(nodes, base_station):
     for n in nodes:
         x = (np.random.rand()-0.5)*2*radius+center[0]
         y = (np.random.rand()-0.5)*2*(1-np.sqrt(radius**2-x**2))+center[1]
-        n.set_position((x,y))       
-        n.set_distance_to_bs(spatial.distance.euclidean(n.position, base_station.position))
+        n.set_position((x, y))
+        n.set_distance_to_bs(
+            spatial.distance.euclidean(n.position, base_station.position)
+        )
 
 
 def distribute_mue_validation(nodes: List[mobile_user], base_station):
@@ -115,7 +118,25 @@ def distribute_pair_fixed_distance(nodes, base_station, pair_distance):
             nodes[1].set_position((x2,y2))
             nodes[1].set_distance_to_bs(nodes_bs_distance)
             # print(spatial.distance.euclidean(nodes[0].position, nodes[1].position))
-            is_node2_in_circle = True        
+            is_node2_in_circle = True 
+
+
+def distribute_rx_fixed_distance(nodes: device, base_station: base_station,
+                                 pair_distance: float):
+    radius = base_station.radius
+    is_node2_in_circle = False
+    x1 = nodes[0].position[0]
+    y1 = nodes[0].position[1]
+    while(not is_node2_in_circle):
+        angle = np.random.rand()*2*np.pi
+        x2 = pair_distance*np.cos(angle) + x1
+        y2 = pair_distance*np.sin(angle) + y1
+        nodes_bs_distance = spatial.distance.euclidean((x2, y2),
+                                                       base_station.position)
+        if nodes_bs_distance < radius:
+            nodes[1].set_position((x2, y2))
+            nodes[1].set_distance_to_bs(nodes_bs_distance)
+            is_node2_in_circle = True
 
 
 def distribute_d2d_validation(pairs: List[List[d2d_user]], base_station: base_station):

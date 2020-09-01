@@ -41,7 +41,7 @@ def run():
     MAX_NUM_EPISODES = 2000
     # MAX_NUM_EPISODES = 2  # test
     GAMMA = 0.98  # Discount factor
-    C = 80  # C constant for the improved reward function
+    C = 8  # C constant for the improved reward function
     MAX_NUMBER_OF_AGENTS = 10
     REPLAY_MEMORY_SIZE = 10000
     BATCH_SIZE = 128
@@ -57,7 +57,6 @@ def run():
     agent_params = DQNAgentParameters(
         EPSILON_MIN, EPSILON_DECAY, 1, REPLAY_MEMORY_SIZE, BATCH_SIZE, GAMMA
     )
-    actions = torch.tensor([i*0.82*p_max/5/1000 for i in range(5)])
     reward_function = reward_func.dis_reward_tensor
     channel = BANChannel()
     env = CompleteEnvironment5(env_params, reward_function, channel)
@@ -72,7 +71,9 @@ def run():
     bag = list()
     aux_range = range(max_d2d+1)[1:]
     for _ in range(num_episodes):
-        actions = [i*0.82*p_max/5/1000 for i in range(5)]  # best result
+        # actions = np.linspace(1e-4, 1e-2, 5)[::-1] * p_max
+        actions = np.linspace(1e-4, 8e-3, 5)[::-1] * p_max
+        actions[0] = 0
         n_agents = np.random.choice(aux_range)
         agents = [ExternalDQNAgent(agent_params, actions)
                   for i in range(n_agents)]  # 1 agent per d2d tx

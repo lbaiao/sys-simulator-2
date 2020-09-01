@@ -1,10 +1,11 @@
+from sys_simulator.q_learning.agents.agent import Agent
 from sys_simulator.devices.devices \
     import base_station, mobile_user, d2d_user, d2d_node_type
 from sys_simulator.general import general as gen
 from sys_simulator.sinr.sinr import sinr_d2d, sinr_mue
 from sys_simulator.q_learning.agents.distanceAgent import DistanceAgent
 from sys_simulator.q_learning.environments.environment import RLEnvironment
-from typing import List
+from typing import List, Tuple
 from sys_simulator.parameters.parameters import EnvironmentParameters
 from scipy.spatial.distance import euclidean
 # import pandas as pd
@@ -42,7 +43,6 @@ class CompleteEnvironment2(RLEnvironment):
                           for x in range(len(agents))]
         self.rb = 1
         self.distances = [1/10*i*self.bs.radius for i in range(11)]
-
         # distributing nodes in the bs radius
         gen.distribute_nodes([self.mue], self.bs)
         for p in self.d2d_pairs:
@@ -73,7 +73,52 @@ class CompleteEnvironment2(RLEnvironment):
         for i in range(len(agents)):
             agents[i].set_d2d_tx_id(self.d2d_pairs[i][0].id)
 
-        # print('SCENARIO BUILT')
+    def set_scenario(self, pairs_positions: List[Tuple],
+                     mue_position: Tuple, agents: List[Agent]):
+        if len(pairs_positions) != len(agents):
+            raise Exception('Different `pair_positions` and `agents` lengths.')
+        # declaring the bs, mues and d2d pairs
+        self.sinr_d2ds = []
+        self.rb = 1
+        self.bs = base_station((0, 0), radius=self.params.bs_radius)
+        self.bs.set_gain(self.params.bs_gain)
+        # mue stuff
+        self.mue = mobile_user(0)
+        self.mue.set_gain(self.params.user_gain)
+        self.mue.set_position(mue_position)
+        self.mue.set_rb(self.rb)
+        self.mue.set_tx_power(self.params.p_max)
+        self.mue.set_distance_to_bs(euclidean(mue_position, self.bs.position))
+        # d2d_pairs
+        self.d2d_pairs = [(d2d_user(x, d2d_node_type.TX),
+                           d2d_user(x, d2d_node_type.RX))
+                          for x in range(len(agents))]
+        self.distances = [1/10*i*self.bs.radius for i in range(11)]
+        # distributing nodes in the bs radius
+        if euclidean(mue_position, self.bs.position) <= self.params.bs_radius:
+            self.mue.set_position(mue_position)
+        else:
+            raise Exception(
+                'Node distance to BS is greater than the BS radius.'
+            )
+        for pair, position in zip(self.d2d_pairs, pairs_positions):
+            if euclidean(position, self.bs.position) <= self.params.bs_radius:
+                pair[0].set_position(position)
+                gen.distribute_rx_fixed_distance(
+                    pair, self.bs, self.params.d2d_pair_distance
+                )
+                for d in pair:
+                    d.set_distance_d2d(self.params.d2d_pair_distance)
+                    d.set_distance_to_bs(euclidean(d.position,
+                                                   self.bs.position))
+                    d.set_gain(self.params.user_gain)
+                    d.set_rb(self.rb)
+            else:
+                raise Exception(
+                    'Node distance to BS is greater than the BS radius.'
+                )
+        for i in range(len(agents)):
+            agents[i].set_d2d_tx_id(self.d2d_pairs[i][0].id)
 
     def get_state(self, agent: DistanceAgent):
         sinr = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0],
@@ -119,6 +164,7 @@ class CompleteEnvironment2(RLEnvironment):
         sinr_m = sinr_mue(self.mue, list(zip(*self.d2d_pairs))[0],
                           self.bs, self.params.noise_power,
                           self.params.bs_gain, self.params.user_gain)
+        self.mue.set_sinr(sinr_m)
         # d2d pairs sinr
         sinr_d2ds = list()
         for p in self.d2d_pairs:

@@ -1,21 +1,20 @@
-# Simulations taking pictures of the users distributions and makes
-# pie graphs with the d2d interference contributions on the mue.
-# It uses script23 model.
+# Similar to scratch2, but with the BAN channel
 from sys_simulator.general import general as gen
 from sys_simulator.pathloss import pathloss
 from sys_simulator.plots import plot_positions_actions_pie
-from sys_simulator.q_learning.environments.completeEnvironment2 \
-    import CompleteEnvironment2
+from sys_simulator.q_learning.environments.completeEnvironment5 \
+    import CompleteEnvironment5
 from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
 from sys_simulator.dqn.externalDQNFramework import ExternalDQNFramework
 from sys_simulator.q_learning import rewards
 from sys_simulator.parameters.parameters \
     import EnvironmentParameters, TrainingParameters, DQNAgentParameters
-from typing import List
+from sys_simulator.channels import BANChannel
 from matplotlib import pyplot as plt
 import os
 import torch
 import numpy as np
+import math
 
 
 n_mues = 1  # number of mues
@@ -39,7 +38,7 @@ bs_gain = gen.db_to_power(bs_gain)
 user_gain = gen.db_to_power(user_gain)
 sinr_threshold_mue = gen.db_to_power(sinr_threshold_mue)
 # q-learning parameters
-STEPS_PER_EPISODE = 4000
+STEPS_PER_EPISODE = 10
 EPSILON_MIN = 0.01
 EPSILON_DECAY = 100 * EPSILON_MIN / STEPS_PER_EPISODE
 MAX_NUM_EPISODES = int(1.2/EPSILON_DECAY)
@@ -66,57 +65,54 @@ agent_params = DQNAgentParameters(
 # actions, rewards, environment, agent
 actions = torch.tensor([i*0.82*p_max/5/1000 for i in range(5)])
 reward_function = rewards.dis_reward_tensor2
-environment = CompleteEnvironment2(env_params, reward_function)
+channel = BANChannel()
+env = CompleteEnvironment5(env_params, reward_function, channel)
 framework = ExternalDQNFramework(agent_params)
 framework.policy_net.load_state_dict(
     torch.load(f'{cwd}/models/dql/script30.pt')
 )
 reward_function = rewards.dis_reward_tensor
-aux_range = list(range(11))[1:]
+pairs_positions = [
+    (250, 0),
+    (-250, 0),
+    (0, 250),
+    (0, -250)
+]
+mue_position = (500 / math.sqrt(2), 500 / math.sqrt(2))
+n_agents = len(pairs_positions)
+episode_steps = STEPS_PER_EPISODE
 
 
-def test(env: CompleteEnvironment2, framework: ExternalDQNFramework,
-         episode_steps: int, aux_range: List[int]):
-    done = False
-    # aux_range = range(max_d2d+1)[1:]
-    for n_agents in aux_range:
-        actions = [i*0.82*p_max/5/1000 for i in range(5)]  # best result
-        agents = [ExternalDQNAgent(agent_params, actions)
-                  for i in range(n_agents)]  # 1 agent per d2d tx
-        env.build_scenario(agents)
-        done = False
-        obs = [env.get_state(a) for a in agents]
-        total_reward = 0.0
-        i = 0
-        actions_index = list()
-        while not done:
-            actions_index = list()
-            for j, agent in enumerate(agents):
-                aux = agent.act(framework, obs[j]).max(1)
-                actions_index.append(aux[1].item())
-                agent.set_action(aux[1].long(), agent.actions[aux[1]])
-            next_obs, rewards, done = env.step(agents)
-            obs = next_obs
-            total_reward += sum(rewards)
-            i += 1
-            if i >= episode_steps:
-                break
-        d2d_txs, d2d_rxs = zip(*env.d2d_pairs)
-        d2d_interferences = [
-            d.tx_power * env.params.user_gain * env.params.bs_gain /
-            pathloss.pathloss_bs_users(d.distance_to_bs/1000) for d in d2d_txs
-        ]
-        d2d_total_interference = np.sum(d2d_interferences)
-        percentage_interferences = d2d_interferences / d2d_total_interference
-        if d2d_total_interference != 0:
-            plot_positions_actions_pie(
-                env.bs, env.mue, d2d_txs, d2d_rxs,
-                actions_index, percentage_interferences,
-                obs[0][0][4].item(), sinr_threshold_mue
-            )
-
-
-# export run function
 def run():
-    test(environment, framework, 10, aux_range)
+    actions = np.linspace(1e-4, 8e-3, 5)[::-1] * p_max
+    agents = [ExternalDQNAgent(agent_params, actions)
+              for i in range(n_agents)]  # 1 agent per d2d tx
+    env.set_scenario(pairs_positions, mue_position, agents)
+    obs = [env.get_state(a) for a in agents]
+    total_reward = 0.0
+    actions_index = list()
+    for _ in range(episode_steps):
+        actions_index = list()
+        for j, agent in enumerate(agents):
+            aux = agent.act(framework, obs[j].float()).max(1)
+            actions_index.append(aux[1].item())
+            agent.set_action(aux[1].long(), agent.actions[aux[1]])
+        next_obs, rewards, _ = env.step(agents)
+        obs = next_obs
+        total_reward += sum(rewards)
+    d2d_txs, d2d_rxs = zip(*env.d2d_pairs)
+    # D2D interference on the MUE
+    d2d_interferences = [
+        d.tx_power * env.params.user_gain * env.params.bs_gain /
+        pathloss.pathloss_bs_users(d.distance_to_bs/1000) for d in d2d_txs
+    ]
+    d2d_total_interference = np.sum(d2d_interferences)
+    percentage_interferences = d2d_interferences / d2d_total_interference
+    if d2d_total_interference != 0:
+        plot_positions_actions_pie(
+            env.bs, env.mue, d2d_txs, d2d_rxs,
+            actions_index, percentage_interferences,
+            obs[0][0][4].item(), sinr_threshold_mue,
+            env.reward.item()
+        )
     plt.show()

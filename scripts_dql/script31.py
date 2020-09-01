@@ -42,7 +42,7 @@ def run():
     EPSILON_MIN = 0.05
     EPSILON_DECAY = 3.35*1e-4    # medium training
     GAMMA = 0.98  # Discount factor
-    C = 80  # C constant for the improved reward function
+    C = 8  # C constant for the improved reward function
     TARGET_UPDATE = 10
     MAX_NUMBER_OF_AGENTS = 10
     max_d2d = MAX_NUMBER_OF_AGENTS
@@ -67,7 +67,10 @@ def run():
     aux_range = range(max_d2d+1)[1:]
     epsilon = agent_params.start_epsilon
     for episode in range(params.max_episodes):
-        actions = [i*0.82*p_max/5/1000 for i in range(5)]  # best result
+        # actions = np.linspace(1e-4, 1e-2, 5)[::-1] * p_max
+        actions = np.linspace(1e-4, 8e-3, 5)[::-1] * p_max
+        # actions = [i*0.82*p_max/5/1000 for i in range(5)] # best result
+        actions[0] = 0
         n_agents = np.random.choice(aux_range)
         agents = [ExternalDQNAgent(agent_params, actions)
                   for _ in range(n_agents)]  # 1 agent per d2d tx

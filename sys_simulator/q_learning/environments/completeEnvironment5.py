@@ -5,7 +5,9 @@ from sys_simulator.q_learning.agents.distanceAgent import DistanceAgent
 from sys_simulator.q_learning.environments.environment import RLEnvironment
 from typing import List
 from sys_simulator.parameters.parameters import EnvironmentParameters
+from sys_simulator.q_learning.agents.agent import Agent
 from scipy.spatial.distance import euclidean
+from typing import Tuple
 # import pandas as pd
 import torch
 
@@ -76,6 +78,53 @@ class CompleteEnvironment5(RLEnvironment):
 
         # print('SCENARIO BUILT')
 
+    def set_scenario(self, pairs_positions: List[Tuple],
+                     mue_position: Tuple, agents: List[Agent]):
+        if len(pairs_positions) != len(agents):
+            raise Exception('Different `pair_positions` and `agents` lengths.')
+        # declaring the bs, mues and d2d pairs
+        self.sinr_d2ds = []
+        self.rb = 1
+        self.bs = base_station((0, 0), radius=self.params.bs_radius)
+        self.bs.set_gain(self.params.bs_gain)
+        # mue stuff
+        self.mue = mobile_user(0)
+        self.mue.set_gain(self.params.user_gain)
+        self.mue.set_position(mue_position)
+        self.mue.set_rb(self.rb)
+        self.mue.set_tx_power(self.params.p_max)
+        self.mue.set_distance_to_bs(euclidean(mue_position, self.bs.position))
+        # d2d_pairs
+        self.d2d_pairs = [(d2d_user(x, d2d_node_type.TX),
+                           d2d_user(x, d2d_node_type.RX))
+                          for x in range(len(agents))]
+        self.distances = [1/10*i*self.bs.radius for i in range(11)]
+        # distributing nodes in the bs radius
+        if euclidean(mue_position, self.bs.position) <= self.params.bs_radius:
+            self.mue.set_position(mue_position)
+        else:
+            raise Exception(
+                'Node distance to BS is greater than the BS radius.'
+            )
+        for pair, position in zip(self.d2d_pairs, pairs_positions):
+            if euclidean(position, self.bs.position) <= self.params.bs_radius:
+                pair[0].set_position(position)
+                gen.distribute_rx_fixed_distance(
+                    pair, self.bs, self.params.d2d_pair_distance
+                )
+                for d in pair:
+                    d.set_distance_d2d(self.params.d2d_pair_distance)
+                    d.set_distance_to_bs(euclidean(d.position,
+                                                   self.bs.position))
+                    d.set_gain(self.params.user_gain)
+                    d.set_rb(self.rb)
+            else:
+                raise Exception(
+                    'Node distance to BS is greater than the BS radius.'
+                )
+        for i in range(len(agents)):
+            agents[i].set_d2d_tx_id(self.d2d_pairs[i][0].id)
+
     def get_state(self, agent: DistanceAgent):
         sinr = self.sinr_mue(
             self.mue, list(zip(*self.d2d_pairs))[0],
@@ -124,6 +173,7 @@ class CompleteEnvironment5(RLEnvironment):
             self.bs, self.params.noise_power,
             self.params.bs_gain, self.params.user_gain
         )
+        self.mue.set_sinr(sinr_m)
         # d2d pairs sinr
         sinr_d2ds = list()
         for p in self.d2d_pairs:
@@ -173,13 +223,13 @@ class CompleteEnvironment5(RLEnvironment):
                  bs: base_station, noise_power: float,
                  bs_gain: float, user_gain: float):
         mue_contrib = mue.tx_power * user_gain * bs_gain \
-            / self.channel.step(mue.distance_to_bs)[0]
+            / self.channel.step(mue.distance_to_bs)[1]
         d2d_interferers = \
             [d for d in d2d_devices
              if (d.type == d2d_node_type.TX and d.rb == mue.rb)]
         d2d_interference = sum(
             [d.tx_power * user_gain * bs_gain
-             / self.channel.step(euclidean(d.position, bs.position))[0]
+             / self.channel.step(euclidean(d.position, bs.position))[1]
              for d in d2d_interferers]
         )
         sinr = mue_contrib / (noise_power + d2d_interference)
@@ -189,10 +239,10 @@ class CompleteEnvironment5(RLEnvironment):
                  d2d_devices: List[d2d_user], mue: mobile_user,
                  noise_power: float, user_gain: float):
         d2d_tx_contrib = d2d_tx.tx_power / \
-            self.channel.step(d2d_tx.distance_d2d)[0] * user_gain**2
+            self.channel.step(d2d_tx.distance_d2d)[1] * user_gain**2
         d2d_rx_mue_distance = euclidean(d2d_rx.position, mue.position)
         mue_interference = mue.tx_power / \
-            self.channel.step(d2d_rx_mue_distance)[0] * user_gain**2
+            self.channel.step(d2d_rx_mue_distance)[1] * user_gain**2
         d2d_interferers = \
             [d for d in d2d_devices
              if (d.id != d2d_tx.id
@@ -201,8 +251,8 @@ class CompleteEnvironment5(RLEnvironment):
             sum(
                 [d.tx_power * user_gain**2 /
                  self.channel.step(
-                     euclidean(d2d_rx.position, d.position)/1000
-                 )[0]
+                     euclidean(d2d_rx.position, d.position)
+                 )[1]
                  for d in d2d_interferers]
             )
         sinr = d2d_tx_contrib / \

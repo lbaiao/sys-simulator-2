@@ -1,6 +1,6 @@
 # Similar to scratch2, but with the BAN channel
+from sys_simulator.pathloss import pathloss_bs_users
 from sys_simulator.general import general as gen
-from sys_simulator.pathloss import pathloss
 from sys_simulator.plots import plot_positions_actions_pie
 from sys_simulator.q_learning.environments.completeEnvironment5 \
     import CompleteEnvironment5
@@ -104,7 +104,7 @@ def run():
     # D2D interference on the MUE
     d2d_interferences = [
         d.tx_power * env.params.user_gain * env.params.bs_gain /
-        pathloss.pathloss_bs_users(d.distance_to_bs/1000) for d in d2d_txs
+        pathloss_bs_users(d.distance_to_bs/1000) for d in d2d_txs
     ]
     d2d_total_interference = np.sum(d2d_interferences)
     percentage_interferences = d2d_interferences / d2d_total_interference

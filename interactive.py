@@ -1,3 +1,3 @@
-from scratch.scratch6 import run
+from scratch.scratch2 import run
 
 run()

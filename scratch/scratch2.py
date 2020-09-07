@@ -2,8 +2,9 @@
 # pie graphs with the d2d interference contributions on the mue.
 # It uses script23 model. In this scratch, the user chooses the
 # nodes positions. Then, the AI chooses the power levels.
+from scipy.spatial.distance import euclidean
 from sys_simulator.general import general as gen
-from sys_simulator.pathloss import pathloss
+from sys_simulator.pathloss import pathloss_bs_users, pathloss_users
 from sys_simulator.plots import plot_positions_actions_pie
 from sys_simulator.q_learning.environments.completeEnvironment2 \
     import CompleteEnvironment2
@@ -84,6 +85,31 @@ n_agents = len(pairs_positions)
 episode_steps = STEPS_PER_EPISODE
 
 
+def calculate_interferences(env: CompleteEnvironment2):
+    bs = env.bs
+    mue = env.mue
+    d2d_pairs = env.d2d_pairs
+    txs = [mue]
+    txs += [p[0] for p in d2d_pairs]
+    rxs = [bs]
+    rxs += [p[1] for p in d2d_pairs]
+    interferences = np.zeros((len(txs), len(txs)))
+    for i, tx in enumerate(txs):
+        for j, rx in enumerate(rxs):
+            if rx == env.bs:
+                loss = pathloss_bs_users
+            else:
+                loss = pathloss_users
+            interf = \
+                tx.tx_power * loss(euclidean(tx.position, rx.position)/1000) \
+                * rx.gain
+            interferences[i][j] = interf
+    tx_labels = [d.id for d in txs]
+    rx_labels = [d.id for d in rxs]
+
+    return interferences, tx_labels, rx_labels
+
+
 def run():
     actions = [i*0.82*p_max/5/1000 for i in range(5)]  # best result
     agents = [ExternalDQNAgent(agent_params, actions)
@@ -105,15 +131,16 @@ def run():
     # D2D interference on the MUE
     d2d_interferences = [
         d.tx_power * env.params.user_gain * env.params.bs_gain /
-        pathloss.pathloss_bs_users(d.distance_to_bs/1000) for d in d2d_txs
+        pathloss_bs_users(d.distance_to_bs/1000) for d in d2d_txs
     ]
     d2d_total_interference = np.sum(d2d_interferences)
     percentage_interferences = d2d_interferences / d2d_total_interference
+    interferences, tx_labels, rx_labels = calculate_interferences(env)
     if d2d_total_interference != 0:
         plot_positions_actions_pie(
             env.bs, env.mue, d2d_txs, d2d_rxs,
             actions_index, percentage_interferences,
             obs[0][0][4].item(), sinr_threshold_mue,
-            env.reward.item()
+            env.reward.item(), interferences, tx_labels, rx_labels
         )
     plt.show()

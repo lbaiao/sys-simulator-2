@@ -14,6 +14,7 @@ class Agent:
         self.epsilon = params.start_epsilon
         self.actions = actions
         self.action_index = 0
+        self.action = 0
         self.bag = list()
 
     def set_q_table(self, q_table: QTable):

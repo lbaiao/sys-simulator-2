@@ -1,5 +1,5 @@
 from enum import Enum
-from sys_simulator.pathloss.pathloss import pathloss_bs_users
+from sys_simulator.pathloss import pathloss_bs_users
 
 
 class node:
@@ -41,10 +41,11 @@ class base_station(node):
     position: x,y tuple representing the BS position coordinates
     radius: BS coverage radius in meters
     """
-    def __init__(self, position, radius = 500):
+    def __init__(self, position, radius=500):
         super(base_station, self).__init__()
         self.position = position
         self.radius = radius
+        self.id = 'BS'
 
     def set_radius(self, radius):
         self.radius = radius

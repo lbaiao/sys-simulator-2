@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sys_simulator.devices.devices import base_station, mobile_user, d2d_user
 from sys_simulator.q_learning.environments.environment import RLEnvironment
+import seaborn as sns
 
 
 def plot_positions(bs: base_station, mues: List[mobile_user],
@@ -109,11 +110,10 @@ def pie_plot(values: List[float], title: str):
 
 
 def plot_positions_actions_pie(
-    bs: base_station, mue: mobile_user,
-    d2d_txs: List[d2d_user], d2d_rxs: List[d2d_user],
-    actions_indexes: List[int], values: List[float],
-    mue_success: int, mue_sinr_threshold: float,
-    reward: float
+    bs: base_station, mue: mobile_user, d2d_txs: List[d2d_user],
+    d2d_rxs: List[d2d_user], actions_indexes: List[int], values: List[float],
+    mue_success: int, mue_sinr_threshold: float, reward: float, interferences,
+    tx_labels: List[str], rx_labels: List[str]
 ):
     bs_x = bs.position[0]
     bs_y = bs.position[1]
@@ -124,7 +124,7 @@ def plot_positions_actions_pie(
     d2d_rxs_x = [i.position[0] for i in d2d_rxs]
     d2d_rxs_y = [i.position[1] for i in d2d_rxs]
 
-    _, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    _, ((ax1, ax2), (ax3, _)) = plt.subplots(2, 2, figsize=(14, 6))
 
     _ = ax1.plot(bs_x, bs_y, '*', label='BS')
     _ = ax1.plot(mues_x, mues_y, '*', label='MUEs')
@@ -132,8 +132,8 @@ def plot_positions_actions_pie(
     _ = ax1.plot(d2d_rxs_x, d2d_rxs_y, 'd', label='D2D RX')
 
     coordinates = [
-        (f'({i},{actions_indexes[i]})', d2d_txs_x[i], d2d_txs_y[i])
-        for i in range(len(d2d_txs))
+        (f'({d.id},{actions_indexes[i]})', d2d_txs_x[i], d2d_txs_y[i])
+        for i, d in enumerate(d2d_txs)
     ]
     for c in coordinates:
         ax1.annotate(c[0], (c[1], c[2]))
@@ -165,3 +165,39 @@ def plot_positions_actions_pie(
     )
     # Equal aspect ratio ensures that pie is drawn as a circle.
     ax2.set_aspect('equal')
+    ax3.imshow(interferences)
+    # We want to show all ticks...
+    ax3.set_xticks(np.arange(interferences.shape[0]))
+    ax3.set_yticks(np.arange(interferences.shape[1]))
+    # ... and label them with the respective list entries
+    # x_labels = ['BS']
+    # x_labels += [i for i in np.arange(interferences.shape[0] - 1)]
+    # y_labels = ['MUE']
+    # y_labels += [i for i in np.arange(interferences.shape[0] - 1)]
+    y_labels = tx_labels
+    x_labels = rx_labels
+    ax3.set_xticklabels(x_labels)
+    ax3.set_yticklabels(y_labels)
+    interferences = np.log10(interferences)
+    # Loop over data dimensions and create text annotations.
+    for i in range(interferences.shape[0]):
+        for j in range(interferences.shape[1]):
+            _ = ax3.text(j, i, f'{interferences[i, j]:.2f}',
+                         ha="center", va="center", color="w")
+    ax3.set_title("Interferences [dB]")
+
+
+def dashboard(
+        bs: base_station, mue: mobile_user,
+        d2d_txs: List[d2d_user], d2d_rxs: List[d2d_user],
+        actions_indexes: List[int], values: List[float],
+        mue_success: int, mue_sinr_threshold: float,
+        reward: float, interferences
+):
+    plot_positions_actions_pie(
+        bs, mue, d2d_txs, d2d_rxs,
+        actions_indexes, values,
+        mue_success, mue_sinr_threshold,
+        reward
+    )
+    sns.heatmap(interferences)

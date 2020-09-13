@@ -101,11 +101,11 @@ def calculate_interferences(env: CompleteEnvironment2):
             else:
                 loss = pathloss_users
             interf = \
-                tx.tx_power * loss(euclidean(tx.position, rx.position)/1000) \
+                tx.tx_power / loss(euclidean(tx.position, rx.position)/1000) \
                 * rx.gain
             interferences[i][j] = interf
-    tx_labels = [d.id for d in txs]
-    rx_labels = [d.id for d in rxs]
+    tx_labels = [d.id.split(':')[1] for d in txs]
+    rx_labels = [d.id.split(':')[1] for d in rxs]
 
     return interferences, tx_labels, rx_labels
 

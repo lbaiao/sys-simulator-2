@@ -79,18 +79,6 @@ class BANChannel(Channel):
         loss: float
             Body Area Network Channel loss, in dB.
 
-        pathloss: float
-            Body Area Network Channel pathloss, in dB.
-
-        large_scale_fading: float
-            Lognormal large scale fading component, in dB.
-
-        small_scale_fading: float
-            Nakagami small scale fading component, in dB.
-
-        loss_mag: float
-            Body Area Network Channel loss, in magnitude.
-
         """
         L0 = self.L0
         n_pl = self.n_pl
@@ -104,8 +92,7 @@ class BANChannel(Channel):
         small_scale_fading = nakagami.rvs(nu)
         # total channel loss
         loss = pathloss + large_scale_fading + small_scale_fading
-        loss_mag = 10**(loss/10)
-        return loss, loss_mag
+        return loss
 
 
 def UrbanMacroLOSWinnerChannel(

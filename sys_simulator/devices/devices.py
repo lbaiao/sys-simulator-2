@@ -1,5 +1,5 @@
 from enum import Enum
-from sys_simulator.pathloss import pathloss_bs_users
+from sys_simulator.pathloss import pathloss_bs_users, pathloss_bs_users_db
 
 
 class node:
@@ -45,7 +45,7 @@ class base_station(node):
         super(base_station, self).__init__()
         self.position = position
         self.radius = radius
-        self.id = 'BS'
+        self.id: str = 'BS:0'
 
     def set_radius(self, radius):
         self.radius = radius
@@ -58,15 +58,28 @@ class mobile_user(node):
     """
     def __init__(self, id):
         super(mobile_user, self).__init__()
-        self.id = f'MUE:{id}'
+        self.id: str = f'MUE:{id}'
 
     def get_tx_power(
             self, bs: base_station, snr: float,
             noise_power: float, margin: float, p_max: float
     ):
         tx_power = snr * noise_power * \
-            pathloss_bs_users(self.distance_to_bs) / (self.gain * bs.gain)
+            pathloss_bs_users(self.distance_to_bs/1000) / (self.gain * bs.gain)
         tx_power *= margin
+        if tx_power > p_max:
+            tx_power = p_max
+        return tx_power
+
+    def get_tx_power_db(
+            self, bs: base_station, snr: float,
+            noise_power: float, margin: float, p_max: float,
+            channel
+    ):
+        tx_power = snr + noise_power + \
+            channel.step(self.distance_to_bs/1000) - \
+            (self.gain + bs.gain)
+        tx_power += margin
         if tx_power > p_max:
             tx_power = p_max
         return tx_power
@@ -87,7 +100,7 @@ class d2d_user(node):
                  max_power=0.19952623149688797, **kwargs):
         super(d2d_user, self).__init__()
         self.type = d2d_type
-        self.id = f'DUE.{self.type.value}:{id}',
+        self.id: str = f'DUE.{self.type.value}:{id}'
         self.max_power = max_power
 
     def set_distance_d2d(self, distance):

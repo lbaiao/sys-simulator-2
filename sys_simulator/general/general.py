@@ -6,15 +6,19 @@ import ntpath
 from typing import List
 import scipy.spatial as spatial
 from torch import device
-from sys_simulator.devices.devices import d2d_user, mobile_user, base_station, node
+from sys_simulator.devices.devices import d2d_user, mobile_user, base_station
 
 
 def bits_gen(n):
-    return [random.randint(0,1) for b in range(1,n+1)]
+    return [random.randint(0, 1) for b in range(1, n+1)]
 
 
 def db_to_power(x):
     return 10**(x/10)
+
+
+def power_to_db(x):
+    return 10*math.log10(x)
 
 
 def upsample(input, factor):

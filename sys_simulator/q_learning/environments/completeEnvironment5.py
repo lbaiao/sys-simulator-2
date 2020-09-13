@@ -21,9 +21,6 @@ class CompleteEnvironment5(RLEnvironment):
     def __init__(self, params: EnvironmentParameters,
                  reward_function, channel, **kwargs):
         self.params = params
-        # TODO: há como tornar as ações contínuas? quais e quantos
-        # níveis de potência devem existir?
-        # self.actions = [i*params.p_max/10 for i in range(11)]
         super(CompleteEnvironment5, self).__init__(params,
                                                    reward_function, **kwargs)
         self.states = [0, 0, 1]

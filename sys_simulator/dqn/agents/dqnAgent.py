@@ -107,6 +107,8 @@ class ExternalDQNAgent(Agent):
     def __init__(self, params: DQNAgentParameters, actions):
         super(ExternalDQNAgent, self).__init__(params, actions)
         self.device = torch.device("cuda")
+        self.action = 0
+        self.action_index = 0
 
     def set_distance_to_bs(self, distance: float):
         self.distance_to_bs = distance

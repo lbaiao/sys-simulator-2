@@ -124,7 +124,8 @@ def plot_positions_actions_pie(
     d2d_rxs_x = [i.position[0] for i in d2d_rxs]
     d2d_rxs_y = [i.position[1] for i in d2d_rxs]
 
-    _, ((ax1, ax2), (ax3, _)) = plt.subplots(2, 2, figsize=(14, 6))
+    # _, ((ax1, ax2), (ax3, _)) = plt.subplots(2, 2, figsize=(14, 6))
+    _, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(14, 6))
 
     _ = ax1.plot(bs_x, bs_y, '*', label='BS')
     _ = ax1.plot(mues_x, mues_y, '*', label='MUEs')
@@ -132,7 +133,8 @@ def plot_positions_actions_pie(
     _ = ax1.plot(d2d_rxs_x, d2d_rxs_y, 'd', label='D2D RX')
 
     coordinates = [
-        (f'({d.id},{actions_indexes[i]})', d2d_txs_x[i], d2d_txs_y[i])
+        (f'({d.id.split(":")[1]},{actions_indexes[i]})',
+            d2d_txs_x[i], d2d_txs_y[i])
         for i, d in enumerate(d2d_txs)
     ]
     for c in coordinates:
@@ -160,7 +162,7 @@ def plot_positions_actions_pie(
     ax2.pie(values, labels=labels, autopct='%1.1f%%',
             shadow=True, startangle=90)
     ax2.set_title(
-        f'MUE SINR: {mue.sinr:.2f} | min SINR: {mue_sinr_threshold:.2f} \
+        f'MUE SINR: {mue.sinr:.2f} dBW | min SINR: {mue_sinr_threshold:.2f} dBW \
         reward: {reward:.4f}'
     )
     # Equal aspect ratio ensures that pie is drawn as a circle.
@@ -178,13 +180,13 @@ def plot_positions_actions_pie(
     x_labels = rx_labels
     ax3.set_xticklabels(x_labels)
     ax3.set_yticklabels(y_labels)
-    interferences = np.log10(interferences)
+    # interferences = np.log10(interferences)
     # Loop over data dimensions and create text annotations.
     for i in range(interferences.shape[0]):
         for j in range(interferences.shape[1]):
             _ = ax3.text(j, i, f'{interferences[i, j]:.2f}',
                          ha="center", va="center", color="w")
-    ax3.set_title("Interferences [dB]")
+    ax3.set_title("Received Power [dBW]")
 
 
 def dashboard(

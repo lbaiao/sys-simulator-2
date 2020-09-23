@@ -28,6 +28,7 @@ class CompleteEnvironment5dB(RLEnvironment):
             torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.sinr_d2ds = []
         self.channel = channel
+        self.obs_size = 13
 
     def build_scenario(self, agents: List[DistanceAgent]):
         # declaring the bs, mues and d2d pairs
@@ -120,33 +121,52 @@ class CompleteEnvironment5dB(RLEnvironment):
         (index, d2d_tx) =\
             [(index, p[0]) for index, p
                 in enumerate(self.d2d_pairs) if p[0].id == agent.id][0]
-        d2d_rx = self.d2d_pairs[index][1]
+        # d2d_rx = self.d2d_pairs[index][1]
 
         number_of_d2d_pairs = len(self.d2d_pairs)
-        d2d_tx_distance_to_bs = d2d_tx.distance_to_bs
-        d2d_rx_distance_to_mue = euclidean(d2d_rx.position, self.mue.position)
-        mue_distance_to_bs = self.mue.distance_to_bs
+        # d2d_tx_distance_to_bs = d2d_tx.distance_to_bs
+        # d2d_rx_distance_to_mue = \
+        #   euclidean(d2d_rx.position, self.mue.position)
+        # mue_distance_to_bs = self.mue.distance_to_bs
 
         interference_indicator = sinr > self.params.sinr_threshold
-
+        x_mean, y_mean = self.get_other_devices_mean_positions(d2d_tx)
+        x_std, y_std = self.get_other_devices_std_positions(d2d_tx)
         # normalization
-        d2d_tx_distance_to_bs /= self.params.bs_radius
-        d2d_rx_distance_to_mue /= 2*self.params.bs_radius
-        mue_distance_to_bs /= self.params.bs_radius
+        # d2d_tx_distance_to_bs /= self.params.bs_radius
+        # d2d_rx_distance_to_mue /= 2*self.params.bs_radius
+        # mue_distance_to_bs /= self.params.bs_radius
 
         state = torch.tensor(
             [[
                 number_of_d2d_pairs,
-                d2d_tx_distance_to_bs,
-                d2d_rx_distance_to_mue,
-                mue_distance_to_bs,
-                # agent.action,
-                # self.mue.tx_power,
+                d2d_tx.position[0],
+                d2d_tx.position[1],
+                self.mue.position[0],
+                self.mue.position[1],
+                x_mean,
+                y_mean,
+                x_std,
+                y_std,
+                agent.action,
+                self.mue.tx_power,
                 int(interference_indicator),
-                int(not interference_indicator)
+                int(not interference_indicator),
             ]]).to(self.device)
 
         return state
+
+    def get_other_devices_mean_positions(self, tx: d2d_user):
+        other_devices = [d[0] for d in self.d2d_pairs if d[0] != tx]
+        x_mean = np.mean([d.position[0] for d in other_devices])
+        y_mean = np.mean([d.position[1] for d in other_devices])
+        return x_mean, y_mean
+
+    def get_other_devices_std_positions(self, tx: d2d_user):
+        other_devices = [d[0] for d in self.d2d_pairs if d[0] != tx]
+        x_std = np.std([d.position[0] for d in other_devices])
+        y_std = np.std([d.position[1] for d in other_devices])
+        return x_std, y_std
 
     def step(self, agents: List[DistanceAgent]):
         # allocate agents tx power
@@ -179,19 +199,12 @@ class CompleteEnvironment5dB(RLEnvironment):
         sinr_d2ds = np.array(sinr_d2ds)
         # get the states
         states = [self.get_state(a) for a in agents]
-        flag = True
-        if sinr_m < self.params.sinr_threshold:
-            flag = False
+        flag = sinr_m >= self.params.sinr_threshold
         # rewards
         rewards, mue_se, d2d_se = self.reward_function(
-            sinr_m, sinr_d2ds, flag, self.params.c_param, penalty=5
+            sinr_m, sinr_d2ds.tolist(), flag, self.params.c_param, penalty=5
         )
-        # early stopping
-        done = False
-        if self.early_stop:
-            if torch.abs(torch.sum(rewards) - self.reward) \
-                        <= self.change_tolerance:
-                done = True
+        done = not flag
         # total reward
         self.reward = torch.sum(rewards)
         # spectral efficiencies
@@ -215,7 +228,9 @@ class CompleteEnvironment5dB(RLEnvironment):
                 db_to_power(d.tx_power) *
                 db_to_power(user_gain) *
                 db_to_power(bs_gain) /
-                self.channel.step(euclidean(d.position, bs.position))
+                db_to_power(
+                    self.channel.step(euclidean(d.position, bs.position))
+                )
                 for d in d2d_interferers
             ]
         )
@@ -234,14 +249,15 @@ class CompleteEnvironment5dB(RLEnvironment):
             self.channel.step(d2d_rx_mue_distance) + 2 * user_gain
         d2d_interferers = [d for d in d2d_devices if (
             d.id != d2d_tx.id
-            and d.type == d2d_node_type.TX and d.rb == d2d_tx.rb)]
+            and d.type == d2d_node_type.TX and d.rb == d2d_tx.rb
+        )]
         d2d_interference = sum(
             [
                 db_to_power(d.tx_power) *
                 db_to_power(2 * user_gain) /
-                self.channel.step(
+                db_to_power(self.channel.step(
                     euclidean(d2d_rx.position, d.position)
-                )
+                ))
                 for d in d2d_interferers
             ]
         )

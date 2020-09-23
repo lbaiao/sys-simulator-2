@@ -1,4 +1,5 @@
 # Same as script 31, but everything is in dB.
+from sys_simulator.general.general import db_to_power, power_to_db
 from sys_simulator.channels import BANChannel
 from sys_simulator.general import general as gen
 from sys_simulator.q_learning.environments.completeEnvironment5dB \
@@ -7,56 +8,79 @@ from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
 from sys_simulator.dqn.externalDQNFramework import ExternalDQNFramework
 from sys_simulator.parameters.parameters import \
     EnvironmentParameters, TrainingParameters, DQNAgentParameters
-from sys_simulator.q_learning import rewards as reward_functions
+from sys_simulator.q_learning.rewards import dis_reward_tensor_db
 import torch
 import numpy as np
 import os
+import pickle
 
 
-def run():
-    n_mues = 1  # number of mues
-    n_d2d = 2  # number of d2d pairs
-    n_rb = n_mues   # number of RBs
-    bs_radius = 500  # bs radius in m
-    rb_bandwidth = 180*1e3  # rb bandwidth in Hz
-    d2d_pair_distance = 50  # d2d pair distance in m
-    p_max = 23  # max tx power in dBm
-    noise_power = -116  # noise power per RB in dBm
-    bs_gain = 17    # macro bs antenna gain in dBi
-    user_gain = 4   # user antenna gain in dBi
-    sinr_threshold_train = 6  # mue sinr threshold in dB for training
-    mue_margin = 2  # mue margin in dB
-    # conversions from dBm to dB
-    p_max = p_max - 30
-    noise_power = noise_power - 30
-    # q-learning parameters
-    STEPS_PER_EPISODE = 25
-    MAX_NUM_EPISODES = 480      # medium training
-    # MAX_NUM_EPISODES = 1      # testing
-    EPSILON_MIN = 0.05
-    EPSILON_DECAY = 3.35*1e-4    # medium training
-    GAMMA = 0.98  # Discount factor
-    C = 8  # C constant for the improved reward function
-    TARGET_UPDATE = 10
-    MAX_NUMBER_OF_AGENTS = 10
-    REPLAY_MEMORY_SIZE = 10000
-    BATCH_SIZE = 512
-    max_d2d = MAX_NUMBER_OF_AGENTS
-    # more parameters
-    env_params = EnvironmentParameters(
-        rb_bandwidth, d2d_pair_distance, p_max, noise_power,
-        bs_gain, user_gain, sinr_threshold_train,
-        n_mues, n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin
-    )
-    params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
-    agent_params = DQNAgentParameters(
-        EPSILON_MIN, EPSILON_DECAY, 1, REPLAY_MEMORY_SIZE,
-        BATCH_SIZE, GAMMA
-    )
-    framework = ExternalDQNFramework(agent_params)
-    reward_function = reward_functions.dis_reward_tensor
-    channel = BANChannel()
-    env = CompleteEnvironment5dB(env_params, reward_function, channel)
+n_mues = 1  # number of mues
+n_d2d = 2  # number of d2d pairs
+n_rb = n_mues   # number of RBs
+bs_radius = 500  # bs radius in m
+rb_bandwidth = 180*1e3  # rb bandwidth in Hz
+d2d_pair_distance = 50  # d2d pair distance in m
+p_max = 23  # max tx power in dBm
+noise_power = -116  # noise power per RB in dBm
+bs_gain = 17    # macro bs antenna gain in dBi
+user_gain = 4   # user antenna gain in dBi
+sinr_threshold_train = 6  # mue sinr threshold in dB for training
+mue_margin = 200  # mue margin in dB
+# conversions from dBm to dB
+p_max = p_max - 30
+noise_power = noise_power - 30
+# channel parameters
+CHANNEL_RND = False
+# q-learning parameters
+# training
+STEPS_PER_EPISODE = 2
+MAX_NUM_EPISODES = 500      # fast training
+# MAX_NUM_EPISODES = 1440      # long training
+# MAX_NUM_EPISODES = 14440      # super long training
+# MAX_NUM_EPISODES = 1      # debugging
+# testing
+TEST_NUM_EPISODES = 480
+# TEST_NUM_EPISODES = 1  # testing
+TEST_STEPS_PER_EPISODE = 5
+# common
+EPSILON_MIN = 0.05
+EPSILON_DECAY = 1*1e-3    # fast training
+# EPSILON_DECAY = .4167*1e-3    # long training
+# EPSILON_DECAY = .04167*1e-3    # super long training
+GAMMA = 0.98  # Discount factor
+C = 8  # C constant for the improved reward function
+TARGET_UPDATE = 10
+MAX_NUMBER_OF_AGENTS = 10
+REPLAY_MEMORY_SIZE = 10000
+BATCH_SIZE = 256
+HIDDEN_SIZE = 1024
+max_d2d = MAX_NUMBER_OF_AGENTS
+# more parameters
+actions = power_to_db(np.linspace(
+    db_to_power(p_max-20), db_to_power(p_max-10), 5
+))
+actions[0] = -1000
+env_params = EnvironmentParameters(
+    rb_bandwidth, d2d_pair_distance, p_max, noise_power,
+    bs_gain, user_gain, sinr_threshold_train,
+    n_mues, n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin
+)
+params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
+agent_params = DQNAgentParameters(
+    EPSILON_MIN, EPSILON_DECAY, 1, REPLAY_MEMORY_SIZE,
+    BATCH_SIZE, GAMMA
+)
+reward_function = dis_reward_tensor_db
+channel = BANChannel(rnd=CHANNEL_RND)
+env = CompleteEnvironment5dB(env_params, reward_function, channel)
+framework = ExternalDQNFramework(
+    agent_params, env.obs_size, len(actions), HIDDEN_SIZE
+)
+
+
+def train():
+    global actions
     best_reward = float('-inf')
     device = torch.device('cuda')
     mue_spectral_eff_bag = list()
@@ -64,20 +88,20 @@ def run():
     aux_range = range(max_d2d+1)[1:]
     epsilon = agent_params.start_epsilon
     for episode in range(params.max_episodes):
-        actions = np.linspace(-100, p_max, 5)
         n_agents = np.random.choice(aux_range)
         agents = [ExternalDQNAgent(agent_params, actions)
                   for _ in range(n_agents)]  # 1 agent per d2d tx
         counts = np.zeros(len(agents))
         awaits = list()
-        await_steps = [2, 3, 4]
+        # await_steps = [2, 3, 4]
+        await_steps = [0]
         for a in agents:
             awaits.append(np.random.choice(await_steps))
             a.set_action(torch.tensor(0).long().cuda(), a.actions[0])
             a.set_epsilon(epsilon)
         env.build_scenario(agents)
         done = False
-        obs = [env.get_state(a) for a in agents]
+        obs = [env.get_state(a).float() for a in agents]
         total_reward = 0.0
         i = 0
         bag = list()
@@ -85,20 +109,25 @@ def run():
             if i >= params.steps_per_episode:
                 break
             else:
-                actions = torch.zeros([len(agents)], device=device)
+                past_actions = torch.zeros([len(agents)], device=device)
                 for j, agent in enumerate(agents):
                     if counts[j] < awaits[j]:
                         counts[j] += 1
                     else:
-                        agent.get_action(framework, obs[j])
-                        actions[j] = agent.action_index
+                        agent.get_action(framework, obs[j].float())
+                        past_actions[j] = agent.action_index
                         counts[j] = 0
                         awaits[j] = np.random.choice(await_steps)
-                next_obs, rewards, done = env.step(agents)
+                # # debugging
+                # if len(agents) == 2:
+                #     print('debugging')
+                next_obs, rewards, _ = env.step(agents)
                 i += 1
                 for j, agent in enumerate(agents):
-                    framework.replay_memory.push(obs[j], actions[j],
-                                                 next_obs[j], rewards[j])
+                    framework.replay_memory.push(
+                        obs[j].float(), past_actions[j],
+                        next_obs[j].float(), rewards[j]
+                    )
                 framework.learn()
                 obs = next_obs
                 total_reward += torch.sum(rewards)
@@ -127,11 +156,80 @@ def run():
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
     filename_model = filename
-    filename = f'{cwd}/data/dql/{filename}.pt'
+    filename = f'{cwd}/data/dql/{filename}_training.pt'
     torch.save(framework.policy_net.state_dict(),
                f'{cwd}/models/dql/{filename_model}.pt')
     torch.save(spectral_effs, filename)
 
 
+def test():
+    framework.policy_net.load_state_dict(
+        torch.load('models/dql/script32.pt')
+    )
+    mue_spectral_effs = [list() for _ in range(max_d2d+1)]
+    d2d_spectral_effs = [list() for _ in range(max_d2d+1)]
+    # jain_index = [list() for _ in range(max_d2d+1)]
+    done = False
+    bag = list()
+    aux_range = range(max_d2d+1)[1:]
+    for _ in range(TEST_NUM_EPISODES):
+        n_agents = np.random.choice(aux_range)
+        agents = [ExternalDQNAgent(agent_params, actions)
+                  for i in range(n_agents)]  # 1 agent per d2d tx
+        env.build_scenario(agents)
+        done = False
+        obs = [env.get_state(a) for a in agents]
+        total_reward = 0.0
+        i = 0
+        while not done:
+            for j, agent in enumerate(agents):
+                aux = agent.act(framework, obs[j].float()).max(1)
+                agent.set_action(aux[1].long(),
+                                 agent.actions[aux[1].item()])
+                bag.append(aux[1].item())
+            next_obs, rewards, _ = env.step(agents)
+            obs = next_obs
+            total_reward += sum(rewards)
+            i += 1
+            if i >= TEST_STEPS_PER_EPISODE:
+                break
+        mue_spectral_effs[n_agents].append(env.mue_spectral_eff.item())
+        d2d_spectral_effs[n_agents].append(env.d2d_spectral_eff.item())
+        # jain_index[n_agents].append(gen.jain_index(env.sinr_d2ds))
+    mue_success_rate = list()
+    for i, m in enumerate(mue_spectral_effs):
+        mue_success_rate.append(
+            np.average(m > np.log2(1 + sinr_threshold_train))
+        )
+    d2d_speffs_avg = list()
+    for i, d in enumerate(d2d_spectral_effs):
+        d2d_speffs_avg.append(np.average(d))
+    # jain_index_avg = list()
+    # for i, j in enumerate(jain_index):
+    #     jain_index_avg.append(np.average(j))
+    log = list()
+    for i, d in enumerate(zip(d2d_speffs_avg, mue_success_rate)):
+        log.append(f'NUMBER OF D2D_USERS: {i+1}')
+        log.append(f'D2D SPECTRAL EFFICIENCY - SCRIPT: {d[0]}')
+        log.append(f'MUE SUCCESS RATE - SCRIPT: {d[1]}')
+        log.append('-------------------------------------')
+    filename = gen.path_leaf(__file__)
+    filename = filename.split('.')[0]
+    log_path = f'logs/dql/{filename}.txt'
+    file = open(log_path, 'w')
+    for lg in log:
+        file.write(f'{lg}\n')
+    file.close()
+    data_path = f'data/dql/{filename}.pickle'
+    data = {
+        'd2d_speffs_avg_total': d2d_spectral_effs,
+        'mue_success_rate': mue_success_rate,
+        'chosen_actions': bag,
+    }
+    with open(data_path, 'wb') as file:
+        pickle.dump(data, file)
+
+
 if __name__ == '__main__':
-    run()
+    train()
+    test()

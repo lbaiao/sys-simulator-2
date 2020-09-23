@@ -5,15 +5,20 @@ import torch
 
 
 class ExternalDQNFramework:
-    def __init__(self, params: DQNAgentParameters):
+    def __init__(self, params: DQNAgentParameters,
+                 input_size: int, output_size: int, hidden_size: int):
         self.replay_memory = ReplayMemory(params.replay_memory_size)
         self.device = torch.device("cuda")
-        self.policy_net = DQN().to(self.device)
-        self.target_net = DQN().to(self.device)
+        self.policy_net = DQN(
+            input_size, output_size, hidden_size
+        ).to(self.device)
+        self.target_net = DQN(
+            input_size, output_size, hidden_size
+        ).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        self.optimizer = torch.optim.Adam(
-            self.policy_net.parameters(), lr=0.003
+        self.optimizer = torch.optim.SGD(
+            self.policy_net.parameters(), lr=0.01
         )
         self.criterion = torch.nn.MSELoss()
         self.batchsize = params.batchsize

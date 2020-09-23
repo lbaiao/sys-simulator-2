@@ -18,7 +18,7 @@ def db_to_power(x):
 
 
 def power_to_db(x):
-    return 10*math.log10(x)
+    return 10*np.log10(x)
 
 
 def upsample(input, factor):

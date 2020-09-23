@@ -1,5 +1,7 @@
 import random
 import torch
+from torch.nn import Linear, ModuleList
+from torch.functional import F
 from collections import namedtuple
 
 # see: https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
@@ -148,26 +150,26 @@ class ReplayMemory(object):
 #         return y
 
 
-class DQN(torch.nn.Module):
-    """ script23, 26, 27, 28
-    """
-    def __init__(self):
-        super(DQN, self).__init__()
-        self.fc1 = torch.nn.Linear(6, 5).cuda()
-        self.fc2 = torch.nn.Linear(5, 5).cuda()
-        self.fc3 = torch.nn.Linear(5, 5).cuda()
-        self.fc4 = torch.nn.Linear(5, 5).cuda()
-        self.fc5 = torch.nn.Linear(5, 5).cuda()
+# class DQN(torch.nn.Module):
+#     """ script23, 26, 27, 28
+#     """
+#     def __init__(self):
+#         super(DQN, self).__init__()
+#         self.fc1 = torch.nn.Linear(6, 5).cuda()
+#         self.fc2 = torch.nn.Linear(5, 5).cuda()
+#         self.fc3 = torch.nn.Linear(5, 5).cuda()
+#         self.fc4 = torch.nn.Linear(5, 5).cuda()
+#         self.fc5 = torch.nn.Linear(5, 5).cuda()
 
-    def forward(self, state):
-        x = self.fc1(state).tanh().cuda()
-        x = self.fc2(x).tanh().cuda()
-        x = self.fc3(x).tanh().cuda()
-        # x = torch.nn.Dropout(0.2)(x)
-        x = self.fc4(x).tanh().cuda()
-        y = self.fc5(x).cuda()
+#     def forward(self, state):
+#         x = self.fc1(state).tanh().cuda()
+#         x = self.fc2(x).tanh().cuda()
+#         x = self.fc3(x).tanh().cuda()
+#         # x = torch.nn.Dropout(0.2)(x)
+#         x = self.fc4(x).tanh().cuda()
+#         y = self.fc5(x).cuda()
 
-        return y
+#         return y
 
 
 # class DQN(torch.nn.Module):
@@ -191,3 +193,27 @@ class DQN(torch.nn.Module):
 #         y = self.fc5(x).cuda()
                 
 #         return y
+
+
+class DQN(torch.nn.Module):
+    """Script 32
+    """
+    def __init__(self, input_size, output_size,
+                 hidden_size, n_hidden_layers=5):
+        super(DQN, self).__init__()
+        self.hidden_layers = ModuleList()
+        for _ in range(n_hidden_layers):
+            self.hidden_layers.append(Linear(hidden_size, hidden_size))
+        self.fc1 = Linear(input_size, hidden_size)
+        self.fc2 = Linear(hidden_size, output_size)
+
+    def forward(self, obs):
+        x = self.fc1(obs)
+        x = F.relu(x)
+        for i in self.hidden_layers:
+            x = i(x)
+            x = F.relu(x)
+        x = F.relu(x)
+        x = self.fc2(x)
+        output = F.softmax(x, dim=1)
+        return output

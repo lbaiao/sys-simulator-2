@@ -33,7 +33,7 @@ class BANChannel(Channel):
     Vol. 2(1), 12 November 2019.
     """
 
-    def __init__(self, env='office', d0=1):
+    def __init__(self, env='office', d0=1, rnd=True):
         n_pl_dict = {
             'office': 1.71,
             'ferry': 1.69
@@ -65,6 +65,7 @@ class BANChannel(Channel):
         self.sigma = sigma_dict[env]
         self.m = m_dict[env]
         self.omega = omega_dict[env]
+        self.rnd = rnd
 
     def step(self, d: float) -> Tuple[float, float]:
         """Returns the BAN Channel loss.
@@ -85,13 +86,16 @@ class BANChannel(Channel):
         d0 = self.d0
         # pathloss
         pathloss = L0 + 10*n_pl*np.log10(d/d0)
-        # large scale fading
-        large_scale_fading = np.random.lognormal(self.mu, self.sigma)
-        # small scale fading
-        nu = self.m / self.omega
-        small_scale_fading = nakagami.rvs(nu)
-        # total channel loss
-        loss = pathloss + large_scale_fading + small_scale_fading
+        if self.rnd:
+            # large scale fading
+            large_scale_fading = np.random.lognormal(self.mu, self.sigma)
+            # small scale fading
+            nu = self.m / self.omega
+            small_scale_fading = nakagami.rvs(nu)
+            # total channel loss
+            loss = pathloss + large_scale_fading + small_scale_fading
+        else:
+            loss = pathloss
         return loss
 
 
@@ -136,14 +140,12 @@ def UrbanMacroLOSWinnerChannel(
         loss = 40 * np.log10(d) + 13.47 - \
             14 * (np.log10(h_bs_eff) + np.log10(h_ms_eff)) + \
             6 * np.log10(f_c/5)
-        loss_mag = 10 ** (loss/10)
-        return loss, loss_mag
+        return loss
     elif d > 10 and d <= d_bp_eff:
         a = 26
         b = 39
         c = 20
         loss = a * np.log10(d) + b + c * np.log10(f_c/5)
-        loss_mag = 10 ** (loss/10)
-        return loss, loss_mag
+        return loss
     else:
         raise Exception('Invalid distance `d`.')

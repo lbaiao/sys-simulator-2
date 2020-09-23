@@ -1,3 +1,4 @@
+from sys_simulator.a2c.agent import Agent
 from sys_simulator.general.general import db_to_power
 import numpy as np
 import torch
@@ -83,15 +84,25 @@ def dis_reward_tensor2(sinr_mue: float, sinr_d2ds: List[float],
 def dis_reward_tensor_db(sinr_mue_db: float, sinr_d2ds_db: List[float],
                          state: bool, C: float, *args, **kwargs):
     sinr_mue = db_to_power(sinr_mue_db)
-    sinr_d2ds = db_to_power(sinr_d2ds_db)
+    sinr_d2ds = db_to_power(np.array(sinr_d2ds_db))
     mue_contrib = torch.log2(1 + torch.tensor(sinr_mue, device=device))
     sinr_d2ds = torch.tensor(sinr_d2ds, device=device)
     d2d_contrib = torch.sum(torch.log2(1 + sinr_d2ds))
     rewards = -1 * torch.ones(len(sinr_d2ds))
     if state:
+        # # debugging
+        # print('debug')
         for i in range(len(sinr_d2ds)):
             rewards[i] = 1/C * torch.log2(1 + sinr_d2ds[i])
     return rewards, mue_contrib, d2d_contrib
+
+
+def index_reward_db(agents: List[Agent], state: bool):
+    if state:
+        rewards = np.array([a.action_index for a in agents])
+    else:
+        rewards = -10 * np.ones(len(agents))
+    return rewards
 
 
 def dis_reward_tensor_portela(sinr_mue: float, sinr_d2ds: List[float],
@@ -139,11 +150,11 @@ def dis_reward_tensor_portela_inverse(
     mue_contrib = torch.log2(1 + torch.tensor(sinr_mue, device=device))
     sinr_d2ds = torch.tensor(sinr_d2ds, device=device).double()
     d2d_contrib = torch.sum(torch.log2(1 + sinr_d2ds))
-    # d2d_contrib = torch.sum(torch.tensor([torch.log2(1 + s) 
+    # d2d_contrib = torch.sum(torch.tensor([torch.log2(1 + s)
     # for s in sinr_d2ds], device=device))
-    rewards = torch.ones(len(sinr_d2ds))    
+    rewards = torch.ones(len(sinr_d2ds))
     if state:
         # for i in range(len(sinr_d2ds)):
         #     rewards[i] = betas[i] *  1/C * torch.log2(1 + sinr_d2ds[i])
-        rewards = betas *  1/C * torch.log2(1 + sinr_d2ds)
+        rewards = betas * 1/C * torch.log2(1 + sinr_d2ds)
     return rewards, mue_contrib, d2d_contrib

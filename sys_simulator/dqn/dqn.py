@@ -209,10 +209,10 @@ class DQN(torch.nn.Module):
 
     def forward(self, obs):
         x = self.fc1(obs)
-        x = F.relu(x)
+        x = F.tanh(x)
         for i in self.hidden_layers:
             x = i(x)
-            x = F.relu(x)
+            x = F.tanh(x)
         x = self.fc2(x)
         output = F.softmax(x, dim=1)
         return output

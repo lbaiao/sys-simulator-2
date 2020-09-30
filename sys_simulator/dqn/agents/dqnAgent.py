@@ -1,3 +1,4 @@
+from sys_simulator.devices.devices import d2d_user
 import numpy as np
 from sys_simulator.dqn.dqn import DQN
 from sys_simulator.parameters.parameters import DQNAgentParameters
@@ -15,7 +16,7 @@ class DQNAgent(Agent):
         super(DQNAgent, self).__init__(params, actions)
         self.batchsize = params.batchsize
         self.gamma = params.gamma
-        self.replay_memory = ReplayMemory(10000)
+        self.replay_memory = ReplayMemory(1000)
         self.policy_net = DQN()
         self.target_net = DQN()
         self.target_net.load_state_dict(self.policy_net.state_dict())
@@ -109,6 +110,7 @@ class ExternalDQNAgent(Agent):
         self.device = torch.device("cuda")
         self.action = 0
         self.action_index = 0
+        self.d2d_tx = None
 
     def set_distance_to_bs(self, distance: float):
         self.distance_to_bs = distance
@@ -139,3 +141,6 @@ class ExternalDQNAgent(Agent):
 
     def set_epsilon(self, epsilon):
         self.epsilon = epsilon
+
+    def set_d2d_tx(self, d2d_tx: d2d_user):
+        self.d2d_tx = d2d_tx

@@ -6,14 +6,15 @@ import torch
 
 class ExternalDQNFramework:
     def __init__(self, params: DQNAgentParameters,
-                 input_size: int, output_size: int, hidden_size: int):
+                 input_size: int, output_size: int, hidden_size: int,
+                 n_hidden_layers=5):
         self.replay_memory = ReplayMemory(params.replay_memory_size)
         self.device = torch.device("cuda")
         self.policy_net = DQN(
-            input_size, output_size, hidden_size
+            input_size, output_size, hidden_size, n_hidden_layers
         ).to(self.device)
         self.target_net = DQN(
-            input_size, output_size, hidden_size
+            input_size, output_size, hidden_size, n_hidden_layers
         ).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()

@@ -213,7 +213,6 @@ class DQN(torch.nn.Module):
         for i in self.hidden_layers:
             x = i(x)
             x = F.relu(x)
-        x = F.relu(x)
         x = self.fc2(x)
         output = F.softmax(x, dim=1)
         return output

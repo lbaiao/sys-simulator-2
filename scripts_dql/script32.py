@@ -36,12 +36,12 @@ CHANNEL_RND = False
 # training
 STEPS_PER_EPISODE = 10
 # MAX_NUM_EPISODES = 110      # fast training
-# MAX_NUM_EPISODES = 550      # fast training
-MAX_NUM_EPISODES = 10      # debugging
+MAX_NUM_EPISODES = 550      # fast training
+# MAX_NUM_EPISODES = 10      # debugging
 # testing
 # TEST_NUM_EPISODES = 110
-# TEST_NUM_EPISODES = 550
-TEST_NUM_EPISODES = 1  # testing
+TEST_NUM_EPISODES = 550
+# TEST_NUM_EPISODES = 1  # testing
 TEST_STEPS_PER_EPISODE = 10
 # common
 EPSILON_MIN = 0.05

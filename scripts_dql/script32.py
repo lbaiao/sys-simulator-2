@@ -34,18 +34,19 @@ noise_power = noise_power - 30
 CHANNEL_RND = False
 # q-learning parameters
 # training
-STEPS_PER_EPISODE = 2
-MAX_NUM_EPISODES = 500      # fast training
-# MAX_NUM_EPISODES = 1440      # long training
-# MAX_NUM_EPISODES = 14440      # super long training
+STEPS_PER_EPISODE = 10
+# MAX_NUM_EPISODES = 110      # fast training
+MAX_NUM_EPISODES = 550      # fast training
 # MAX_NUM_EPISODES = 1      # debugging
 # testing
-TEST_NUM_EPISODES = 480
+# TEST_NUM_EPISODES = 110
+TEST_NUM_EPISODES = 550
 # TEST_NUM_EPISODES = 1  # testing
-TEST_STEPS_PER_EPISODE = 5
+TEST_STEPS_PER_EPISODE = 10
 # common
 EPSILON_MIN = 0.05
-EPSILON_DECAY = 1*1e-3    # fast training
+# EPSILON_DECAY = 1e-3    # fast training
+EPSILON_DECAY = .2e-3    # fast training
 # EPSILON_DECAY = .4167*1e-3    # long training
 # EPSILON_DECAY = .04167*1e-3    # super long training
 GAMMA = 0.98  # Discount factor
@@ -54,11 +55,12 @@ TARGET_UPDATE = 10
 MAX_NUMBER_OF_AGENTS = 10
 REPLAY_MEMORY_SIZE = 10000
 BATCH_SIZE = 256
-HIDDEN_SIZE = 1024
+HIDDEN_SIZE = 64
+NUM_HIDDEN_LAYERS = 5
 max_d2d = MAX_NUMBER_OF_AGENTS
 # more parameters
 actions = power_to_db(np.linspace(
-    db_to_power(p_max-20), db_to_power(p_max-10), 5
+    db_to_power(p_max-20), db_to_power(p_max-10), 10
 ))
 actions[0] = -1000
 env_params = EnvironmentParameters(
@@ -74,8 +76,15 @@ agent_params = DQNAgentParameters(
 reward_function = dis_reward_tensor_db
 channel = BANChannel(rnd=CHANNEL_RND)
 env = CompleteEnvironment5dB(env_params, reward_function, channel)
+foo_agent = ExternalDQNAgent(agent_params, [1])
+env.build_scenario([foo_agent])
+env_state_size = env.get_state_size(foo_agent)
 framework = ExternalDQNFramework(
-    agent_params, env.obs_size, len(actions), HIDDEN_SIZE
+    agent_params,
+    env_state_size,
+    len(actions),
+    HIDDEN_SIZE,
+    NUM_HIDDEN_LAYERS
 )
 
 
@@ -91,37 +100,25 @@ def train():
         n_agents = np.random.choice(aux_range)
         agents = [ExternalDQNAgent(agent_params, actions)
                   for _ in range(n_agents)]  # 1 agent per d2d tx
-        counts = np.zeros(len(agents))
-        awaits = list()
-        # await_steps = [2, 3, 4]
-        await_steps = [0]
         for a in agents:
-            awaits.append(np.random.choice(await_steps))
-            a.set_action(torch.tensor(0).long().cuda(), a.actions[0])
             a.set_epsilon(epsilon)
         env.build_scenario(agents)
-        done = False
         obs = [env.get_state(a).float() for a in agents]
         total_reward = 0.0
         i = 0
         bag = list()
-        while not done:
+        while True:
             if i >= params.steps_per_episode:
                 break
             else:
                 past_actions = torch.zeros([len(agents)], device=device)
                 for j, agent in enumerate(agents):
-                    if counts[j] < awaits[j]:
-                        counts[j] += 1
-                    else:
-                        agent.get_action(framework, obs[j].float())
-                        past_actions[j] = agent.action_index
-                        counts[j] = 0
-                        awaits[j] = np.random.choice(await_steps)
+                    agent.get_action(framework, obs[j].float())
+                    past_actions[j] = agent.action_index
                 # # debugging
                 # if len(agents) == 2:
                 #     print('debugging')
-                next_obs, rewards, _ = env.step(agents)
+                next_obs, rewards = env.step(agents)
                 i += 1
                 for j, agent in enumerate(agents):
                     framework.replay_memory.push(
@@ -130,7 +127,7 @@ def train():
                     )
                 framework.learn()
                 obs = next_obs
-                total_reward += torch.sum(rewards)
+                total_reward += np.sum(rewards)
                 bag.append(total_reward.item())
                 obs = next_obs
                 if episode % TARGET_UPDATE == 0:
@@ -187,7 +184,7 @@ def test():
                 agent.set_action(aux[1].long(),
                                  agent.actions[aux[1].item()])
                 bag.append(aux[1].item())
-            next_obs, rewards, _ = env.step(agents)
+            next_obs, rewards = env.step(agents)
             obs = next_obs
             total_reward += sum(rewards)
             i += 1

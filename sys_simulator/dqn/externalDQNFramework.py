@@ -18,7 +18,7 @@ class ExternalDQNFramework:
         ).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        self.optimizer = torch.optim.rmsprop.RMSprop(
+        self.optimizer = torch.optim.RMSprop(
             self.policy_net.parameters(), lr=0.01
         )
         self.criterion = torch.nn.MSELoss()

@@ -36,12 +36,12 @@ CHANNEL_RND = False
 # training
 STEPS_PER_EPISODE = 10
 # MAX_NUM_EPISODES = 110      # fast training
-MAX_NUM_EPISODES = 550      # fast training
-# MAX_NUM_EPISODES = 1      # debugging
+# MAX_NUM_EPISODES = 550      # fast training
+MAX_NUM_EPISODES = 10      # debugging
 # testing
 # TEST_NUM_EPISODES = 110
-TEST_NUM_EPISODES = 550
-# TEST_NUM_EPISODES = 1  # testing
+# TEST_NUM_EPISODES = 550
+TEST_NUM_EPISODES = 1  # testing
 TEST_STEPS_PER_EPISODE = 10
 # common
 EPSILON_MIN = 0.05
@@ -140,14 +140,19 @@ def train():
                 episode, total_reward, best_reward, agents[0].epsilon)
             )
             # mue spectral eff
-            mue_spectral_eff_bag.append(env.mue_spectral_eff)
+            mue_spectral_eff_bag.append(
+                (env.mue_spectral_eff, env.params.n_d2d)
+            )
             # average d2d spectral eff
-            d2d_spectral_eff_bag.append(env.d2d_spectral_eff/env.params.n_d2d)
+            d2d_spectral_eff_bag.append(
+                (env.d2d_spectral_eff/env.params.n_d2d, env.params.n_d2d)
+            )
         epsilon = agents[0].epsilon
     # Return the trained policy
     mue_spectral_effs = mue_spectral_eff_bag
     d2d_spectral_effs = d2d_spectral_eff_bag
     spectral_effs = zip(mue_spectral_effs, d2d_spectral_effs)
+    avg_q_values = framework.bag
     # saving the data and the model
     cwd = os.getcwd()
     filename = gen.path_leaf(__file__)
@@ -157,6 +162,11 @@ def train():
     torch.save(framework.policy_net.state_dict(),
                f'{cwd}/models/dql/{filename_model}.pt')
     torch.save(spectral_effs, filename)
+    with open(
+        f'{cwd}/data/dql/{filename_model}_avg_q_values.pickle',
+        'wb'
+    ) as p_file:
+        pickle.dump(avg_q_values, p_file)
 
 
 def test():

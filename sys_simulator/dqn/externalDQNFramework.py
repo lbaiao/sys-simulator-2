@@ -55,7 +55,7 @@ class ExternalDQNFramework:
         state_action_values = \
             self.policy_net(state_batch).gather(1, action_batch.long())
         # metrics, q values average
-        self.bag.append(torch.mean(state_action_values))
+        self.bag.append(torch.mean(state_action_values).item())
         next_state_values = torch.zeros(self.batchsize, device=self.device)
         next_state_values = \
             self.target_net(next_state_batch).max(1)[0].detach().unsqueeze(1)

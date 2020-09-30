@@ -141,11 +141,11 @@ def train():
             )
             # mue spectral eff
             mue_spectral_eff_bag.append(
-                (env.mue_spectral_eff, env.params.n_d2d)
+                (env.mue_spectral_eff, n_agents)
             )
             # average d2d spectral eff
             d2d_spectral_eff_bag.append(
-                (env.d2d_spectral_eff/env.params.n_d2d, env.params.n_d2d)
+                (env.d2d_spectral_eff/n_agents, n_agents)
             )
         epsilon = agents[0].epsilon
     # Return the trained policy

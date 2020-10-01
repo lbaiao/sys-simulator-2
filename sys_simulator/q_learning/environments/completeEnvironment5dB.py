@@ -123,6 +123,9 @@ class CompleteEnvironment5dB(RLEnvironment):
         for i in range(len(agents)):
             agents[i].set_d2d_tx_id(self.d2d_pairs[i][0].id)
             agents[i].set_d2d_tx(self.d2d_pairs[i][0])
+        # set diff
+        diff = self.n_closest_devices - len(self.d2d_pairs) + 1
+        self.diff = 0 if diff < 0 else diff
 
     def get_state(self, agent: ExternalDQNAgent):
         # calculates all pathlosses
@@ -156,8 +159,10 @@ class CompleteEnvironment5dB(RLEnvironment):
             close_devs_powers += d.past_actions[:self.memory].tolist()
             close_devs_sinrs += d.past_sinrs[:self.memory].tolist()
         device_contrib = d2d_tx.past_actions[0] - d2d_tx.past_bs_losses[0]
+        # + d2d_tx.gain + self.bs.gain
         bs_interference = self.mue.past_actions[0] \
             - self.mue.past_bs_losses[0] - self.mue.past_sinrs[0]
+        # + self.mue.gain + self.bs.gain
         device_contrib_pct = db_to_power(device_contrib - bs_interference)
         d2d_tx.set_interference_contrib_pct(device_contrib_pct)
         recent_d2d_pathloss = d2d_tx.pathloss_d2d

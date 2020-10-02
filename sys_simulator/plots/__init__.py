@@ -162,8 +162,9 @@ def plot_positions_actions_pie(
     ax2.pie(values, labels=labels, autopct='%1.1f%%',
             shadow=True, startangle=90)
     ax2.set_title(
-        f'MUE SINR: {mue.sinr:.2f} dBW | min SINR: {mue_sinr_threshold:.2f} dBW \
-        reward: {reward:.4f}'
+        f'MUE SINR: {float(mue.sinr):.2f} dB | ' +
+        f'min SINR: {float(mue_sinr_threshold):.2f} dB '
+        f'reward: {float(reward):.4f}'
     )
     # Equal aspect ratio ensures that pie is drawn as a circle.
     ax2.set_aspect('equal')

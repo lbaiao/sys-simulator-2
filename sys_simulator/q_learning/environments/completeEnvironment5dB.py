@@ -75,6 +75,8 @@ class CompleteEnvironment5dB(RLEnvironment):
         # set diff
         diff = self.n_closest_devices - len(self.d2d_pairs) + 1
         self.diff = 0 if diff < 0 else diff
+        # reset sets
+        self.reset_sets()
 
     def set_scenario(self, pairs_positions: List[Tuple],
                      mue_position: Tuple, agents: List[ExternalDQNAgent]):
@@ -92,7 +94,7 @@ class CompleteEnvironment5dB(RLEnvironment):
         self.mue.set_rb(self.rb)
         self.mue.set_tx_power(self.params.p_max)
         self.mue.set_distance_to_bs(euclidean(mue_position, self.bs.position))
-        # d2d_pairs
+        # instantiate d2d_pairs
         self.d2d_pairs = [(d2d_user(x, d2d_node_type.TX, self.params.p_max),
                            d2d_user(x, d2d_node_type.RX, self.params.p_max))
                           for x in range(len(agents))]
@@ -105,11 +107,15 @@ class CompleteEnvironment5dB(RLEnvironment):
                 'Node distance to BS is greater than the BS radius.'
             )
         for pair, position in zip(self.d2d_pairs, pairs_positions):
+            # check if node is inside the BS radius
             if euclidean(position, self.bs.position) <= self.params.bs_radius:
+                # set tx position
                 pair[0].set_position(position)
+                # distribute rx around tx, in a fixed distance
                 gen.distribute_rx_fixed_distance(
                     pair, self.bs, self.params.d2d_pair_distance
                 )
+                # set tx distances
                 for d in pair:
                     d.set_distance_d2d(self.params.d2d_pair_distance)
                     d.set_distance_to_bs(euclidean(d.position,
@@ -121,11 +127,15 @@ class CompleteEnvironment5dB(RLEnvironment):
                     'Node distance to BS is greater than the BS radius.'
                 )
         for i in range(len(agents)):
+            # register d2d device to a RL agent
             agents[i].set_d2d_tx_id(self.d2d_pairs[i][0].id)
             agents[i].set_d2d_tx(self.d2d_pairs[i][0])
-        # set diff
+        # set diff: the amount of devices must be >= than
+        # `self.n_closest_devices` in order to build the environment states
         diff = self.n_closest_devices - len(self.d2d_pairs) + 1
         self.diff = 0 if diff < 0 else diff
+        # reset sets
+        self.reset_sets()
 
     def get_state(self, agent: ExternalDQNAgent):
         # calculates all pathlosses
@@ -170,36 +180,33 @@ class CompleteEnvironment5dB(RLEnvironment):
         number_of_d2d_pairs = len(self.d2d_pairs)
         interference_indicator = sinr > self.params.sinr_threshold
         # normalization
-        # d2d_tx_distance_to_bs /= self.params.bs_radius
-        # d2d_rx_distance_to_mue /= 2*self.params.bs_radius
-        # mue_distance_to_bs /= self.params.bs_radius
         device_sinrs = [gen.ceil(i, 30) for i in device_sinrs]
         close_devs_sinrs = [gen.ceil(i, 30) for i in close_devs_sinrs]
         # state
         state = [
-            number_of_d2d_pairs,
-            d2d_tx.position[0],
-            d2d_tx.position[1],
-            self.mue.position[0],
-            self.mue.position[1],
-            agent.action,
-            self.mue.tx_power,
+            number_of_d2d_pairs / 10,
+            d2d_tx.position[0] / self.bs.radius,
+            d2d_tx.position[1] / self.bs.radius,
+            self.mue.position[0] / self.bs.radius,
+            self.mue.position[1] / self.bs.radius,
+            agent.action / 30,
+            self.mue.tx_power / 30,
             int(interference_indicator),
             int(not interference_indicator),
         ]
-        state += close_devices_x
-        state += close_devices_y
-        state += last_mue_powers
-        state += mue_sinrs
-        state += device_sinrs
-        state += device_powers
-        state.append(d2d_pathloss)
-        state += close_devs_powers
-        state += close_devs_sinrs
-        state.append(device_contrib)
-        state.append(device_contrib_pct)
-        state.append(recent_d2d_pathloss)
-        state.append(recent_bs_pathloss)
+        state += (np.array(close_devices_x) / self.bs.radius).tolist()
+        state += (np.array(close_devices_y) / self.bs.radius).tolist()
+        state += (np.array(last_mue_powers) / 30).tolist()
+        state += (np.array(mue_sinrs) / 30).tolist()
+        state += (np.array(device_sinrs) / 30).tolist()
+        state += (np.array(device_powers) / 30).tolist()
+        state.append(d2d_pathloss / 30)
+        state += (np.array(close_devs_powers) / 30).tolist()
+        state += (np.array(close_devs_sinrs) / 30).tolist()
+        state.append(device_contrib / 30)
+        state.append(device_contrib_pct / 30)
+        state.append(recent_d2d_pathloss / 30)
+        state.append(recent_bs_pathloss / 30)
         state = torch.tensor([state]).to(self.device)
         # end
         self.reset_sets()

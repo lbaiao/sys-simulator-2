@@ -60,9 +60,12 @@ HIDDEN_SIZE = 64
 NUM_HIDDEN_LAYERS = 5
 max_d2d = MAX_NUMBER_OF_AGENTS
 # more parameters
-actions = power_to_db(np.linspace(
-    db_to_power(p_max-20), db_to_power(p_max-10), 10
-))
+# linear discretization
+# actions = power_to_db(np.linspace(
+#     db_to_power(p_max-20), db_to_power(p_max-10), 10
+# ))
+# db discretization
+actions = np.linspace(p_max-20, p_max-10, 10)
 actions[0] = -1000
 env_params = EnvironmentParameters(
     rb_bandwidth, d2d_pair_distance, p_max, noise_power,

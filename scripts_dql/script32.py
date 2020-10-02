@@ -36,17 +36,17 @@ CHANNEL_RND = False
 # training
 STEPS_PER_EPISODE = 10
 # MAX_NUM_EPISODES = 110      # fast training
-MAX_NUM_EPISODES = 550 * 10      # fast training
+MAX_NUM_EPISODES = 550 * 5      # fast training
 # MAX_NUM_EPISODES = 10      # debugging
 # testing
 # TEST_NUM_EPISODES = 110
-TEST_NUM_EPISODES = 550 * 10
+TEST_NUM_EPISODES = 550 * 5
 # TEST_NUM_EPISODES = 1  # testing
 TEST_STEPS_PER_EPISODE = 10
 # common
 EPSILON_MIN = 0.05
 # EPSILON_DECAY = 1e-3    # fast training
-EPSILON_DECAY = .2e-3 / 7    # fast training
+EPSILON_DECAY = .2e-3 / 4    # fast training
 # EPSILON_DECAY = .4167*1e-3    # long training
 # EPSILON_DECAY = .04167*1e-3    # super long training
 # GAMMA = 0.98  # Discount factor

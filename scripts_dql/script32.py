@@ -47,7 +47,7 @@ TEST_STEPS_PER_EPISODE = 10
 # common
 EPSILON_MIN = 0.05
 # EPSILON_DECAY = 1e-3    # fast training
-EPSILON_DECAY = .2e-3 / (.75 * NUMBER * 4)    # fast training
+EPSILON_DECAY = .2e-3 / (.75 * NUMBER * 2)    # fast training
 # EPSILON_DECAY = .4167*1e-3    # long training
 # EPSILON_DECAY = .04167*1e-3    # super long training
 # GAMMA = 0.98  # Discount factor

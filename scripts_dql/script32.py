@@ -66,7 +66,7 @@ max_d2d = MAX_NUMBER_OF_AGENTS
 #     db_to_power(p_max-20), db_to_power(p_max-10), 10
 # ))
 # db discretization
-actions = np.linspace(p_max-30, p_max-20, 10)
+actions = np.linspace(p_max-26, p_max-22, 10)
 actions[0] = -1000
 env_params = EnvironmentParameters(
     rb_bandwidth, d2d_pair_distance, p_max, noise_power,

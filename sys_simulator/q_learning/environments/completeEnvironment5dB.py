@@ -389,7 +389,7 @@ class CompleteEnvironment5dB(RLEnvironment):
                 beta = 100
                 alpha = .1
             elif pct >= .5 and pct < 1:
-                beta = 1000
+                beta = 500
                 alpha = .01
             else:
                 raise Exception('Invalid pct.')

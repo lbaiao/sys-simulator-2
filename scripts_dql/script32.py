@@ -34,8 +34,8 @@ noise_power = noise_power - 30
 CHANNEL_RND = False
 # q-learning parameters
 # training
-NUMBER = 2
-STEPS_PER_EPISODE = 10
+NUMBER = 1
+STEPS_PER_EPISODE = 5 * 4
 # MAX_NUM_EPISODES = 110      # fast training
 MAX_NUM_EPISODES = 550 * NUMBER      # fast training
 # MAX_NUM_EPISODES = 10      # debugging
@@ -47,7 +47,7 @@ TEST_STEPS_PER_EPISODE = 10
 # common
 EPSILON_MIN = 0.05
 # EPSILON_DECAY = 1e-3    # fast training
-EPSILON_DECAY = .2e-3 / (.75 * NUMBER)    # fast training
+EPSILON_DECAY = .2e-3 / (.75 * NUMBER * 4)    # fast training
 # EPSILON_DECAY = .4167*1e-3    # long training
 # EPSILON_DECAY = .04167*1e-3    # super long training
 # GAMMA = 0.98  # Discount factor
@@ -66,7 +66,7 @@ max_d2d = MAX_NUMBER_OF_AGENTS
 #     db_to_power(p_max-20), db_to_power(p_max-10), 10
 # ))
 # db discretization
-actions = np.linspace(p_max-30, p_max-10, 5)
+actions = np.linspace(p_max-30, p_max-10, 10)
 actions[0] = -1000
 env_params = EnvironmentParameters(
     rb_bandwidth, d2d_pair_distance, p_max, noise_power,

@@ -66,6 +66,6 @@ class ExternalDQNFramework:
             expected_state_action_values.float()
         )
         loss.backward()
-        # for param in self.policy_net.parameters():
-        #     param.grad.data.clamp_(-1, 1)
+        for param in self.policy_net.parameters():
+            param.grad.data.clamp_(-1, 1)
         self.optimizer.step()

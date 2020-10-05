@@ -21,7 +21,7 @@ n_rb = n_mues   # number of RBs
 bs_radius = 500  # bs radius in m
 rb_bandwidth = 180*1e3  # rb bandwidth in Hz
 d2d_pair_distance = 50  # d2d pair distance in m
-p_max = 23  # max tx power in dBm
+p_max = 40  # max tx power in dBm
 noise_power = -116  # noise power per RB in dBm
 bs_gain = 17    # macro bs antenna gain in dBi
 user_gain = 4   # user antenna gain in dBi
@@ -54,7 +54,7 @@ EPSILON_DECAY = .2e-3 / (.75 * NUMBER)    # fast training
 GAMMA = 0.9  # Discount factor
 C = 8  # C constant for the improved reward function
 TARGET_UPDATE = 10
-MAX_NUMBER_OF_AGENTS = 10
+MAX_NUMBER_OF_AGENTS = 4
 REPLAY_MEMORY_SIZE = 10000
 BATCH_SIZE = 256
 HIDDEN_SIZE = 64
@@ -66,7 +66,7 @@ max_d2d = MAX_NUMBER_OF_AGENTS
 #     db_to_power(p_max-20), db_to_power(p_max-10), 10
 # ))
 # db discretization
-actions = np.linspace(p_max-16.7, p_max-16.3, 10)
+actions = np.linspace(p_max-23, p_max-13, 10)
 actions[0] = -1000
 env_params = EnvironmentParameters(
     rb_bandwidth, d2d_pair_distance, p_max, noise_power,

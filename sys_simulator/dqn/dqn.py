@@ -199,20 +199,28 @@ class DQN(torch.nn.Module):
     """Script 32
     """
     def __init__(self, input_size, output_size,
-                 hidden_size, n_hidden_layers=5):
+                 hidden_size, n_hidden_layers=1):
         super(DQN, self).__init__()
         self.hidden_layers = ModuleList()
         for _ in range(n_hidden_layers):
             self.hidden_layers.append(Linear(hidden_size, hidden_size))
         self.fc1 = Linear(input_size, hidden_size)
-        self.fc2 = Linear(hidden_size, output_size)
+        self.fc2 = Linear(hidden_size, int(hidden_size/2))
+        self.fc3 = Linear(int(hidden_size/2), int(hidden_size/4))
+        self.fc4 = Linear(int(hidden_size/4), output_size)
 
     def forward(self, obs):
         x = self.fc1(obs)
         x = torch.tanh(x)
+        # x = torch.dropout(x, .2, True)
         for i in self.hidden_layers:
             x = i(x)
             x = torch.tanh(x)
         x = self.fc2(x)
-        output = F.softmax(x, dim=1)
+        x = torch.tanh(x)
+        x = self.fc3(x)
+        x = torch.tanh(x)
+        x = self.fc4(x)
+        # output = F.softmax(x, dim=1)
+        output = x
         return output

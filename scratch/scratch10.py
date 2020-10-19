@@ -1,9 +1,4 @@
-# Similar to scratch5, but everything is in dB
-# Simulations taking pictures of the users distributions and makes
-# pie graphs with the d2d interference contributions on the mue.
-# It uses script23 model. In this scratch, the user chooses the
-# nodes positions, and the D2D tx powers. There is no algorithm
-# deciding the power levels.
+# Same as scratch9, but for CompleteEnvironment7dB
 import torch
 from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
 from sys_simulator.general.general import db_to_power, power_to_db
@@ -11,8 +6,8 @@ from sys_simulator.q_learning.rewards import dis_reward_tensor_db
 from scipy.spatial.distance import euclidean
 from sys_simulator.channels import BANChannel
 from sys_simulator.plots import plot_positions_actions_pie
-from sys_simulator.q_learning.environments.completeEnvironment5dB \
-    import CompleteEnvironment5dB
+from sys_simulator.q_learning.environments.completeEnvironment7dB \
+    import CompleteEnvironment7dB
 from sys_simulator.parameters.parameters \
     import EnvironmentParameters, TrainingParameters, DQNAgentParameters
 from matplotlib import pyplot as plt
@@ -27,7 +22,7 @@ n_rb = n_mues   # number of RBs
 bs_radius = 500  # bs radius in m
 rb_bandwidth = 180*1e3  # rb bandwidth in Hz
 d2d_pair_distance = 50  # d2d pair distance in m
-p_max = 23  # max tx power in dBm
+p_max = 40  # max tx power in dBm
 noise_power = -116  # noise power per RB in dBm
 bs_gain = 17    # macro bs antenna gain in dBi
 user_gain = 4   # user antenna gain in dBi
@@ -46,7 +41,7 @@ MAX_NUM_EPISODES = int(1.2/EPSILON_DECAY)
 MAX_NUMBER_OF_AGENTS = 20
 ALPHA = 0.05  # Learning rate
 GAMMA = 0.98  # Discount factor
-C = 5  # C constant for the improved reward function
+C = 8  # C constant for the improved reward function
 TARGET_UPDATE = 10
 REPLAY_MEMORY_SIZE = 10000
 BATCH_SIZE = 128
@@ -66,21 +61,21 @@ agent_params = DQNAgentParameters(
 # actions, rewards, environment, agent
 reward_function = dis_reward_tensor_db
 channel = BANChannel(rnd=CHANNEL_RND)
-env = CompleteEnvironment5dB(env_params, reward_function, channel)
+env = CompleteEnvironment7dB(env_params, reward_function, channel)
 pairs_positions = [
-    (100, 0),
-    (-200, 0),
+    ((-400, 0), (-450, 0)),
+    ((100, 0), (150, 0))
 ]
 tx_powers_indexes = [
-    2, 4
+    9, 5
 ]
 tx_powers_indexes = torch.Tensor(tx_powers_indexes)
-mue_position = (250 / math.sqrt(2), 250 / math.sqrt(2))
+mue_position = (0, 200)
 n_agents = len(pairs_positions)
 episode_steps = STEPS_PER_EPISODE
 
 
-def calculate_interferences(env: CompleteEnvironment5dB):
+def calculate_interferences(env: CompleteEnvironment7dB):
     bs = env.bs
     mue = env.mue
     d2d_pairs = env.d2d_pairs
@@ -106,10 +101,11 @@ def run():
         raise Exception(
             'Different `pair_positions` and `tx_powers_indexes` lengths.'
         )
-    actions = power_to_db(np.linspace(
-        db_to_power(p_max-20), db_to_power(p_max-10), 10
-    ))
-    actions[0] = -1000
+    actions = power_to_db(
+        np.linspace(
+            1e-6, db_to_power(p_max-10), 10
+        )
+    )
     agents = [ExternalDQNAgent(agent_params, actions)
               for _ in range(n_agents)]  # 1 agent per d2d tx
     env.set_scenario(pairs_positions, mue_position, agents)
@@ -140,7 +136,7 @@ def run():
     plt.show()
 
 
-def print_stuff(actions, env: CompleteEnvironment5dB):
+def print_stuff(actions, env: CompleteEnvironment7dB):
     actions = [f'{i:.2f}' for i in actions]
     sinr_d2ds = [f'{d[0].sinr:.2f}' for d in env.d2d_pairs]
     print(f'MUE Tx Power [dBW]: {env.mue.tx_power:.2f}')

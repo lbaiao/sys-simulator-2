@@ -159,7 +159,7 @@ class CompleteEnvironment7dB(RLEnvironment):
         close_devices_x = [d[0].position[0] for d in close_pairs]
         close_devices_y = [d[0].position[1] for d in close_pairs]
         # last_mue_powers = self.mue.past_actions[:self.memory].tolist()
-        mue_sinrs = self.mue.past_sinrs[:self.memory].tolist()
+        # mue_sinrs = self.mue.past_sinrs[:self.memory].tolist()
         device_sinrs = d2d_tx.past_sinrs[:self.memory]
         device_powers = d2d_tx.past_actions[:self.memory].tolist()
         # d2d_pathloss = d2d_tx.pathloss_d2d
@@ -216,7 +216,7 @@ class CompleteEnvironment7dB(RLEnvironment):
         state += (np.array(close_devices_x) / self.bs.radius).tolist()
         state += (np.array(close_devices_y) / self.bs.radius).tolist()
         # state += (np.array(last_mue_powers) / 30).tolist()
-        state += (np.array(mue_sinrs) / 30).tolist()
+        # state += (np.array(mue_sinrs) / 30).tolist()
         state += mue_speffs.tolist()
         # state += mue_inverse_link_prices
         state += (np.clip(device_sinrs, -30, 30) / 30).tolist()
@@ -224,7 +224,7 @@ class CompleteEnvironment7dB(RLEnvironment):
         state += (np.clip(close_interferences, -30, 30) / 30).tolist()
         # state.append(d2d_pathloss / 30)
         state += (np.clip(close_devs_powers, -30, 30) / 30).tolist()
-        state += (np.clip(close_devs_sinrs, -30, 30) / 30).tolist()
+        # state += (np.clip(close_devs_sinrs, -30, 30) / 30).tolist()
         # state += close_inverse_link_prices
         state += close_speffs
         state += (np.clip(caused_interferences, -30, 30) / 30).tolist()

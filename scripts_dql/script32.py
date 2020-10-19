@@ -34,7 +34,7 @@ noise_power = noise_power - 30
 CHANNEL_RND = False
 # q-learning parameters
 # training
-NUMBER = 1
+NUMBER = 2
 STEPS_PER_EPISODE = 5 * 4
 # MAX_NUM_EPISODES = 110      # fast training
 MAX_NUM_EPISODES = 550 * NUMBER      # fast training

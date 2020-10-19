@@ -120,15 +120,15 @@ class ExternalDQNAgent(Agent):
             self.epsilon -= self.epsilon_decay
         if np.random.random() > self.epsilon:
             # aux = torch.tensor([obs[0]], device=self.device)
-            self.action_index = policy.policy_net(obs).max(1)[1][0]
+            self.action_index = policy.policy_net(obs).max(1)[1].item()
             self.action = self.actions[self.action_index]
         else:
             self.action_index = torch.tensor(
                 np.random.choice([i for i in range(len(self.actions))])
-            ).cpu()
-            self.action_index = torch.tensor(
-                self.action_index, device=self.device
-            )
+            ).item()
+            # self.action_index = torch.tensor(
+            #     self.action_index, device=self.device
+            # )
             self.action = self.actions[self.action_index]
         return self.action
 
@@ -136,7 +136,7 @@ class ExternalDQNAgent(Agent):
         return framework.policy_net(obs)
 
     def set_action(self, action_index: torch.Tensor, action: torch.Tensor):
-        self.action_index = action_index.long()
+        self.action_index = action_index
         self.action = action
 
     def set_epsilon(self, epsilon):
@@ -144,3 +144,37 @@ class ExternalDQNAgent(Agent):
 
     def set_d2d_tx(self, d2d_tx: d2d_user):
         self.d2d_tx = d2d_tx
+
+
+class CentralDQNAgent(Agent):
+    """
+    don't forget to set the agent actions with the set_actions method
+    Same as DQNAgent, but the agent does not have its own DQN.
+    """
+    def __init__(self, params: DQNAgentParameters, actions, n_agents):
+        super(CentralDQNAgent, self).__init__(params, actions)
+        self.device = torch.device("cuda")
+        self.action_index = 0
+        self.n_agents = n_agents
+        self.actions_range = range(len(actions) ** n_agents)
+
+    def get_action(self, policy: ExternalDQNFramework, obs):
+        if self.epsilon > self.epsilon_min:
+            self.epsilon -= self.epsilon_decay
+        if np.random.random() > self.epsilon:
+            # aux = torch.tensor([obs[0]], device=self.device)
+            self.action_index = policy.policy_net(obs).max(1)[1]
+        else:
+            self.action_index = torch.tensor(
+                np.random.choice(list(self.actions_range))
+            ).cpu()
+            self.action_index = torch.tensor(
+                self.action_index, device=self.device
+            )
+        return self.action_index
+
+    def act(self, framework: ExternalDQNFramework, obs: torch.Tensor):
+        return framework.policy_net(obs).max(1)[1].item()
+
+    def set_epsilon(self, epsilon):
+        self.epsilon = epsilon

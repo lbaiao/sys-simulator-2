@@ -1,9 +1,10 @@
-# Same as script 31, but everything is in dB.
-from sys_simulator.general.general import power_to_db, db_to_power
-from sys_simulator.channels import BANChannel
+# Similar to script32.py, but the channel to the devices and
+# the channel to the BS are different.
+from sys_simulator.general.general import db_to_power, power_to_db
+from sys_simulator.channels import BANChannel, UrbanMacroLOSWinnerChannel
 from sys_simulator.general import general as gen
-from sys_simulator.q_learning.environments.completeEnvironment7dB \
-    import CompleteEnvironment7dB
+from sys_simulator.q_learning.environments.completeEnvironment5dB \
+    import CompleteEnvironment5dB
 from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
 from sys_simulator.dqn.externalDQNFramework import ExternalDQNFramework
 from sys_simulator.parameters.parameters import \
@@ -34,8 +35,8 @@ noise_power = noise_power - 30
 CHANNEL_RND = False
 # q-learning parameters
 # training
-NUMBER = 1
-STEPS_PER_EPISODE = 5 * 4
+NUMBER = 2
+STEPS_PER_EPISODE = 10
 # MAX_NUM_EPISODES = 110      # fast training
 MAX_NUM_EPISODES = 550 * NUMBER      # fast training
 # MAX_NUM_EPISODES = 10      # debugging
@@ -45,23 +46,20 @@ TEST_NUM_EPISODES = 550 * NUMBER
 # TEST_NUM_EPISODES = 1  # testing
 TEST_STEPS_PER_EPISODE = 10
 # common
-EPSILON_INITIAL = 1
 EPSILON_MIN = 0.05
 # EPSILON_DECAY = 1e-3    # fast training
-EPSILON_DECAY = .2e-3 / (.75 * NUMBER * 2)    # fast training
+EPSILON_DECAY = .2e-3 / (.75 * NUMBER)    # fast training
 # EPSILON_DECAY = .4167*1e-3    # long training
 # EPSILON_DECAY = .04167*1e-3    # super long training
-# GAMMA = 0.98  # Discount factor
-GAMMA = 0.5  # Discount factor
+GAMMA = 0.98  # Discount factor
+# GAMMA = 0.9  # Discount factor
 C = 8  # C constant for the improved reward function
 TARGET_UPDATE = 10
 MAX_NUMBER_OF_AGENTS = 4
-REPLAY_MEMORY_SIZE = 10000
-BATCH_SIZE = 128
-HIDDEN_SIZE = 256
-NUM_HIDDEN_LAYERS = 2
-LEARNING_RATE = 1e-2
-NUM_ACTIONS = 10
+REPLAY_MEMORY_SIZE = 5000
+BATCH_SIZE = 256
+HIDDEN_SIZE = 32
+NUM_HIDDEN_LAYERS = 10
 max_d2d = MAX_NUMBER_OF_AGENTS
 # more parameters
 # linear discretization
@@ -69,11 +67,8 @@ max_d2d = MAX_NUMBER_OF_AGENTS
 #     db_to_power(p_max-20), db_to_power(p_max-10), 10
 # ))
 # db discretization
-actions = power_to_db(
-    np.linspace(
-        1e-6, db_to_power(p_max-10), NUM_ACTIONS
-    )
-)
+actions = np.linspace(p_max-26, p_max-22, 10)
+actions[0] = -1000
 env_params = EnvironmentParameters(
     rb_bandwidth, d2d_pair_distance, p_max, noise_power,
     bs_gain, user_gain, sinr_threshold_train,
@@ -81,16 +76,16 @@ env_params = EnvironmentParameters(
 )
 params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
 agent_params = DQNAgentParameters(
-    EPSILON_MIN, EPSILON_DECAY, EPSILON_INITIAL, REPLAY_MEMORY_SIZE,
+    EPSILON_MIN, EPSILON_DECAY, 1, REPLAY_MEMORY_SIZE,
     BATCH_SIZE, GAMMA
 )
 reward_function = dis_reward_tensor_db
-channel = BANChannel(rnd=CHANNEL_RND)
-env = CompleteEnvironment7dB(env_params, reward_function, channel, memory=2)
-foo_agents = [ExternalDQNAgent(agent_params, [1]) for a in range(4)]
-env.build_scenario(foo_agents)
-_, _ = env.step(foo_agents)
-env_state_size = env.get_state_size(foo_agents[0])
+device_channel = BANChannel(rnd=CHANNEL_RND)
+bs_channel = UrbanMacroLOSWinnerChannel()
+env = CompleteEnvironment5dB(env_params, reward_function, channel)
+foo_agent = ExternalDQNAgent(agent_params, [1])
+env.build_scenario([foo_agent])
+env_state_size = env.get_state_size(foo_agent)
 framework = ExternalDQNFramework(
     agent_params,
     env_state_size,
@@ -115,7 +110,7 @@ def train():
         for a in agents:
             a.set_epsilon(epsilon)
         env.build_scenario(agents)
-        obs, _ = env.step(agents)
+        obs = [env.get_state(a).float() for a in agents]
         total_reward = 0.0
         i = 0
         bag = list()
@@ -191,13 +186,13 @@ def test():
     done = False
     bag = list()
     aux_range = range(max_d2d+1)[1:]
-    for episode in range(TEST_NUM_EPISODES):
+    for _ in range(TEST_NUM_EPISODES):
         n_agents = np.random.choice(aux_range)
         agents = [ExternalDQNAgent(agent_params, actions)
                   for i in range(n_agents)]  # 1 agent per d2d tx
         env.build_scenario(agents)
         done = False
-        obs, _ = env.step(agents)
+        obs = [env.get_state(a) for a in agents]
         total_reward = 0.0
         i = 0
         while not done:
@@ -214,7 +209,6 @@ def test():
                 break
         mue_spectral_effs[n_agents].append(env.mue_spectral_eff.item())
         d2d_spectral_effs[n_agents].append(env.d2d_spectral_eff.item())
-        print("Episode#:{} sum reward:{}".format(episode, total_reward))
         # jain_index[n_agents].append(gen.jain_index(env.sinr_d2ds))
     mue_success_rate = list()
     for i, m in enumerate(mue_spectral_effs):

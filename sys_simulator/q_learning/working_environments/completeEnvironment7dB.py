@@ -206,7 +206,7 @@ class CompleteEnvironment7dB(RLEnvironment):
             d2d_tx.position[1] / self.bs.radius,
             # self.mue.position[0] / self.bs.radius,
             # self.mue.position[1] / self.bs.radius,
-            np.clip(agent.action, -30, 30) / 30,
+            # np.clip(agent.action, -30, 30) / 30,
             # inverse_link_price,
             # self.mue.tx_power / 30,
             int(interference_indicator),

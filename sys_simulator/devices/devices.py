@@ -1,6 +1,11 @@
 from enum import Enum
+from typing import List, Tuple
 from sys_simulator.pathloss import pathloss_bs_users
 import numpy as np
+
+
+def db_to_power(x):
+    return 10**(x/10)
 
 
 class node:
@@ -9,14 +14,21 @@ class node:
     position: x,y tuple representing the BS position coordinates
     radius: BS coverage radius in meters
     """
-    def __init__(self, max_power=-7, memory_size=2, **kargs):
-        self.tx_power = -1000
-        self.sinr = -1000
-        self.pathloss_to_bs = 1000
-        self.past_actions = -1000 * np.ones(memory_size)
-        self.past_sinrs = -1000 * np.ones(memory_size)
-        self.past_bs_losses = 1000 * np.ones(memory_size)
-        self.past_d2d_losses = 1000 * np.ones(memory_size)
+    def __init__(
+        self,
+        max_power=-7,
+        memory_size=2,
+        beta=.8,
+        **kargs
+    ):
+        self.tx_power = -100
+        self.sinr = -100
+        self.pathloss_to_bs = 100
+        self.beta = beta
+        self.past_actions = -100 * np.ones(memory_size)
+        self.past_sinrs = -100 * np.ones(memory_size)
+        self.past_bs_losses = 100 * np.ones(memory_size)
+        self.past_d2d_losses = 100 * np.ones(memory_size)
         self.interference_contrib_pct = 0
         self.past_interference_contrib_pct = 0
         self.max_power = max_power
@@ -26,6 +38,14 @@ class node:
         self.sinr_is_set = False
         self.pathloss_d2d_is_set = False
         self.past_interference_contrib_pct_is_set = False
+        self.speffs = 1e-4 * np.ones(memory_size)
+        self.speff_is_set = False
+        self.avg_speffs = 1e-4 * np.ones(memory_size)
+        self.avg_speffs_is_set = False
+        self.link_prices = 1e-4 * np.ones(memory_size)
+        self.link_price_is_set = False
+        self.interferences = []
+        self.interference_is_set = False
 
     def set_position(self, position):
         self.position = position
@@ -39,10 +59,10 @@ class node:
                 'Trying to set the pathloss to BS more \
                 than once in the same timestep.'
             )
+        self.pathloss_to_bs = pathloss
         aux = np.roll(self.past_bs_losses, 1)
         aux[0] = self.pathloss_to_bs
         self.past_bs_losses = aux
-        self.pathloss_to_bs = pathloss
         self.pathloss_is_set = True
 
     def set_tx_power(self, tx_power):
@@ -50,13 +70,11 @@ class node:
             raise Exception(
                 'Trying to set TX power more than once in the same timestep.'
             )
+        self.tx_power = \
+            tx_power if tx_power < self.max_power else self.max_power
         aux = np.roll(self.past_actions, 1)
         aux[0] = self.tx_power
         self.past_actions = aux
-        if tx_power > self.max_power:
-            self.tx_power = self.max_power
-        else:
-            self.tx_power = tx_power
         self.power_is_set = True
 
     def set_rb(self, rb):
@@ -67,10 +85,10 @@ class node:
             raise Exception(
                 'Trying to set sinr more than once in the same timestep.'
             )
+        self.sinr = sinr
         aux = np.roll(self.past_sinrs, 1)
         aux[0] = self.sinr
         self.past_sinrs = aux
-        self.sinr = sinr
         self.sinr_is_set = True
 
     def set_gain(self, gain: float):
@@ -82,6 +100,10 @@ class node:
         self.sinr_is_set = False
         self.pathloss_d2d_is_set = False
         self.past_interference_contrib_pct_is_set = False
+        self.avg_speffs_is_set = False
+        self.link_price_is_set = False
+        self.speff_is_set = False
+        self.interference_is_set = False
 
     def set_interference_contrib_pct(self, contrib: float):
         if self.past_interference_contrib_pct_is_set:
@@ -92,6 +114,81 @@ class node:
         self.past_interference_contrib_pct = self.interference_contrib_pct
         self.interference_contrib_pct = contrib
         self.past_interference_contrib_pct_is_set = True
+
+    def calculate_avg_speff(self):
+        speff = np.log2(1 + db_to_power(self.sinr))
+        avg_speff = \
+            self.beta * speff + (1 - self.beta) * self.avg_speffs[0]
+        return avg_speff
+
+    def set_avg_speff(self, avg_speff: float):
+        if self.avg_speffs_is_set:
+            raise Exception(
+                'Trying to set the average spectral efficiency more \
+                than once in the same timestep.'
+            )
+        aux = np.roll(self.avg_speffs, 1)
+        aux[0] = avg_speff
+        self.avg_speffs = aux
+        self.avg_speffs_is_set = True
+
+    def calc_set_avg_speff_set_link_price(self):
+        avg_speff = self.calculate_avg_speff()
+        self.set_avg_speff(avg_speff)
+        self.set_link_price(1 / avg_speff)
+
+    def set_link_price(self, link_price: float):
+        if self.link_price_is_set:
+            raise Exception(
+                'Trying to set the link price more \
+                than once in the same timestep.'
+            )
+        aux = np.roll(self.link_prices, 1)
+        aux[0] = link_price
+        self.link_prices = aux
+        self.link_price_is_set = True
+
+    def calculate_speff(self) -> float:
+        speff = np.log2(1 + db_to_power(self.sinr))
+        return speff
+
+    def set_speff(self, speff: float):
+        if self.speff_is_set:
+            raise Exception(
+                'Trying to set the spectral efficiency more \
+                than once in the same timestep.'
+            )
+        aux = np.roll(self.speffs, 1)
+        aux[0] = speff
+        self.speffs = aux
+        self.speff_is_set = True
+
+    def calc_set_speff(self):
+        speff = self.calculate_speff()
+        self.set_speff(speff)
+
+    def set_interferences(self, interferences: List[Tuple]):
+        if self.interference_is_set:
+            raise Exception(
+                'Trying to set interferences more \
+                than once in the same timestep.'
+            )
+        self.interferences = interferences
+        self.interference_is_set = True
+
+    def calc_received_interference(self):
+        _, interferences = [i for i in zip(*self.interferences)]
+        total_interference = np.sum(interferences)
+        total_interference_db = 10 * np.log10(total_interference)
+        return total_interference_db
+
+    def get_received_interference(self, interferer_id: str):
+        index = [
+            i for i in range(len(self.interferences))
+            if self.interferences[i][0] == interferer_id
+        ][0]
+        interference = self.interferences[index][1]
+        return interference
 
 
 class base_station(node):
@@ -166,6 +263,7 @@ class d2d_user(node):
         self.type = d2d_type
         self.id: str = f'DUE.{self.type.value}:{id}'
         self.pathloss_d2d = -1000
+        self.is_dummy = False
 
     def set_distance_d2d(self, distance):
         self.distance_d2d = distance
@@ -176,10 +274,10 @@ class d2d_user(node):
                 'Trying to set pathloss to D2D more than \
                  once in the same timestep.'
             )
+        self.pathloss_d2d = pathloss
         aux = np.roll(self.past_d2d_losses, 1)
         aux[0] = self.pathloss_d2d
         self.past_d2d_losses = aux
-        self.pathloss_d2d = pathloss
 
     def set_id_pair(self, id):
         self.id = id

@@ -7,7 +7,7 @@ import torch
 class ExternalDQNFramework:
     def __init__(self, params: DQNAgentParameters,
                  input_size: int, output_size: int, hidden_size: int,
-                 n_hidden_layers=5):
+                 n_hidden_layers=5, learning_rate=.5):
         self.replay_memory = ReplayMemory(params.replay_memory_size)
         self.device = torch.device("cuda")
         self.policy_net = DQN(
@@ -18,8 +18,11 @@ class ExternalDQNFramework:
         ).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        self.optimizer = torch.optim.RMSprop(
-            self.policy_net.parameters(), lr=0.01
+        # self.optimizer = torch.optim.RMSprop(
+        #     self.policy_net.parameters(), lr=learning_rate
+        # )
+        self.optimizer = torch.optim.SGD(
+            self.policy_net.parameters(), lr=learning_rate
         )
         self.criterion = torch.nn.MSELoss()
         self.batchsize = params.batchsize

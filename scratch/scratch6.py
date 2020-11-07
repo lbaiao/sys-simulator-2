@@ -14,9 +14,8 @@ bs_pathloss = pathloss_bs_users(distances/1000)
 bs_pathloss = 10 * np.log10(bs_pathloss)
 office_pathloss = ban_office.step(distances)
 ferry_pathloss = ban_ferry.step(distances)
-winner_pathloss = [UrbanMacroLOSWinnerChannel(
-    d, 15, 1.5, 2.4
-) for d in distances]
+winner = UrbanMacroLOSWinnerChannel(False, 25, 1.5, 2.4)
+winner_pathloss = [winner.step(d) for d in distances]
 # plots
 plt.figure()
 plt.plot(distances, user_pathloss, label='to user')

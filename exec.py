@@ -1,6 +1,5 @@
-from scripts_dql.script32 import train, test
+from scripts_dql.script40 import run
 
 
 # run training and tests
-train()
-test()
+run()

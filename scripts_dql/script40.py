@@ -2,6 +2,7 @@
 # Simulates many times, for different number of agents, and take the averages.
 # There are different channels to the BS and to the devices.
 # Single episode convergence. Everything is in dB. One NN for each agent.
+from time import time
 from sys_simulator.general.general import db_to_power, power_to_db
 from sys_simulator.channels import BANChannel, UrbanMacroLOSWinnerChannel
 from sys_simulator.general import general as gen
@@ -266,17 +267,23 @@ def test(n_agents, test_env, frameworks, pairs_positions, mue_position):
     return mue_success_rate, mue_spectral_effs, d2d_spectral_effs, rewards
 
 
-if __name__ == '__main__':
+def run():
     mue_sucess_rate_total = []
     mue_spectral_effs_total = []
     d2d_spectral_effs_total = []
     rewards_total = []
+    start = time()
     for n in range(1, MAX_NUMBER_OF_AGENTS+1, 1):
         mue_suc_rates = []
         mue_speff_rates = []
         d2d_speff_rates = []
         rews = []
         for it in range(ITERATIONS_PER_NUM_AGENTS):
+            now = (time() - start) / 60
+            print(
+                f'Number of agents: {n}/{MAX_NUMBER_OF_AGENTS}. ' +
+                f'Iteration{it}. Elapsed time: {now} minutes.'
+            )
             test_env = deepcopy(ref_env)
             training_env = deepcopy(ref_env)
             frameworks = train(n, training_env)
@@ -305,3 +312,9 @@ if __name__ == '__main__':
     }
     with open(data_path, 'wb') as file:
         pickle.dump(data, file)
+    now = (time() - start) / 60
+    print(f'done. Elapsed time: {now} minutes.')
+
+
+if __name__ == '__main__':
+    run()

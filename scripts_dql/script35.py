@@ -38,7 +38,7 @@ CHANNEL_RND = False
 # q-learning parameters
 # training
 NUMBER = 1
-STEPS_PER_EPISODE = 1000
+STEPS_PER_EPISODE = 4000
 TEST_STEPS_PER_EPISODE = 50
 # common
 EPSILON_INITIAL = 1
@@ -88,9 +88,15 @@ env_state_size = env.get_state_size(foo_agents[0])
 #     (0, 150),
 #     (0, -250)
 # ]
+# pairs_positions = [
+#     ((-400, 0), (-450, 0)),
+#     ((100, 0), (150, 0))
+# ]
 pairs_positions = [
     ((-400, 0), (-450, 0)),
-    ((100, 0), (150, 0))
+    ((100, 0), (150, 0)),
+    ((225, 225), (275, 225)),
+    ((55, -55), (55, -5)),
 ]
 # mue_position = (250 / math.sqrt(2), 250 / math.sqrt(2))
 mue_position = (0, 200)
@@ -283,7 +289,7 @@ def test():
         plot_positions_actions_pie(
             env.bs, env.mue, d2d_txs, d2d_rxs,
             actions_index, percentage_interferences,
-            obs[0][0][2].item(), sinr_threshold_train,
+            env.mue.sinr > sinr_threshold_train, sinr_threshold_train,
             env.reward, interferences, tx_labels, rx_labels
         )
     print_stuff(actions, env)
@@ -295,7 +301,7 @@ def test():
     mue_success_rate = list()
     for i, m in enumerate(mue_spectral_effs):
         mue_success_rate.append(
-            np.average(m > np.log2(1 + sinr_threshold_train))
+            np.average(m > np.log2(1 + db_to_power(sinr_threshold_train)))
         )
     d2d_speffs_avg = list()
     for i, d in enumerate(d2d_spectral_effs):

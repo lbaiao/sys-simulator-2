@@ -136,7 +136,8 @@ class CompleteEnvironment10dB(RLEnvironment):
         self.rb = 1
         self.distances = [1/10*i*self.bs.radius for i in range(11)]
         # distributing nodes in the bs radius
-        if euclidean(mue_position, self.bs.position) <= self.params.bs_radius:
+        if euclidean(mue_position[:2], self.bs.position[:2]) \
+                <= self.params.bs_radius:
             self.mue.set_position(mue_position)
         else:
             raise Exception(
@@ -145,7 +146,7 @@ class CompleteEnvironment10dB(RLEnvironment):
         for pair, positions in zip(self.d2d_pairs, pairs_positions):
             # check if node is inside the BS radius
             if euclidean(
-                positions[0], self.bs.position
+                positions[0][:2], self.bs.position[:2]
             ) <= self.params.bs_radius and not pair[0].is_dummy:
                 # set tx position
                 pair[0].set_position(positions[0])

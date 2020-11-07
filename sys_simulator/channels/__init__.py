@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 from scipy.stats import nakagami
+from scipy import constants
 
 
 class Channel:
@@ -200,7 +201,7 @@ class UrbanMacroLOSWinnerChannel:
 
     def large_scale(self, d) -> float:
         if self.rnd:
-            c = scipy.constants.c
+            c = constants.c
             h_bs_eff = self.h_bs - 1
             h_ms_eff = self.h_ms - 1
             d_bp_eff = 4 * h_bs_eff * h_ms_eff * self.f_c / c

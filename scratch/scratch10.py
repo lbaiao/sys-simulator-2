@@ -13,8 +13,6 @@ from sys_simulator.parameters.parameters \
 from matplotlib import pyplot as plt
 import os
 import numpy as np
-import math
-
 
 n_mues = 1  # number of mues
 n_d2d = 2  # number of d2d pairs

@@ -1,4 +1,3 @@
-from typing import Tuple
 import numpy as np
 import scipy
 from scipy.stats import nakagami
@@ -67,7 +66,7 @@ class BANChannel(Channel):
         self.omega = omega_dict[env]
         self.rnd = rnd
 
-    def step(self, d: float) -> Tuple[float, float]:
+    def step(self, d: float) -> float:
         """Returns the BAN Channel loss.
 
         Parameters
@@ -81,71 +80,142 @@ class BANChannel(Channel):
             Body Area Network Channel loss, in dB.
 
         """
-        L0 = self.L0
-        n_pl = self.n_pl
-        d0 = self.d0
-        # pathloss
-        pathloss = L0 + 10*n_pl*np.log10(d/d0)
+        pathloss = self.pathloss(d)
         if self.rnd:
-            # large scale fading
-            large_scale_fading = np.random.lognormal(self.mu, self.sigma)
-            # small scale fading
-            nu = self.m / self.omega
-            small_scale_fading = nakagami.rvs(nu)
-            # total channel loss
+            large_scale_fading = self.large_scale()
+            small_scale_fading = self.small_scale()
             loss = pathloss + large_scale_fading + small_scale_fading
         else:
             loss = pathloss
         return loss
 
+    def pathloss(self, d: float) -> float:
+        L0 = self.L0
+        n_pl = self.n_pl
+        d0 = self.d0
+        # pathloss
+        pathloss = L0 + 10*n_pl*np.log10(d/d0)
+        return pathloss
 
-def UrbanMacroLOSWinnerChannel(
-    d: float, h_bs: float, h_ms: float, f_c: float
-) -> Tuple[float, float]:
-    """Returns the line-of-sight urban macro-cell channel
-    pathloss, according to the WINNER II Channel model.
+    def large_scale(self, *kargs) -> float:
+        # large scale fading
+        if self.rnd:
+            large_scale_fading = np.random.normal(self.mu, self.sigma)
+        else:
+            large_scale_fading = 0
+        return large_scale_fading
 
-    Parameters
-    -----------
-    d: float
-        Distance between TX and RX, in meters.
+    def small_scale(self, *kargs) -> float:
+        # small scale fading
+        if self.rnd:
+            nu = self.m / self.omega
+            small_scale_fading = nakagami.rvs(nu)
+        else:
+            small_scale_fading = 0
+        return small_scale_fading
 
-    h_bs: float
-        BS antenna height, in meters.
 
-    h_ms: float
-        User antenna height, in meters.
+class UrbanMacroLOSWinnerChannel:
+    def __init__(self, rnd=True, h_bs=25, h_ms=1.5, f_c=2.4):
+        self.rnd = rnd
+        self.h_bs = h_bs
+        self.h_ms = h_ms
+        self.f_c = f_c
 
-    f_c: float
-        Carrier frequency, in GHz.
+    def step(self, d: float) -> float:
+        """Returns the line-of-sight urban macro-cell channel
+        pathloss, according to the WINNER II Channel model.
 
-    Returns
-    -----------
-    loss: float
-        Channel loss, in dB.
+        Parameters
+        -----------
+        d: float
+            Distance between TX and RX, in meters.
 
-    loss_mag: float
-        Channel loss, in magnitude.
+        h_bs: float
+            BS antenna height, in meters.
 
-    Reference
-    -----------
-    WINNER II Channel model.
-    https://www.researchgate.net/publication/234055761_WINNER_II_channel_models
-    """
-    c = scipy.constants.c
-    h_bs_eff = h_bs - 1
-    h_ms_eff = h_ms - 1
-    d_bp_eff = 4 * h_bs_eff * h_ms_eff * f_c / c
-    if d > d_bp_eff and d < 5e3:
-        loss = 40 * np.log10(d) + 13.47 - \
-            14 * (np.log10(h_bs_eff) + np.log10(h_ms_eff)) + \
-            6 * np.log10(f_c/5)
-        return loss
-    elif d > 10 and d <= d_bp_eff:
-        a = 26
-        b = 39
-        c = 20
-        loss = a * np.log10(d) + b + c * np.log10(f_c/5)
-        return loss
-    else:
-        raise Exception('Invalid distance `d`.')
+        h_ms: float
+            User antenna height, in meters.
+
+        f_c: float
+            Carrier frequency, in GHz.
+
+        Returns
+        -----------
+        loss: float
+            Channel loss, in dB.
+
+        loss_mag: float
+            Channel loss, in magnitude.
+
+        Reference
+        -----------
+        WINNER II Channel model.
+        https://www.researchgate.net/publication/234055761_WINNER_II_channel_models
+        """
+        c = scipy.constants.c
+        h_bs_eff = self.h_bs - 1
+        h_ms_eff = self.h_ms - 1
+        d_bp_eff = 4 * h_bs_eff * h_ms_eff * self.f_c / c
+        if d > d_bp_eff and d < 5e3:
+            loss = 40 * np.log10(d) + 13.47 - \
+                14 * (np.log10(h_bs_eff) + np.log10(h_ms_eff)) + \
+                6 * np.log10(self.f_c/5)
+            sigma = 6
+            # sigma = 1.2
+            if self.rnd:
+                large_scale_fading = np.random.normal(0, sigma)
+                loss += large_scale_fading
+            return loss
+        elif d > 10 and d <= d_bp_eff:
+            a = 26
+            b = 39
+            c = 20
+            loss = a * np.log10(d) + b + c * np.log10(self.f_c/5)
+            sigma = 4
+            # sigma = 1.1
+            if self.rnd:
+                large_scale_fading = np.random.normal(0, sigma)
+                loss += large_scale_fading
+            return loss
+        else:
+            raise Exception('Invalid distance `d`.')
+
+    def pathloss(self, d: float) -> float:
+        c = scipy.constants.c
+        h_bs_eff = self.h_bs - 1
+        h_ms_eff = self.h_ms - 1
+        d_bp_eff = 4 * h_bs_eff * h_ms_eff * self.f_c / c
+        if d > d_bp_eff and d < 5e3:
+            loss = 40 * np.log10(d) + 13.47 - \
+                14 * (np.log10(h_bs_eff) + np.log10(h_ms_eff)) + \
+                6 * np.log10(self.f_c/5)
+            return loss
+        elif d > 10 and d <= d_bp_eff:
+            a = 26
+            b = 39
+            c = 20
+            loss = a * np.log10(d) + b + c * np.log10(self.f_c/5)
+            return loss
+
+    def large_scale(self, d) -> float:
+        if self.rnd:
+            c = scipy.constants.c
+            h_bs_eff = self.h_bs - 1
+            h_ms_eff = self.h_ms - 1
+            d_bp_eff = 4 * h_bs_eff * h_ms_eff * self.f_c / c
+            if d > d_bp_eff and d < 5e3:
+                sigma = 6
+                large_scale_fading = np.random.normal(0, sigma)
+                return large_scale_fading
+            elif d > 10 and d <= d_bp_eff:
+                sigma = 4
+                large_scale_fading = np.random.normal(0, sigma)
+                return large_scale_fading
+            else:
+                raise Exception('Invalid distance `d`.')
+        else:
+            return 0
+
+    def small_scale(self, *kwargs) -> float:
+        return 0

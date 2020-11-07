@@ -233,8 +233,8 @@ class CompleteEnvironment7dB(RLEnvironment):
         state.append(device_contrib_pct)
         # state.append(recent_d2d_pathloss / 30)
         # state.append(recent_bs_pathloss / 30)
-        state = db_to_power(torch.tensor(state)).view(1, -1).to(self.device)
-        # state = torch.tensor([state]).to(self.device)
+        # state = db_to_power(torch.tensor(state)).view(1, -1).to(self.device)
+        state = torch.tensor([state]).to(self.device)
         # end
         self.reset_sets()
         return state

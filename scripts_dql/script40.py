@@ -282,7 +282,7 @@ def run():
             now = (time() - start) / 60
             print(
                 f'Number of agents: {n}/{MAX_NUMBER_OF_AGENTS}. ' +
-                f'Iteration{it}. Elapsed time: {now} minutes.'
+                f'Iteration: {it}. Elapsed time: {now} minutes.'
             )
             test_env = deepcopy(ref_env)
             training_env = deepcopy(ref_env)

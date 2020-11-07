@@ -146,7 +146,7 @@ class CompleteEnvironment10dB(RLEnvironment):
             # check if node is inside the BS radius
             if euclidean(
                 positions[0], self.bs.position
-            ) <= self.params.bs_radius:
+            ) <= self.params.bs_radius and not pair[0].is_dummy:
                 # set tx position
                 pair[0].set_position(positions[0])
                 pair[1].set_position(positions[1])

@@ -42,10 +42,10 @@ CHANNEL_RND = True
 # q-learning parameters
 # training
 NUMBER = 1
-STEPS_PER_EPISODE = 3000
-# STEPS_PER_EPISODE = 2
-TEST_STEPS_PER_EPISODE = 100
-# TEST_STEPS_PER_EPISODE = 2
+# STEPS_PER_EPISODE = 3000
+STEPS_PER_EPISODE = 2
+# TEST_STEPS_PER_EPISODE = 100
+TEST_STEPS_PER_EPISODE = 2
 # common
 EPSILON_INITIAL = 1
 EPSILON_MIN = .05
@@ -206,9 +206,9 @@ def train(n_agents, env):
             # average d2d spectral eff
             d2d_spectral_eff_bag.append(env.d2d_spectral_eff)
             rewards_bag.append(env.reward)
-            print("Step#:{} sum reward:{} best_sum_reward:{} eps:{}".format(
-                i, total_reward, best_reward, agents[0].epsilon)
-            )
+            # print("Step#:{} sum reward:{} best_sum_reward:{} eps:{}".format(
+            #     i, total_reward, best_reward, agents[0].epsilon)
+            # )
     epsilon = agents[0].epsilon
     # Return the trained policy
     return frameworks

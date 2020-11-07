@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 from sys_simulator.pathloss import pathloss_bs_users
 import numpy as np
 
@@ -19,7 +19,7 @@ class node:
         max_power=-7,
         memory_size=2,
         beta=.8,
-        **kargs
+        **kwargs
     ):
         self.tx_power = -100
         self.sinr = -100
@@ -46,6 +46,28 @@ class node:
         self.link_price_is_set = False
         self.interferences = []
         self.interference_is_set = False
+        self.power_at_receiver = -100
+        self.power_at_receiver_is_set = False
+        self.pathlosses_to_interfering = {}
+        self.pathlosses_to_interfering_is_set = False
+
+    def set_pathlosses_to_interfering(self, pathlosses: Dict):
+        if self.pathlosses_to_interfering_is_set:
+            raise Exception(
+                    'Trying to set pathlosses to interfering D2Ds more than \
+                    once in the same timestep.'
+                )
+        self.pathlosses_to_interfering = pathlosses
+        self.pathlosses_to_interfering_is_set = True
+
+    def set_power_at_receiver(self, power: float):
+        if self.power_at_receiver_is_set:
+            raise Exception(
+                'Trying to set power at receiver to D2D more than \
+                 once in the same timestep.'
+            )
+        self.power_at_receiver = power
+        self.power_at_receiver_is_set = True
 
     def set_position(self, position):
         self.position = position
@@ -104,6 +126,8 @@ class node:
         self.link_price_is_set = False
         self.speff_is_set = False
         self.interference_is_set = False
+        self.power_at_receiver_is_set = False
+        self.pathlosses_to_interfering_is_set = False
 
     def set_interference_contrib_pct(self, contrib: float):
         if self.past_interference_contrib_pct_is_set:
@@ -204,9 +228,12 @@ class base_station(node):
     """
     def __init__(self, position, radius=500):
         super(base_station, self).__init__()
-        self.position = position
+        self.set_position(position)
         self.radius = radius
         self.id: str = 'BS:0'
+
+    def set_position(self, position):
+        self.position = position
 
     def set_radius(self, radius):
         self.radius = radius
@@ -264,6 +291,10 @@ class d2d_user(node):
         self.id: str = f'DUE.{self.type.value}:{id}'
         self.pathloss_d2d = -1000
         self.is_dummy = False
+        self.received_mue_interference = -100
+        self.received_mue_interference_is_set = False
+        self.caused_mue_interference = -100
+        self.caused_mue_interference_is_set = False
 
     def set_distance_d2d(self, distance):
         self.distance_d2d = distance
@@ -287,6 +318,29 @@ class d2d_user(node):
 
     def set_distance_to_mue(self, distance):
         self.distance_to_mue = distance
+
+    def set_received_mue_interference(self, interference: float):
+        if self.received_mue_interference_is_set:
+            raise Exception(
+                'Trying to set received mue interference to D2D more than \
+                 once in the same timestep.'
+            )
+        self.received_mue_interference = interference
+        self.received_mue_interference_is_set = True
+
+    def set_caused_mue_interference(self, interference: float):
+        if self.caused_mue_interference_is_set:
+            raise Exception(
+                'Trying to set caused mue interference to D2D more than \
+                 once in the same timestep.'
+            )
+        self.caused_mue_interference = interference
+        self.caused_mue_interference_is_set = True
+
+    def reset_set_flags(self):
+        super(d2d_user, self).reset_set_flags()
+        self.caused_mue_interference_is_set = False
+        self.received_mue_interference_is_set = False
 
     @staticmethod
     def get_due_by_id(d2d_list, due_id):

@@ -1,4 +1,4 @@
-# Similar to script 23.
+# Inspired by script 23.
 # Uses CompleteEnvironment10dB
 # Simulates many times, for different number of agents, and take the averages.
 # There are different channels to the BS and to the devices.

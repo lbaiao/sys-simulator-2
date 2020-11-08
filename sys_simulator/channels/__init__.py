@@ -96,6 +96,9 @@ class BANChannel(Channel):
         d0 = self.d0
         # pathloss
         pathloss = L0 + 10*n_pl*np.log10(d/d0)
+        # debugging
+        # if pathloss == float('-inf'):
+        #     print('bug')
         return pathloss
 
     def large_scale(self, *kargs) -> float:

@@ -301,6 +301,7 @@ def run():
         d2d_spectral_effs_total.append(d2d_speff_rates)
         rewards_total.append(rews)
     # save stuff
+    now = (time() - start) / 60
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
     data_path = f'data/dql/{filename}.pickle'
@@ -309,7 +310,8 @@ def run():
         'd2d_speffs': d2d_spectral_effs_total,
         'mue_speffs': mue_spectral_effs_total,
         'rewards': rewards_total,
-        'mue_sinr_threshold': sinr_threshold_train
+        'mue_sinr_threshold': sinr_threshold_train,
+        'elapsed_time': now
     }
     with open(data_path, 'wb') as file:
         pickle.dump(data, file)

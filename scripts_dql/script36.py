@@ -1,5 +1,5 @@
 # Single episode convergence. Everything is in dB.
-# Central DQN cointrols all agents.
+# Central DQN controls all agents.
 from itertools import product
 from sys_simulator.general.general import db_to_power, power_to_db
 from sys_simulator.plots import plot_positions_actions_pie

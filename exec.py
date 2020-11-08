@@ -1,4 +1,4 @@
-from scripts_dql.script41 import run
+from scripts_dql.script42 import run
 
 
 # run training and tests

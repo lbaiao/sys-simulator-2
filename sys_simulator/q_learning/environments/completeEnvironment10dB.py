@@ -696,7 +696,7 @@ class CompleteEnvironment10dB(RLEnvironment):
         device_rx = d2d_user(len(self.d2d_pairs), d2d_node_type.RX,
                              self.params.p_max)
         device_rx.set_position(
-            (3 * self.bs.radius, 0, device_height)
+            (3 * self.bs.radius + 50, 0, device_height)
         )
         device_rx.set_rb(1)
         device_rx.is_dummy = True

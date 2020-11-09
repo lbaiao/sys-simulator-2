@@ -1,3 +1,4 @@
+# Useless, for now
 # Same as scratch10, but for CompleteEnvironment10dB
 import torch
 from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent

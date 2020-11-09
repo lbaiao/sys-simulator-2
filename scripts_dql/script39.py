@@ -43,7 +43,7 @@ CHANNEL_RND = True
 # q-learning parameters
 # training
 NUMBER = 1
-STEPS_PER_EPISODE = 3000
+STEPS_PER_EPISODE = 4000
 # STEPS_PER_EPISODE = 10
 TEST_STEPS_PER_EPISODE = 1000
 # common
@@ -107,8 +107,8 @@ env_state_size = foo_env.get_state_size(foo_agents[0])
 pairs_positions = [
     ((-400, 0, device_height), (-450, 0, device_height)),
     ((100, 0, device_height), (150, 0, device_height)),
-    # ((225, 225), (275, 225)),
-    # ((55, -55), (55, -5)),
+    ((225, 225, device_height), (275, 225, device_height)),
+    ((55, -55, device_height), (55, -5, device_height)),
 ]
 # mue_position = (250 / math.sqrt(2), 250 / math.sqrt(2))
 mue_position = (0, 200, device_height)

@@ -317,7 +317,8 @@ def test_exec():
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
     data_path = f'models/dql/{filename}.pt'
-    framework.policy_net.load_state_dict(data_path)
+    state_dict = torch.load(data_path)
+    framework.policy_net.load_state_dict(state_dict)
     framework.policy_net.eval()
     # simulation stuff
     mue_spectral_effs = []
@@ -327,8 +328,8 @@ def test_exec():
     pairs_positions = [
         ((-400, 0, device_height), (-450, 0, device_height)),
         ((100, 0, device_height), (150, 0, device_height)),
-        # ((225, 225, device_height), (275, 225, device_height)),
-        # ((55, -55, device_height), (55, -5, device_height)),
+        ((225, 225, device_height), (275, 225, device_height)),
+        ((55, -55, device_height), (55, -5, device_height)),
     ]
     mue_position = (0, 200, device_height)
     # jain_index = [list() for _ in range(max_d2d+1)]

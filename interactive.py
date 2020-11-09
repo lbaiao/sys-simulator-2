@@ -1,3 +1,3 @@
-from scratch.scratch2 import run
+from scripts_dql.script43 import test_exec
 
-run()
+test_exec()

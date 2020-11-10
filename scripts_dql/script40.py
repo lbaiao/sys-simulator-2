@@ -260,6 +260,9 @@ def test(n_agents, test_env, frameworks, pairs_positions, mue_position):
             1 + db_to_power(sinr_threshold_train)
         )
     )
+    # debugging
+    # if mue_success_rate < 1:
+    #     print('bug')
     # jain_index_avg = list()
     # for i, j in enumerate(jain_index):
     #     jain_index_avg.append(np.average(j))

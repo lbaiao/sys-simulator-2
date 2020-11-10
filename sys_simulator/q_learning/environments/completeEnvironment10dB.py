@@ -42,10 +42,11 @@ class CompleteEnvironment10dB(RLEnvironment):
         self.states = [0, 0, 1]
         self.device = \
             torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.mue: mobile_user = None
         self.sinr_d2ds: float = []
+        self.d2d_pairs: List[Tuple[d2d_user, d2d_user]] = []
         self.channel_to_bs: Channel = channel_to_bs
         self.channel_to_devices: Channel = channel_to_devices
-        self.pathlosses_are_calculated = False
         self.n_closest_devices = n_closest_devices
         self.memory = memory
         self.diff = 0
@@ -61,9 +62,11 @@ class CompleteEnvironment10dB(RLEnvironment):
         self.large_scale_fadings_are_set = False
         self.small_scale_fadings_are_set = False
         self.total_losses_are_set = False
+        self.pathlosses_are_calculated = False
 
     def build_scenario(self, agents: List[ExternalDQNAgent]):
         # declaring the bs, mues and d2d pairs
+        self.reset_before_build_set()
         self.sinr_d2ds = []
         self.bs = base_station((0, 0, self.bs_height),
                                radius=self.params.bs_radius)
@@ -110,6 +113,7 @@ class CompleteEnvironment10dB(RLEnvironment):
                      mue_position: Tuple, agents: List[ExternalDQNAgent]):
         if len(pairs_positions) != len(agents):
             raise Exception('Different `pair_positions` and `agents` lengths.')
+        self.reset_before_build_set()
         # declaring the bs, mues and d2d pairs
         self.sinr_d2ds = []
         self.rb = 1
@@ -562,9 +566,28 @@ class CompleteEnvironment10dB(RLEnvironment):
     def reset_sets(self):
         self.small_scale_fadings_are_set = False
         self.total_losses_are_set = False
-        self.mue.reset_set_flags()
+        if self.mue is not None:
+            self.mue.reset_set_flags()
         for d in self.d2d_pairs:
             d[0].reset_set_flags()
+
+    def reset_pathloss_set(self):
+        self.pathlosses_are_set = False
+        self.pathlosses_are_calculated = False
+
+    def reset_all_sets(self):
+        self.reset_sets()
+        self.pathlosses_are_set = False
+        self.pathlosses_are_calculated = False
+
+    def reset_devices_powers(self):
+        for tx, _ in self.d2d_pairs:
+            tx.set_tx_power(-60)
+
+    def reset_before_build_set(self):
+        self.reset_pathloss_set()
+        self.reset_devices_powers()
+        self.reset_sets()
 
     def get_n_closest_pairs(
         self,

@@ -1,9 +1,10 @@
 import torch
 from sys_simulator.a2c.a2c import \
     A2CLSTMDiscrete, ActorCritic, ActorCriticDiscrete
+from sys_simulator.q_learning.agents.agent import Agent as QAgent
 
 
-class Agent:
+class Agent(QAgent):
     def __init__(self):
         self.bag = list()
         self.action = 0
@@ -15,12 +16,12 @@ class Agent:
         self.id = id
 
     def act(self, a2c: ActorCritic, obs: torch.TensorType):
-        dist, value = a2c(obs)
+        dist, value, _ = a2c(obs)
         self.action = (dist.sample()*1e-4).item()
         return self.action, dist, value
 
     def act_discrete(self, a2c: ActorCriticDiscrete, obs: torch.TensorType):
-        dist, value, probs = a2c(obs)
+        dist, value, _ = a2c(obs)
         self.action_index = dist.sample()
         # for debugging
         # if self.action_index > 4:

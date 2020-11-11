@@ -1,3 +1,4 @@
+from sys_simulator.devices.devices import d2d_user
 import numpy as np
 from sys_simulator.q_learning.q_table import QTable
 from sys_simulator.parameters.parameters import AgentParameters
@@ -8,6 +9,7 @@ class Agent:
     """
     don't forget to set the agent actions with the set_actions method
     """
+
     def __init__(self, params: AgentParameters, actions: List[int]):
         self.epsilon_min = params.epsilon_min
         self.epsilon_decay = params.epsilon_decay
@@ -56,3 +58,6 @@ class Agent:
 
     def set_epsilon(self, epsilon):
         self.epsilon = epsilon
+
+    def set_d2d_tx(self, d2d_tx: d2d_user):
+        self.d2d_tx = d2d_tx

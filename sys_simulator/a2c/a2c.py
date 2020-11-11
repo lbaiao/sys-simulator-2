@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from torch.functional import F
 from torch.distributions import Normal, Categorical
+from torch.nn.modules.container import ModuleList
+from torch.nn.modules.linear import Linear
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -80,31 +82,69 @@ class ActorCritic(nn.Module):
         return dist, value
 
 
+class NeuralNetwork(nn.Module):
+    def __init__(self, num_inputs, num_outputs,
+                 hidden_size, n_hidden_layers=1):
+        super(NeuralNetwork, self).__init__()
+        self.device =\
+            torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.hidden_layers = ModuleList()
+        for _ in range(n_hidden_layers):
+            self.hidden_layers.append(Linear(hidden_size, hidden_size))
+        self.a1 = Linear(num_inputs, hidden_size)
+        self.a2 = Linear(hidden_size, int(hidden_size/2))
+        self.a3 = Linear(int(hidden_size/2), int(hidden_size/4))
+        self.a4 = Linear(int(hidden_size/4), num_outputs)
+
+    def forward(self, x):
+        x = self.a1(x.float())
+        x = torch.relu(x)
+        for a in self.hidden_layers:
+            x = a(x)
+            x = torch.relu(x)
+        x = self.a2(x)
+        x = torch.relu(x)
+        x = self.a3(x)
+        x = torch.relu(x)
+        x = self.a4(x)
+        return x
+
+
 class ActorCriticDiscrete(nn.Module):
     def __init__(self, num_inputs, num_outputs,
-                 hidden_size, mean=0.0, std=0.1):
+                 hidden_size, n_hidden_layers=1,
+                 mean=0.0, std=0.1):
         super(ActorCriticDiscrete, self).__init__()
         self.mean = mean
         self.std = std
         self.device =\
             torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.actor = NeuralNetwork(
+            num_inputs, num_outputs,
+            hidden_size, n_hidden_layers).to(self.device)
+        self.critic = NeuralNetwork(
+            num_inputs, 1,
+            hidden_size, n_hidden_layers).to(self.device)
+        # self.critic = nn.Sequential(
+        #     nn.Linear(num_inputs, hidden_size),
+        #     nn.ReLU(),
+        #     nn.Linear(hidden_size, 1)
+        # ).to(self.device)
 
-        self.critic = nn.Sequential(
-            nn.Linear(num_inputs, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, 1)
-        ).to(self.device)
-
-        self.actor = nn.Sequential(
-            nn.Linear(num_inputs, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, num_outputs),
-            nn.Softmax(dim=1),
-        ).to(self.device)
+        # self.actor = nn.Sequential(
+        #     nn.Linear(num_inputs, hidden_size),
+        #     nn.ReLU(),
+        #     nn.Linear(hidden_size, num_outputs),
+        #     nn.Softmax(dim=1),
+        # ).to(self.device)
 
     def forward(self, x):
-        value = self.critic(x).to(self.device)
-        probs = self.actor(x.view(1, -1))
+        value = self.critic(x)
+        probs = self.actor(x)
+        probs = torch.softmax(probs.view(1, -1), dim=1)
+        dist = Categorical(probs)
+        # value = self.critic(x).to(self.device)
+        # probs = self.actor(x.view(1, -1))
         # for debugging
         # if torch.isnan(probs).any():
         #     print('problems')

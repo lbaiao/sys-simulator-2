@@ -4,11 +4,10 @@
 # There are different channels to the BS and to the devices.
 # Single episode convergence. Everything is in dB. One NN for each agent.
 import os
+from sys_simulator.a2c.framework import DiscreteFramework
 from sys_simulator.plots import plot_positions_actions_pie
-from torch import nn
 from sys_simulator.a2c.agent import Agent
-from torch import optim
-from sys_simulator.a2c.a2c import ActorCriticDiscrete, compute_gae_returns
+from sys_simulator.a2c import ActorCriticDiscrete
 from typing import List
 from sys_simulator.general.general import db_to_power, power_to_db
 from sys_simulator.channels import BANChannel, UrbanMacroLOSWinnerChannel
@@ -50,13 +49,13 @@ CHANNEL_RND = True
 # training
 NUMBER = 1
 # run params
-# STEPS_PER_EPISODE = 1000
-# TEST_STEPS_PER_EPISODE = 100
-# MAX_NUM_EPISODES = 10
+STEPS_PER_EPISODE = 200
+TEST_STEPS_PER_EPISODE = 100
+MAX_NUM_EPISODES = 5
 # debugging params
-STEPS_PER_EPISODE = 2
-TEST_STEPS_PER_EPISODE = 2
-MAX_NUM_EPISODES = 10
+# STEPS_PER_EPISODE = 2
+# TEST_STEPS_PER_EPISODE = 2
+# MAX_NUM_EPISODES = 10
 # common
 EPSILON_INITIAL = 1
 EPSILON_MIN = .05
@@ -146,7 +145,7 @@ def calculate_interferences(env: CompleteEnvironment10dB):
                 interf = tx.caused_mue_interference
             else:
                 interf = [
-                    i[1] for i in interfered.interferences
+                    power_to_db(i[1]) for i in interfered.interferences
                     if i[0] == tx.id
                 ][0]
             interferences[i][j] = interf
@@ -162,43 +161,38 @@ def train(env):
     rewards_bag = list()
     best_reward = float('-inf')
     frameworks = [
-        ActorCriticDiscrete(
+        DiscreteFramework(
             env_state_size,
             len(actions),
             HIDDEN_SIZE,
-            NUM_HIDDEN_LAYERS
+            NUM_HIDDEN_LAYERS,
+            STEPS_PER_EPISODE,
+            LEARNING_RATE,
+            BETA,
+            GAMMA
         )
         for _ in range(n_agents)
     ]
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    actors_optimizers = [
-        optim.Adam(a2c.actor.parameters(), lr=LEARNING_RATE)
-        for a2c in frameworks
-    ]
-    critics_optimizers = [
-        optim.Adam(a2c.critic.parameters(), lr=LEARNING_RATE)
-        for a2c in frameworks
-    ]
     agents = [Agent() for _ in range(n_agents)]
     env.set_scenario(pairs_positions, mue_position, agents)
     for episode in range(MAX_NUM_EPISODES):
         obs, _ = env.step(agents)
-        log_probs = torch.zeros((n_agents, STEPS_PER_EPISODE)).to(device)
-        values = torch.zeros((n_agents, STEPS_PER_EPISODE+1)).to(device)
-        rewards = torch.zeros((n_agents, STEPS_PER_EPISODE)).to(device)
-        entropy = torch.zeros((n_agents, STEPS_PER_EPISODE)).to(device)
         for i in range(STEPS_PER_EPISODE):
-            for j, (agent, a2c) in enumerate(zip(agents, frameworks)):
-                action_index, dist, value = agent.act_discrete(a2c, obs[j])
+            for j, (agent, f) in enumerate(zip(agents, frameworks)):
+                action_index, dist, value = agent.act_discrete(f, obs[j])
                 agent.set_action(actions[action_index.item()])
                 log_prob = dist.log_prob(action_index)
-                log_probs[j][i] = log_prob
-                values[j][i] = value
-                entropy[j][i] = dist.entropy()
+                f.log_probs[0][i] = log_prob
+                f.values[0][i] = value
+                f.entropy[0][i] = dist.entropy()
             # perform an environment step
             next_obs_t, rewards_t = env.step(agents)
-            rewards[:, i] = torch.FloatTensor(rewards_t)
+            for r, f in zip(rewards_t, frameworks):
+                f.rewards[0][i] = r
             total_reward = np.sum(rewards_t)
+            best_reward = \
+                total_reward if total_reward > best_reward else best_reward
             obs = next_obs_t
             # mue spectral eff
             mue_spectral_eff_bag.append(env.mue_spectral_eff)
@@ -206,7 +200,7 @@ def train(env):
             d2d_spectral_eff_bag.append(env.d2d_spectral_eff)
             rewards_bag.append(env.reward)
             print(
-                "Episode#:{} Step#:{} sum reward:{} best_sum_reward:{}"
+                "Episode#:{}. Step#:{}. sum reward:{}. best sumreward:{}."
                 .format(
                     episode, i, total_reward,
                     best_reward
@@ -214,26 +208,10 @@ def train(env):
             )
         # gae and returns
         next_obs_t = torch.cat(obs, 0).to(device)
-        for j, (agent, a2c) in enumerate(zip(agents, frameworks)):
-            _, _, next_value_t = agent.act_discrete(a2c, next_obs_t[j])
-            values[j][STEPS_PER_EPISODE] = next_value_t
-        advantages, returns = compute_gae_returns(device, rewards, values)
-        # update critics
-        critics_losses = [
-            nn.functional.mse_loss(v[:-1], r) for v, r in zip(values, returns)
-        ]
-        for loss, optimizer in zip(critics_losses, critics_optimizers):
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-        # update actors
-        actors_losses = torch.mul(advantages, log_probs)
-        actors_losses -= BETA * entropy
-        actors_losses = torch.sum(actors_losses, axis=1)
-        for loss, optimizer in zip(actors_losses, actors_optimizers):
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+        for j, (agent, f) in enumerate(zip(agents, frameworks)):
+            _, _, next_value_t = agent.act_discrete(f, next_obs_t[j])
+            f.values[0][STEPS_PER_EPISODE] = next_value_t
+            f.learn()
     # Return the trained policy
     mue_spectral_effs = mue_spectral_eff_bag
     d2d_spectral_effs = d2d_spectral_eff_bag
@@ -244,7 +222,7 @@ def train(env):
     filename = filename.split('.')[0]
     filename_model = filename
     filename = f'{cwd}/data/a2c/{filename}_training.pt'
-    torch.save(frameworks[0].policy_net.state_dict(),
+    torch.save(frameworks[0].a2c.state_dict(),
                f'{cwd}/models/a2c/{filename_model}.pt')
     torch.save(spectral_effs, filename)
     with open(
@@ -270,8 +248,7 @@ def test(
     agents: List[Agent]
 ):
     for f in frameworks:
-        f.actor.eval()
-        f.critic.eval()
+        f.a2c.eval()
     mue_spectral_effs = []
     d2d_spectral_effs = []
     rewards_bag = []
@@ -312,6 +289,7 @@ def test(
     d2d_total_interference = np.sum(d2d_interferences_mag)
     percentage_interferences = d2d_interferences_mag / d2d_total_interference
     interferences, tx_labels, rx_labels = calculate_interferences(test_env)
+    actions_index = [a.item() for a in actions_index]
     if d2d_total_interference != 0:
         plot_positions_actions_pie(
             test_env.bs, test_env.mue, d2d_txs, d2d_rxs,

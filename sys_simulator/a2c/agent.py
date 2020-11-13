@@ -1,6 +1,7 @@
+from sys_simulator.general.general import power_to_db
+from sys_simulator.a2c.framework import ContinuousFramework, DiscreteFramework
 import torch
-from sys_simulator.a2c.a2c import \
-    A2CLSTMDiscrete, ActorCritic, ActorCriticDiscrete
+from sys_simulator.a2c import A2CLSTMDiscrete, ActorCritic
 from sys_simulator.q_learning.agents.agent import Agent as QAgent
 
 
@@ -15,13 +16,21 @@ class Agent(QAgent):
     def set_d2d_tx_id(self, id: str):
         self.id = id
 
-    def act(self, a2c: ActorCritic, obs: torch.TensorType):
-        dist, value, _ = a2c(obs)
-        self.action = (dist.sample()*1e-4).item()
+    def act_continuous(
+        self,
+        framework: ContinuousFramework,
+        obs: torch.TensorType
+    ):
+        dist, value, action = framework.a2c(obs)
+        self.action = action
         return self.action, dist, value
 
-    def act_discrete(self, a2c: ActorCriticDiscrete, obs: torch.TensorType):
-        dist, value, _ = a2c(obs)
+    def act_discrete(
+        self,
+        framework: DiscreteFramework,
+        obs: torch.TensorType
+    ):
+        dist, value, _ = framework.a2c(obs)
         self.action_index = dist.sample()
         # for debugging
         # if self.action_index > 4:

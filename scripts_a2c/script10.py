@@ -7,7 +7,7 @@
 from torch import nn
 from sys_simulator.a2c.agent import Agent
 from torch import optim
-from sys_simulator.a2c.a2c import ActorCriticDiscrete, compute_gae_returns
+from sys_simulator.a2c import ActorCriticDiscrete, compute_gae_returns
 from time import time
 from typing import List
 from sys_simulator.general.general import db_to_power, power_to_db

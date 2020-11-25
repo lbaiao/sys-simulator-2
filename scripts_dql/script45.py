@@ -210,9 +210,6 @@ def train(n_agents, env):
             # average d2d spectral eff
             d2d_spectral_eff_bag.append(env.d2d_spectral_eff)
             rewards_bag.append(env.reward)
-            # print("Step#:{} sum reward:{} best_sum_reward:{} eps:{}".format(
-            #     i, total_reward, best_reward, agents[0].epsilon)
-            # )
     epsilon = agents[0].epsilon
     # Return the trained policy
     return frameworks, agents
@@ -267,8 +264,8 @@ def test(
         )
     )
     # debugging
-    if mue_success_rate < 1:
-        print('bug')
+    # if mue_success_rate < 1:
+    #     print('bug')
     # jain_index_avg = list()
     # for i, j in enumerate(jain_index):
     #     jain_index_avg.append(np.average(j))

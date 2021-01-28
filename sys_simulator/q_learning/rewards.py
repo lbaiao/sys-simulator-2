@@ -1,5 +1,5 @@
 from sys_simulator.a2c.agent import Agent
-from sys_simulator.general.general import db_to_power
+from sys_simulator.general import db_to_power
 import numpy as np
 import torch
 

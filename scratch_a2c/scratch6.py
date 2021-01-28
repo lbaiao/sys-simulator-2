@@ -2,7 +2,7 @@
 
 
 from sys_simulator import env_variables
-import sys_simulator.general.general as gen
+import sys_simulator.general as gen
 import os
 from sys_simulator.q_learning import rewards
 from sys_simulator.parameters.parameters import EnvironmentParameters

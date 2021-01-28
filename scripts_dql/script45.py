@@ -6,9 +6,9 @@
 # Single episode convergence. Everything is in dB. One NN for each agent.
 from time import time
 from typing import List
-from sys_simulator.general.general import db_to_power, power_to_db
+from sys_simulator.general import db_to_power, power_to_db
 from sys_simulator.channels import BANChannel, UrbanMacroLOSWinnerChannel
-from sys_simulator.general import general as gen
+from sys_simulator import general as gen
 from sys_simulator.q_learning.environments.completeEnvironment10dB \
     import CompleteEnvironment10dB
 from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
@@ -64,6 +64,7 @@ LEARNING_RATE = 1e-2
 REWARD_PENALTY = 1.5
 ENVIRONMENT_MEMORY = 2
 MAX_NUMBER_OF_AGENTS = 5
+NUM_CLOSEST_DEVICES = 2
 ITERATIONS_PER_NUM_AGENTS = 50
 # ITERATIONS_PER_NUM_AGENTS = 10
 max_d2d = MAX_NUMBER_OF_AGENTS
@@ -98,6 +99,7 @@ ref_env = CompleteEnvironment10dB(
     reward_function,
     channel_to_bs,
     channel_to_devices,
+    n_closest_devices=NUM_CLOSEST_DEVICES,
     reward_penalty=REWARD_PENALTY,
     memory=ENVIRONMENT_MEMORY,
     bs_height=bs_height

@@ -1,5 +1,6 @@
 import torch
-from sys_simulator.a2c import ActorCriticContinous, ActorCriticDiscrete, compute_gae_returns
+from sys_simulator.a2c import \
+    ActorCriticContinous, ActorCriticDiscrete, compute_gae_returns
 
 
 class Framework:

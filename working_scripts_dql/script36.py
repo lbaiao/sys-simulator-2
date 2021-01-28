@@ -1,11 +1,11 @@
 # Single episode convergence. Everything is in dB.
 # Central DQN cointrols all agents.
 from itertools import product
-from sys_simulator.general.general import db_to_power, power_to_db
+from sys_simulator.general import db_to_power, power_to_db
 from sys_simulator.plots import plot_positions_actions_pie
 from scipy.spatial.distance import euclidean
 from sys_simulator.channels import BANChannel
-from sys_simulator.general import general as gen
+from sys_simulator import general as gen
 from sys_simulator.q_learning.environments.completeEnvironment7dB \
     import CompleteEnvironment7dB
 from sys_simulator.dqn.agents.dqnAgent import CentralDQNAgent, ExternalDQNAgent

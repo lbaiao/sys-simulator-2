@@ -1,5 +1,5 @@
 # Similar to scratch7, but with the BAN Channel
-from sys_simulator.general.general import db_to_power, power_to_db
+from sys_simulator.general import db_to_power, power_to_db
 from sys_simulator.q_learning.rewards import dis_reward_tensor_db
 from scipy.spatial.distance import euclidean
 from sys_simulator.channels import BANChannel

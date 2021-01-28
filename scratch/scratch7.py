@@ -1,5 +1,5 @@
 # Similar to scratch2, but everything is in dB
-from sys_simulator.general.general import db_to_power
+from sys_simulator.general import db_to_power
 from sys_simulator.q_learning.rewards import dis_reward_tensor_db
 from scipy.spatial.distance import euclidean
 from sys_simulator.pathloss import pathloss_bs_users_db, pathloss_users_db

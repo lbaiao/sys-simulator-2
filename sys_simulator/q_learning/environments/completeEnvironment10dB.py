@@ -1,9 +1,9 @@
 from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
 from sys_simulator.channels import Channel
-from sys_simulator.general.general import db_to_power, power_to_db
+from sys_simulator.general import db_to_power, power_to_db
 from sys_simulator.devices.devices \
     import base_station, mobile_user, d2d_user, d2d_node_type, node
-from sys_simulator.general import general as gen
+from sys_simulator import general as gen
 from sys_simulator.q_learning.agents.distanceAgent import DistanceAgent
 from sys_simulator.q_learning.environments.environment import RLEnvironment
 from typing import List
@@ -128,9 +128,10 @@ class CompleteEnvironment10dB(RLEnvironment):
         self.mue.set_tx_power(self.params.p_max)
         self.mue.set_distance_to_bs(euclidean(mue_position, self.bs.position))
         # instantiate d2d_pairs
-        self.d2d_pairs = [(d2d_user(x, d2d_node_type.TX, self.params.p_max),
-                           d2d_user(x, d2d_node_type.RX, self.params.p_max))
-                          for x in range(len(agents))]
+        self.d2d_pairs = [(
+            d2d_user(x, d2d_node_type.TX, self.params.p_max),
+            d2d_user(x, d2d_node_type.RX, self.params.p_max)
+        ) for x in range(len(agents))]
         # set diff
         diff = self.n_closest_devices - len(self.d2d_pairs) + 1
         self.diff = 0 if diff < 0 else diff
@@ -189,11 +190,11 @@ class CompleteEnvironment10dB(RLEnvironment):
         close_devices_y = [d[0].position[1] for d in close_pairs]
         # last_mue_powers = self.mue.past_actions[:self.memory].tolist()
         # mue_sinrs = self.mue.past_sinrs[:self.memory].tolist()
-        device_sinrs = d2d_tx.past_sinrs[:self.memory]
+        # device_sinrs = d2d_tx.past_sinrs[:self.memory]
         device_powers = d2d_tx.past_actions[:self.memory].tolist()
         # d2d_pathloss = d2d_tx.pathloss_d2d
-        close_devs_powers = []
-        close_devs_sinrs = []
+        # close_devs_powers = []
+        # close_devs_sinrs = []
         close_interferences = []
         # close_inverse_link_prices = []
         close_speffs = []
@@ -207,8 +208,8 @@ class CompleteEnvironment10dB(RLEnvironment):
             )
             # close_inverse_link_prices += d.avg_speffs[:self.memory].tolist()
             close_speffs += d.speffs[:self.memory].tolist()
-            close_devs_powers += d.past_actions[:self.memory].tolist()
-            close_devs_sinrs += d.past_sinrs[:self.memory].tolist()
+            # close_devs_powers += d.past_actions[:self.memory].tolist()
+            # close_devs_sinrs += d.past_sinrs[:self.memory].tolist()
         device_contrib = d2d_tx.past_actions[0] - d2d_tx.past_bs_losses[0]
         received_interference = d2d_tx.calc_received_interference()
         # mue states
@@ -225,8 +226,8 @@ class CompleteEnvironment10dB(RLEnvironment):
         number_of_d2d_pairs = len(self.d2d_pairs)
         interference_indicator = self.mue.sinr > self.params.sinr_threshold
         # normalization
-        device_sinrs = [np.clip(i, -30, 30) for i in device_sinrs]
-        close_devs_sinrs = [np.clip(i, -30, 30) for i in close_devs_sinrs]
+        # device_sinrs = [np.clip(i, -30, 30) for i in device_sinrs]
+        # close_devs_sinrs = [np.clip(i, -30, 30) for i in close_devs_sinrs]
         # inverse_link_price = d2d_tx.avg_speffs[0]
         # state
         state = [
@@ -235,7 +236,7 @@ class CompleteEnvironment10dB(RLEnvironment):
             d2d_tx.position[1] / self.bs.radius,
             self.mue.position[0] / self.bs.radius,
             self.mue.position[1] / self.bs.radius,
-            np.clip(agent.action, -30, 30) / 30,
+            # np.clip(agent.action, -30, 30) / 30,
             # inverse_link_price,
             # self.mue.tx_power / 30,
             int(interference_indicator),
@@ -250,11 +251,11 @@ class CompleteEnvironment10dB(RLEnvironment):
         # state += (np.array(mue_sinrs) / 30).tolist()
         state += mue_speffs.tolist()
         # state += mue_inverse_link_prices
-        state += (np.clip(device_sinrs, -30, 30) / 30).tolist()
+        # state += (np.clip(device_sinrs, -30, 30) / 30).tolist()
         state += (np.clip(device_powers, -30, 30) / 30).tolist()
         state += (np.clip(close_interferences, -30, 30) / 30).tolist()
         # state.append(d2d_pathloss / 30)
-        state += (np.clip(close_devs_powers, -30, 30) / 30).tolist()
+        # state += (np.clip(close_devs_powers, -30, 30) / 30).tolist()
         # state += (np.clip(close_devs_sinrs, -30, 30) / 30).tolist()
         # state += close_inverse_link_prices
         state += close_speffs
@@ -550,7 +551,7 @@ class CompleteEnvironment10dB(RLEnvironment):
                 'It is not possible to not have interferers.'
             )
         # total interference
-        _, interferences = [i for i in zip(*d2d_interferences)]
+        _, interferences = list(zip(*d2d_interferences))
         total_interference = np.sum(interferences)
         # d2d_tx sinr
         sinr = d2d_tx_contrib - \

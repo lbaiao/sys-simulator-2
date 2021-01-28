@@ -1,6 +1,6 @@
 # Similar to scratch2, but with the BAN channel
 from sys_simulator.pathloss import pathloss_bs_users
-from sys_simulator.general import general as gen
+from sys_simulator import general as gen
 from sys_simulator.plots import plot_positions_actions_pie
 from sys_simulator.q_learning.environments.completeEnvironment5 \
     import CompleteEnvironment5

@@ -1,6 +1,6 @@
 import numpy as np
 import scipy
-from scipy.stats import nakagami
+from scipy.stats import nakagami, rayleigh
 from scipy import constants
 
 
@@ -127,7 +127,7 @@ class UrbanMacroLOSWinnerChannel:
         self.f_c = f_c
 
     def step(self, d: float) -> float:
-        """Returns the line-of-sight urban macro-cell channel
+        """Returns the line-of-sight urban macro-cell channel (C2)
         pathloss, according to the WINNER II Channel model.
 
         Parameters
@@ -223,3 +223,67 @@ class UrbanMacroLOSWinnerChannel:
 
     def small_scale(self, *kwargs) -> float:
         return 0
+
+
+class UrbanMacroNLOSWinnerChannel:
+    def __init__(self, rnd=True, h_bs=25, h_ms=1.5, f_c=2.4):
+        self.rnd = rnd
+        self.h_bs = h_bs
+        self.h_ms = h_ms
+        self.f_c = f_c
+        self.sigma = 8
+
+    def step(self, d: float) -> float:
+        """Returns the no-line-of-sight urban macro-cell channel (C2)
+        pathloss, according to the WINNER II Channel model.
+
+        Parameters
+        -----------
+        d: float
+            Distance between TX and RX, in meters.
+
+        h_bs: float
+            BS antenna height, in meters.
+
+        h_ms: float
+            User antenna height, in meters.
+
+        f_c: float
+            Carrier frequency, in GHz.
+
+        Returns
+        -----------
+        loss: float
+            Channel loss, in dB.
+
+        loss_mag: float
+            Channel loss, in magnitude.
+
+        Reference
+        -----------
+        WINNER II Channel model.
+        https://www.researchgate.net/publication/234055761_WINNER_II_channel_models
+        """
+        if d >= 5e3:
+            raise Exception('Invalid distance `d`. It must be `d` < 5e3 meters.')  # noqa
+        pathloss = self.pathloss(d)
+        if self.rnd:
+            loss = pathloss + self.large_scale(d) + self.small_scale()
+        else:
+            loss = pathloss
+        return loss
+
+    def pathloss(self, d: float) -> float:
+        loss = (44.9-6.55*np.log10(self.h_bs))*np.log10(d) + \
+            34.46+5.83*np.log10(self.h_bs)+23*np.log10(self.f_c/5)
+        return loss
+
+    def large_scale(self, d) -> float:
+        loss = np.random.normal(0, self.sigma)
+        return loss
+
+    def small_scale(self, *kwargs) -> float:
+        """Rayleigh distribution for the NLOS fading.
+        """
+        loss = rayleigh.rvs(scale=self.sigma, loc=0, size=1)
+        return loss

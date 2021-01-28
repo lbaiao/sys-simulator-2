@@ -18,7 +18,7 @@ from sys_simulator.q_learning.environments.completeEnvironment2 import CompleteE
 from sys_simulator.plots.plots import plot_positions, plot_spectral_effs
 from sys_simulator.pathloss import pathloss
 from sys_simulator.devices.devices import node, base_station, mobile_user, d2d_user, d2d_node_type
-from sys_simulator.general import general as gen
+from sys_simulator import general as gen
 import sys
 import os
 

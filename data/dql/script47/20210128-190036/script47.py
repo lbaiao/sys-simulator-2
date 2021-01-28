@@ -1,14 +1,17 @@
-# Similar to script 23.
+# Similar to script .
 # Uses CompleteEnvironment10dB
+# Centralized Learning-Distributed Execution
 # Simulates many times, for different number of agents, and take the averages.
 # There are different channels to the BS and to the devices.
 # Multiple episodes convergence. Everything is in dB.
 # One NN is trained and copied to each agent.
+from shutil import copyfile
+from sys_simulator.general import make_dir_timestamp, save_with_pickle
 import matplotlib.pyplot as plt
 from sys_simulator.plots import plot_positions_actions_pie
 from time import time
 from sys_simulator.general import db_to_power, power_to_db
-from sys_simulator.channels import BANChannel, UrbanMacroLOSWinnerChannel
+from sys_simulator.channels import BANChannel, UrbanMacroNLOSWinnerChannel
 from sys_simulator import general as gen
 from sys_simulator.q_learning.environments.completeEnvironment10dB \
     import CompleteEnvironment10dB
@@ -47,15 +50,21 @@ CHANNEL_RND = True
 # training
 NUMBER = 1
 # exec params
-STEPS_PER_EPISODE = 25
-TEST_STEPS_PER_EPISODE = 100
-MAX_NUM_EPISODES = 480      # medium training
-ITERATIONS_PER_NUM_AGENTS = 100
+# STEPS_PER_EPISODE = 25
+# TEST_STEPS_PER_EPISODE = 25
+# MAX_NUM_EPISODES = 480      # medium training
+# ITERATIONS_PER_NUM_AGENTS = 100
+# EVAL_EVERY = 20
+# EVAL_NUM_EPISODES = 20
+# EVAL_STEPS_PER_EPISODE = 5
 # debug params
-# STEPS_PER_EPISODE = 2
-# TEST_STEPS_PER_EPISODE = 2
-# MAX_NUM_EPISODES = 10
-# ITERATIONS_PER_NUM_AGENTS = 10
+STEPS_PER_EPISODE = 2
+TEST_STEPS_PER_EPISODE = 2
+MAX_NUM_EPISODES = 10
+ITERATIONS_PER_NUM_AGENTS = 10
+EVAL_EVERY = 1000
+EVAL_NUM_EPISODES = 2
+EVAL_STEPS_PER_EPISODE = 2
 # common
 EPSILON_INITIAL = 1
 EPSILON_MIN = .05
@@ -96,7 +105,7 @@ agent_params = DQNAgentParameters(
 )
 reward_function = dis_reward_tensor_db
 channel_to_devices = BANChannel(rnd=CHANNEL_RND)
-channel_to_bs = UrbanMacroLOSWinnerChannel(
+channel_to_bs = UrbanMacroNLOSWinnerChannel(
     rnd=CHANNEL_RND, f_c=carrier_frequency, h_bs=bs_height, h_ms=device_height
 )
 ref_env = CompleteEnvironment10dB(
@@ -127,7 +136,7 @@ def train(start):
         LEARNING_RATE
     )
     best_reward = float('-inf')
-    device = torch.device('cuda')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     mue_spectral_eff_bag = list()
     d2d_spectral_eff_bag = list()
     rewards_bag = list()
@@ -186,19 +195,21 @@ def train(start):
                     )
                 if total_reward > best_reward:
                     best_reward = total_reward
-                # mue spectral eff
-                mue_spectral_eff_bag.append(env.mue_spectral_eff)
-                # average d2d spectral eff
-                d2d_spectral_eff_bag.append(env.d2d_spectral_eff)
-                rewards_bag.append(env.reward)
         epsilon = agents[0].epsilon
+        if episode % EVAL_EVERY == 0:
+            r, d_speff, m_speff = in_training_test(framework, device)
+            rewards_bag.append(r)
+            # average d2d spectral eff
+            d2d_spectral_eff_bag.append(d_speff)
+            # mue spectral eff
+            mue_spectral_eff_bag.append(m_speff)
     # save stuff
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
     data_path = f'models/dql/{filename}.pt'
     torch.save(framework.policy_net.state_dict(), data_path)
     # Return the trained policy
-    return framework
+    return framework, rewards_bag, d2d_spectral_eff_bag, mue_spectral_eff_bag, epsilon  # noqa
 
 
 def test(n_agents, test_env, framework):
@@ -244,14 +255,44 @@ def test(n_agents, test_env, framework):
     return mue_success_rate, mue_spectral_effs, d2d_spectral_effs, rewards
 
 
+def in_training_test(framework: ExternalDQNFramework, device: torch.device):
+    mue_spectral_eff_bag = list()
+    d2d_spectral_eff_bag = list()
+    rewards_bag = list()
+    for _ in range(EVAL_NUM_EPISODES):
+        env = deepcopy(ref_env)
+        n_agents = np.random.choice(range_n_d2d)
+        agents = [ExternalDQNAgent(agent_params, actions)
+                  for _ in range(n_agents)]  # 1 agent per d2d tx
+        env.build_scenario(agents)
+        obs, _ = env.step(agents)
+        for _ in range(EVAL_STEPS_PER_EPISODE):
+            for j, agent in enumerate(agents):
+                aux = agent.act(framework, obs[j].float()).max(1)
+                agent.set_action(aux[1].long(),
+                                 agent.actions[aux[1].item()])
+            next_obs, _ = env.step(agents)
+            obs = next_obs
+            # mue spectral eff
+            mue_spectral_eff_bag.append(env.mue_spectral_eff)
+            # average d2d spectral eff
+            d2d_spectral_eff_bag.append(env.d2d_spectral_eff)
+            rewards_bag.append(env.reward)
+    mean_mue_speff = np.mean(mue_spectral_eff_bag)
+    mean_d2d_speff = np.mean(d2d_spectral_eff_bag)
+    mean_reward = np.mean(rewards_bag)
+    return mean_reward, mean_d2d_speff, mean_mue_speff
+
+
 def run(framework=None):
     mue_sucess_rate_total = []
     mue_spectral_effs_total = []
     d2d_spectral_effs_total = []
     rewards_total = []
     start = time()
+    r, d_speffs, m_speffs, epsilon = 0, 0, 0, 1
     if framework is None:
-        framework = train(start)
+        framework, r, d_speffs, m_speffs, epsilon = train(start)
     for n in range(1, MAX_NUMBER_OF_AGENTS+1, 1):
         mue_suc_rates = []
         mue_speff_rates = []
@@ -280,17 +321,24 @@ def run(framework=None):
     now = (time() - start) / 60
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
-    data_path = f'data/dql/{filename}.pickle'
+    dir_path = f'data/dql/{filename}'
+    data_path = make_dir_timestamp(dir_path)
+    data_file_path = f'{data_path}/log.pickle'
     data = {
         'mue_success_rate': mue_sucess_rate_total,
         'd2d_speffs': d2d_spectral_effs_total,
         'mue_speffs': mue_spectral_effs_total,
         'rewards': rewards_total,
         'mue_sinr_threshold': sinr_threshold_train,
-        'elapsed_time': now
+        'elapsed_time': now,
+        'training_rewards': r,
+        'training_d2d_speffs': d_speffs,
+        'training_mue_speffs': m_speffs,
+        'eval_every': EVAL_EVERY,
+        'final_epsilon': epsilon,
     }
-    with open(data_path, 'wb') as file:
-        pickle.dump(data, file)
+    save_with_pickle(data, data_file_path)
+    copyfile(__file__, f'{data_path}/{filename}.py')
     print(f'done. Elapsed time: {now} minutes.')
 
 
@@ -395,7 +443,7 @@ def test_exec():
         'd2d_speffs': d2d_spectral_effs,
         'mue_speffs': mue_spectral_effs,
         'rewards': rewards_bag,
-        'mue_sinr_threshold': sinr_threshold_train
+        'mue_sinr_threshold': sinr_threshold_train,
     }
     with open(data_path, 'wb') as file:
         pickle.dump(data, file)

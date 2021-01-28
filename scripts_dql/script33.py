@@ -1,8 +1,8 @@
 # Similar to script32.py, but the channel to the devices and
 # the channel to the BS are different.
-from sys_simulator.general.general import db_to_power, power_to_db
+from sys_simulator.general import db_to_power, power_to_db
 from sys_simulator.channels import BANChannel, UrbanMacroLOSWinnerChannel
-from sys_simulator.general import general as gen
+from sys_simulator import general as gen
 from sys_simulator.q_learning.environments.completeEnvironment5dB \
     import CompleteEnvironment5dB
 from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent

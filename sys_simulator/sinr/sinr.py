@@ -1,4 +1,4 @@
-from sys_simulator.general.general import db_to_power, power_to_db
+from sys_simulator.general import db_to_power, power_to_db
 from typing import List
 from sys_simulator import pathloss
 from sys_simulator.devices.devices \

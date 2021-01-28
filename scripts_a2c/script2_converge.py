@@ -1,6 +1,6 @@
 # Similar script 1 but with discrete-value actions.
 
-from sys_simulator.general import general as gen
+from sys_simulator import general as gen
 from sys_simulator.q_learning.environments.completeEnvironmentA2C \
     import CompleteEnvironmentA2C
 from sys_simulator.q_learning.rewards import dis_reward_tensor

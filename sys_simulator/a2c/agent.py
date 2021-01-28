@@ -1,4 +1,4 @@
-from sys_simulator.general.general import power_to_db
+from sys_simulator.general import power_to_db
 from sys_simulator.a2c.framework import ContinuousFramework, DiscreteFramework
 import torch
 from sys_simulator.a2c import A2CLSTMDiscrete, ActorCritic

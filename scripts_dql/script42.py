@@ -5,9 +5,9 @@
 # Single episode convergence. Everything is in dB. One NN is trained and copied
 # to each agent.
 from time import time
-from sys_simulator.general.general import db_to_power, power_to_db
+from sys_simulator.general import db_to_power, power_to_db
 from sys_simulator.channels import BANChannel, UrbanMacroLOSWinnerChannel
-from sys_simulator.general import general as gen
+from sys_simulator import general as gen
 from sys_simulator.q_learning.environments.completeEnvironment10dB \
     import CompleteEnvironment10dB
 from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent

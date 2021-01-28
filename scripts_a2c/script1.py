@@ -2,7 +2,7 @@
 # to train a single A2C network for contious-value actions.
 # The algorithm is trained with N_D2D varying from 1 to 10.
 
-from sys_simulator.general import general as gen
+from sys_simulator import general as gen
 from sys_simulator.q_learning.environments.completeEnvironmentA2C \
     import CompleteEnvironmentA2C
 from sys_simulator.q_learning.rewards import dis_reward_tensor

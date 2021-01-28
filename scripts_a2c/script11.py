@@ -9,9 +9,9 @@ from sys_simulator.plots import plot_positions_actions_pie
 from sys_simulator.a2c.agent import Agent
 from sys_simulator.a2c import ActorCriticDiscrete
 from typing import List
-from sys_simulator.general.general import db_to_power, power_to_db
+from sys_simulator.general import db_to_power, power_to_db
 from sys_simulator.channels import BANChannel, UrbanMacroLOSWinnerChannel
-from sys_simulator.general import general as gen
+from sys_simulator import general as gen
 from sys_simulator.q_learning.environments.completeEnvironment10dB \
     import CompleteEnvironment10dB
 from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent

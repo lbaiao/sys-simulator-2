@@ -1,7 +1,7 @@
 # Simulations taking pictures of the users distributions and makes
 # pie graphs with the d2d interference contributions on the mue.
 # It uses script23 model.
-from sys_simulator.general import general as gen
+from sys_simulator import general as gen
 from sys_simulator.pathloss import pathloss
 from sys_simulator.plots import plot_positions_actions_pie
 from sys_simulator.q_learning.environments.completeEnvironment2 \

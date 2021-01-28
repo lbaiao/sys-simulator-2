@@ -1,6 +1,6 @@
 # Same as script1, but with CompleteEnvironmentA2C2
 
-from sys_simulator.general import general as gen
+from sys_simulator import general as gen
 from sys_simulator.q_learning.environments.completeEnvironmentA2C2 \
     import CompleteEnvironmentA2C2
 from sys_simulator.q_learning.rewards import dis_reward_tensor

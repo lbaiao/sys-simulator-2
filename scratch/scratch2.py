@@ -3,7 +3,7 @@
 # It uses script23 model. In this scratch, the user chooses the
 # nodes positions. Then, the AI chooses the power levels.
 from scipy.spatial.distance import euclidean
-from sys_simulator.general import general as gen
+from sys_simulator import general as gen
 from sys_simulator.pathloss import pathloss_bs_users, pathloss_users
 from sys_simulator.plots import plot_positions_actions_pie
 from sys_simulator.q_learning.environments.completeEnvironment2 \

@@ -6,7 +6,7 @@
 # deciding the power levels.
 import torch
 from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
-from sys_simulator.general.general import db_to_power, power_to_db
+from sys_simulator.general import db_to_power, power_to_db
 from sys_simulator.q_learning.rewards import dis_reward_tensor_db
 from scipy.spatial.distance import euclidean
 from sys_simulator.channels import BANChannel

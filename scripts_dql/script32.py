@@ -1,7 +1,7 @@
 # Same as script 31, but everything is in dB.
-from sys_simulator.general.general import power_to_db, db_to_power
+from sys_simulator.general import power_to_db, db_to_power
 from sys_simulator.channels import BANChannel
-from sys_simulator.general import general as gen
+from sys_simulator import general as gen
 from sys_simulator.q_learning.environments.completeEnvironment7dB \
     import CompleteEnvironment7dB
 from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent

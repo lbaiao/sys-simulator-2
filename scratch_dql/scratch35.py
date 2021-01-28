@@ -1,7 +1,7 @@
 #  Testing for script 32
 import pickle
 from sys_simulator.channels import BANChannel
-from sys_simulator.general import general as gen
+from sys_simulator import general as gen
 from sys_simulator.q_learning.environments.completeEnvironment5dB\
     import CompleteEnvironment5dB
 from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent

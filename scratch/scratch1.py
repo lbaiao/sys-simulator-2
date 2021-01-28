@@ -2,7 +2,7 @@
 # their spectral efficiencies. In the first scenario, the d2d
 # powers are chosen randomly. In the second scenario, the d2d powers
 # are always the same, just like what the AIs have been doing.
-import sys_simulator.general.general as gen
+import sys_simulator.general as gen
 import os
 from sys_simulator.q_learning import rewards
 from sys_simulator.parameters.parameters import EnvironmentParameters

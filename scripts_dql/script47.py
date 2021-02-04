@@ -50,12 +50,12 @@ CHANNEL_RND = True
 # training
 NUMBER = 1
 # exec params
-STEPS_PER_EPISODE = 25
-TEST_STEPS_PER_EPISODE = 25
-MAX_NUM_EPISODES = 480      # medium training
+STEPS_PER_EPISODE = 10
+TEST_STEPS_PER_EPISODE = 5
+MAX_NUM_EPISODES = 1500      # medium training
 ITERATIONS_PER_NUM_AGENTS = 100
-EVAL_EVERY = 20
-EVAL_NUM_EPISODES = 20
+EVAL_EVERY = 80
+EVAL_NUM_EPISODES = 100
 EVAL_STEPS_PER_EPISODE = 5
 # debug params
 # STEPS_PER_EPISODE = 2
@@ -68,12 +68,13 @@ EVAL_STEPS_PER_EPISODE = 5
 # common
 EPSILON_INITIAL = 1
 EPSILON_MIN = .05
-EPSILON_DECAY = .9*1e-4    # medium training
-GAMMA = 0.5  # Discount factor
-C = 8  # C constant for the improved reward function
+# EPSILON_DECAY = .9*1e-4    # medium training
+EPSILON_DECAY = 1.3 / (MAX_NUM_EPISODES * STEPS_PER_EPISODE)  # medium training
+GAMMA = 0.9  # Discount factor
+C = 1  # C constant for the improved reward function
 TARGET_UPDATE = 10
-REPLAY_MEMORY_SIZE = 10000
-BATCH_SIZE = 64
+REPLAY_MEMORY_SIZE = 16384
+BATCH_SIZE = 128
 HIDDEN_SIZE = 128
 NUM_HIDDEN_LAYERS = 1
 LEARNING_RATE = 1e-2

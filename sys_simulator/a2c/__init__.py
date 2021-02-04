@@ -119,19 +119,21 @@ class TwoHeadedMonster(nn.Module):
         hidden_size: int
     ):
         super(TwoHeadedMonster, self).__init__()
-        self.mu1 = Linear(num_inputs, hidden_size)
-        self.mu2 = Linear(hidden_size, num_outputs)
-        self.std1 = Linear(num_inputs, hidden_size)
-        self.std2 = Linear(hidden_size, num_outputs)
+        self.mu1 = Linear(num_inputs, num_outputs)
+        # self.mu2 = Linear(hidden_size, num_outputs)
+        self.var1 = Linear(num_inputs, num_outputs)
+        # self.var2 = Linear(hidden_size, num_outputs)
 
     def forward(self, x):
         mu = self.mu1(x)
-        mu = torch.relu(mu)
-        mu = self.mu2(mu)
-        std = self.std1(x)
-        std = torch.relu(std)
-        std = self.std2(std)
-        return mu, std
+        # mu = torch.relu(mu)
+        # mu = self.mu2(mu)
+        mu = torch.tanh(mu)
+        var = self.var1(x)
+        # var = torch.relu(var)
+        # var = self.var2(var)
+        var = F.softplus(var)
+        return mu, var
 
 
 class ActorCriticDiscrete(nn.Module):
@@ -183,17 +185,20 @@ class ActorCriticContinous(nn.Module):
         ).to(self.device)
         self.critic = NeuralNetwork(
             num_inputs, 1,
-            hidden_size, n_hidden_layers).to(self.device)
+            hidden_size, n_hidden_layers
+        ).to(self.device)
 
     def forward(self, x):
-        value = self.critic(x)
+        value = self.critic(x).item()
         common = self.common(x)
-        mu, std = self.actor(common)
-        dist = Normal(mu, std)
-        action = dist.sample().item()
+        mu, var = self.actor(common)
+        std = np.sqrt(var.item())
+        dist = Normal(mu.item(), std)
+        # action = dist.sample().item()
+        action = np.random.normal(mu.item(), std)
         # action = np.clip(action, self.min_output, self.max_output)
         # action = np.clip(action, self.min_output, 1e6)
-        return dist, value, action
+        return dist, value, action, mu, var
 
 
 class ActorCriticDiscreteHybrid(nn.Module):

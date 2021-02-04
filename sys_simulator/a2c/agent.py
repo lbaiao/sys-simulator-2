@@ -1,17 +1,20 @@
-from sys_simulator.general import power_to_db
+from sys_simulator.general import power_to_db, db_to_power
 from sys_simulator.a2c.framework import ContinuousFramework, DiscreteFramework
 import torch
-from sys_simulator.a2c import A2CLSTMDiscrete, ActorCritic
+from sys_simulator.a2c import A2CLSTMDiscrete
 from sys_simulator.q_learning.agents.agent import Agent as QAgent
+import numpy as np
 
 
 class Agent(QAgent):
-    def __init__(self):
+    def __init__(self, max_power_db=1):
         self.bag = list()
         self.action = 0
         self.action_index = 0
         self.device =\
             torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.max_power_db = max_power_db
+        self.max_power = db_to_power(max_power_db)
 
     def set_d2d_tx_id(self, id: str):
         self.id = id
@@ -19,11 +22,14 @@ class Agent(QAgent):
     def act_continuous(
         self,
         framework: ContinuousFramework,
-        obs: torch.TensorType
+        obs: torch.TensorType,
     ):
-        dist, value, action = framework.a2c(obs)
-        self.action = action
-        return self.action, dist, value
+        dist, value, sample, mu, var = framework.a2c(obs)
+        clip_sample = np.clip(sample, 1e-9, 1)
+        action_mag = clip_sample * self.max_power
+        action_db = power_to_db(action_mag)
+        self.action = action_db
+        return sample, dist, value, mu, var
 
     def act_discrete(
         self,

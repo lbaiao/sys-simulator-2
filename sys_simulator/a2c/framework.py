@@ -1,4 +1,5 @@
 import torch
+import math
 from sys_simulator.a2c import \
     ActorCriticContinous, ActorCriticDiscrete, compute_gae_returns
 
@@ -46,6 +47,7 @@ class Framework:
         actor_loss = torch.mul(advantages, self.log_probs)
         actor_loss -= self.beta * self.entropy
         actor_loss = -torch.sum(actor_loss)
+        # actor_loss = -torch.mean(actor_loss)
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
         self.actor_optimizer.step()
@@ -121,6 +123,9 @@ class ContinuousFramework(Framework):
         super(ContinuousFramework, self).__init__(
             steps_per_episode, beta, gamma, device
         )
+        self.mu = torch.zeros((1, steps_per_episode)).to(device)
+        self.actions = torch.zeros((1, steps_per_episode)).to(device)
+        self.vars = torch.zeros((1, steps_per_episode)).to(device)
         self.a2c = ActorCriticContinous(
             input_size,
             output_size,
@@ -134,3 +139,22 @@ class ContinuousFramework(Framework):
             torch.optim.SGD(self.a2c.actor.parameters(), lr=learning_rate)
         self.critic_optimizer = \
             torch.optim.SGD(self.a2c.critic.parameters(), lr=learning_rate)
+        self.steps_per_episode = steps_per_episode
+        self.device = device
+
+    def learn(self):
+        self.log_probs = calc_logprob(self.mu, self.vars, self.actions)
+        self.entropy = -(torch.log(2*math.pi*self.vars) + 1)/2
+        super(ContinuousFramework, self).learn()
+        self.mu = \
+            torch.zeros((1, self.steps_per_episode)).to(self.device)
+        self.actions = \
+            torch.zeros((1, self.steps_per_episode)).to(self.device)
+        self.vars = \
+            torch.zeros((1, self.steps_per_episode)).to(self.device)
+
+
+def calc_logprob(mu_v, var_v, actions_v):
+    p1 = -((mu_v - actions_v) ** 2) / (2*var_v.clamp(min=1e-3))
+    p2 = -torch.log(torch.sqrt(2 * math.pi * var_v))
+    return p1 + p2

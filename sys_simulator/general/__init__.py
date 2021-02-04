@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+import seaborn as sns
 import pickle
 import os
 import time
@@ -9,6 +11,7 @@ from typing import List
 import scipy.spatial as spatial
 from torch import device
 from sys_simulator.devices.devices import d2d_user, mobile_user, base_station
+import pandas as pd
 
 
 def bits_gen(n):
@@ -212,9 +215,11 @@ def get_d2d_links(d2d_nodes_distances_table, d2d_nodes, channel):
     while(len(it_index) > 0):
         for i in it_index:
             for j in it_index:
-                if smallest_distance['distance'] >= d2d_nodes_distances_table[i][j] and i != j:
+                if smallest_distance['distance'] >= \
+                        d2d_nodes_distances_table[i][j] and i != j:
                     smallest_distance['table_position'] = (i, j)
-                    smallest_distance['distance'] = d2d_nodes_distances_table[i][j]
+                    smallest_distance['distance'] = \
+                        d2d_nodes_distances_table[i][j]
         x = smallest_distance['table_position'][0]
         y = smallest_distance['table_position'][1]
         d2d_pairs_table[f'D2D_LINK:{d2d_pairs_index}'] = \
@@ -275,3 +280,26 @@ def load_with_pickle(path: str, mode='rb'):
 def save_with_pickle(obj, path: str):
     with open(path, 'wb') as p_file:
         pickle.dump(obj, p_file)
+
+
+def sns_confidence_interval_plot(
+    y_ticks: np.ndarray,
+    y_label: str,
+    legend: str
+):
+    """x_ticks is the number of d2d pairs.
+    """
+    aux = np.ones((y_ticks.shape[0], np.prod(y_ticks.shape[1:])))
+    for i in range(len(aux)):
+        aux[i] *= i + 1
+    n_d2d = aux.reshape(-1)
+    aux2 = y_ticks.reshape(-1)
+    # dataframe
+    df = pd.DataFrame({'y_tick': aux2, 'n_d2d': n_d2d})
+    # plot
+    sns.lineplot(x="n_d2d", y="y_tick", data=df, label=legend)
+    x_ticks = df['n_d2d'].unique()
+    x_ticks.sort()
+    plt.xticks(x_ticks)
+    plt.ylabel(y_label)
+    plt.xlabel('Number of D2D pairs')

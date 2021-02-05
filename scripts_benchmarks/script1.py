@@ -1,15 +1,12 @@
-# Similar to script41.py
-# Fixes script41 bug
 # Uses CompleteEnvironment10dB
-# Centralized Learning-Centralized Execution
+# Random power allocation
 # Simulates many times, for different number of agents, and take the averages.
 # There are different channels to the BS and to the devices.
-# Single episode convergence. Everything is in dB.
-# Central DQN controls all agents.
+import random
 from shutil import copyfile
 from itertools import product
 from time import time
-from typing import List, Tuple
+from typing import List
 from sys_simulator.general \
     import db_to_power, make_dir_timestamp, power_to_db, save_with_pickle
 from sys_simulator.channels import BANChannel, UrbanMacroNLOSWinnerChannel
@@ -50,7 +47,7 @@ CHANNEL_RND = True
 # training
 NUMBER = 1
 STEPS_PER_EPISODE = 500
-TEST_STEPS_PER_EPISODE = 100
+TEST_STEPS_PER_EPISODE = 1000
 # STEPS_PER_EPISODE = 2
 # TEST_STEPS_PER_EPISODE = 2
 # common
@@ -222,29 +219,24 @@ def print_stuff(actions, env: CompleteEnvironment10dB):
 
 
 def test(
-    test_env: CompleteEnvironment10dB,
-    framework: ExternalDQNFramework,
-    central_agent: CentralDQNAgent,
     agents: List[ExternalDQNAgent],
-    actions_tuples: Tuple
 ):
-    framework.policy_net.eval()
+    global actions
+    n_agents = len(agents)
+    actions_tuples = \
+        list(product(range(len(actions)), repeat=n_agents))
     mue_spectral_effs = []
     d2d_spectral_effs = []
     rewards_bag = []
-    test_env.reset_before_build_set()
-    obs_aux, _ = test_env.step(agents)
-    obs = torch.cat(obs_aux).view(1, -1).float()
+    test_env = deepcopy(ref_env)
+    test_env.build_scenario(agents)
     total_reward = 0.0
     i = 0
     while True:
-        tuple_index = central_agent.act(framework, obs)
-        action_tuple = actions_tuples[tuple_index]
+        action_tuple = random.choice(actions_tuples)
         for j, agent in enumerate(agents):
             agent.set_action(action_tuple[j], actions[action_tuple[j]])
-        next_obs_aux, rewards = test_env.step(agents)
-        next_obs = torch.cat(next_obs_aux).view(1, -1).float()
-        obs = next_obs
+        _, rewards = test_env.step(agents)
         total_reward = sum(rewards)
         # saving stuff
         rewards_bag.append(total_reward)
@@ -283,12 +275,10 @@ def run():
                 f'Iteration: {it}/{ITERATIONS_PER_NUM_AGENTS-1}. ' +
                 f'Elapsed time: {now} minutes.'
             )
-            env = deepcopy(ref_env)
-            framework, central_agent, agents, actions_tuples = \
-                train(n, env)
+            agents = [ExternalDQNAgent(agent_params, actions)
+                      for _ in range(n)]
             mue_success_rate, mue_spectral_effs, d2d_spectral_effs, rewards = \
-                test(env, framework,
-                     central_agent, agents, actions_tuples)
+                test(agents)
             mue_suc_rates.append(mue_success_rate)
             mue_speff_rates.append(mue_spectral_effs)
             d2d_speff_rates.append(d2d_spectral_effs)
@@ -301,7 +291,7 @@ def run():
     now = (time() - start) / 60
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
-    dir_path = f'data/dql/{filename}'
+    dir_path = f'data/benchmarks/{filename}'
     data_path = make_dir_timestamp(dir_path)
     data_file_path = f'{data_path}/log.pickle'
     data = {

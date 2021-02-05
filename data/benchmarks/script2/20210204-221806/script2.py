@@ -1,18 +1,15 @@
-# Similar to script41.py
-# Fixes script41 bug
 # Uses CompleteEnvironment10dB
-# Centralized Learning-Centralized Execution
+# Random search for the best power
 # Simulates many times, for different number of agents, and take the averages.
 # There are different channels to the BS and to the devices.
-# Single episode convergence. Everything is in dB.
-# Central DQN controls all agents.
+import random
 from shutil import copyfile
 from itertools import product
 from time import time
-from typing import List, Tuple
+from typing import List
 from sys_simulator.general \
     import db_to_power, make_dir_timestamp, power_to_db, save_with_pickle
-from sys_simulator.channels import BANChannel, UrbanMacroNLOSWinnerChannel
+from sys_simulator.channels import BANChannel, UrbanMacroLOSWinnerChannel
 from sys_simulator import general as gen
 from sys_simulator.q_learning.environments.completeEnvironment10dB \
     import CompleteEnvironment10dB
@@ -49,7 +46,7 @@ CHANNEL_RND = True
 # q-learning parameters
 # training
 NUMBER = 1
-STEPS_PER_EPISODE = 500
+STEPS_PER_EPISODE = 1000
 TEST_STEPS_PER_EPISODE = 100
 # STEPS_PER_EPISODE = 2
 # TEST_STEPS_PER_EPISODE = 2
@@ -94,7 +91,7 @@ agent_params = DQNAgentParameters(
 )
 reward_function = dis_reward_tensor_db
 channel_to_devices = BANChannel(rnd=CHANNEL_RND)
-channel_to_bs = UrbanMacroNLOSWinnerChannel(
+channel_to_bs = UrbanMacroLOSWinnerChannel(
     rnd=CHANNEL_RND, f_c=carrier_frequency, h_bs=bs_height, h_ms=device_height
 )
 ref_env = CompleteEnvironment10dB(
@@ -222,37 +219,54 @@ def print_stuff(actions, env: CompleteEnvironment10dB):
 
 
 def test(
-    test_env: CompleteEnvironment10dB,
-    framework: ExternalDQNFramework,
-    central_agent: CentralDQNAgent,
     agents: List[ExternalDQNAgent],
-    actions_tuples: Tuple
 ):
-    framework.policy_net.eval()
+    global actions
+    n_agents = len(agents)
+    actions_tuples = \
+        list(product(range(len(actions)), repeat=n_agents))
     mue_spectral_effs = []
     d2d_spectral_effs = []
     rewards_bag = []
-    test_env.reset_before_build_set()
-    obs_aux, _ = test_env.step(agents)
-    obs = torch.cat(obs_aux).view(1, -1).float()
+    rewards = []
+    test_env = deepcopy(ref_env)
+    test_env.build_scenario(agents)
     total_reward = 0.0
-    i = 0
-    while True:
-        tuple_index = central_agent.act(framework, obs)
-        action_tuple = actions_tuples[tuple_index]
+    best_reward = float('-inf')
+    best_action_tuple = 0
+    sample_size = \
+        STEPS_PER_EPISODE \
+        if STEPS_PER_EPISODE < len(actions_tuples) \
+        else len(actions_tuples)
+    sampled_action_tuples = \
+        random.sample(actions_tuples, sample_size)
+    # search for the best action_tuple
+    # this should be in the `train` function
+    # but i am too lazy for that, at the moment
+    for i in sampled_action_tuples:
+        action_tuple = i
         for j, agent in enumerate(agents):
             agent.set_action(action_tuple[j], actions[action_tuple[j]])
-        next_obs_aux, rewards = test_env.step(agents)
-        next_obs = torch.cat(next_obs_aux).view(1, -1).float()
-        obs = next_obs
+        _, rewards = test_env.step(agents)
         total_reward = sum(rewards)
         # saving stuff
         rewards_bag.append(total_reward)
         mue_spectral_effs.append(test_env.mue_spectral_eff.item())
         d2d_spectral_effs.append(test_env.d2d_spectral_eff.item())
-        i += 1
-        if i >= TEST_STEPS_PER_EPISODE:
-            break
+        if total_reward > best_reward:
+            best_reward = total_reward
+            best_action_tuple = action_tuple
+    # use the best action tuple throughout the whole testing
+    for _ in range(TEST_STEPS_PER_EPISODE):
+        action_tuple = best_action_tuple
+        for j, agent in enumerate(agents):
+            agent.set_action(action_tuple[j], actions[action_tuple[j]])
+        _, rewards = test_env.step(agents)
+        total_reward = sum(rewards)
+        # saving stuff
+        rewards_bag.append(total_reward)
+        mue_spectral_effs.append(test_env.mue_spectral_eff.item())
+        d2d_spectral_effs.append(test_env.d2d_spectral_eff.item())
     mue_success_rate = np.mean(
         np.array(mue_spectral_effs) > np.log2(
             1 + db_to_power(sinr_threshold_train)
@@ -283,12 +297,10 @@ def run():
                 f'Iteration: {it}/{ITERATIONS_PER_NUM_AGENTS-1}. ' +
                 f'Elapsed time: {now} minutes.'
             )
-            env = deepcopy(ref_env)
-            framework, central_agent, agents, actions_tuples = \
-                train(n, env)
+            agents = [ExternalDQNAgent(agent_params, actions)
+                      for _ in range(n)]
             mue_success_rate, mue_spectral_effs, d2d_spectral_effs, rewards = \
-                test(env, framework,
-                     central_agent, agents, actions_tuples)
+                test(agents)
             mue_suc_rates.append(mue_success_rate)
             mue_speff_rates.append(mue_spectral_effs)
             d2d_speff_rates.append(d2d_spectral_effs)
@@ -301,7 +313,7 @@ def run():
     now = (time() - start) / 60
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
-    dir_path = f'data/dql/{filename}'
+    dir_path = f'data/benchmarks/{filename}'
     data_path = make_dir_timestamp(dir_path)
     data_file_path = f'{data_path}/log.pickle'
     data = {

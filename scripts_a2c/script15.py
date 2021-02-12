@@ -49,7 +49,7 @@ CHANNEL_RND = True
 # training
 NUMBER = 1
 # run params
-STEPS_PER_EPISODE = 50
+STEPS_PER_EPISODE = 25
 TEST_STEPS_PER_EPISODE = 100
 MAX_NUM_EPISODES = 20
 # debugging params

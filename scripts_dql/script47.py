@@ -256,7 +256,7 @@ def test(n_agents, test_env, framework):
     return mue_success_rate, mue_spectral_effs, d2d_spectral_effs, rewards
 
 
-def in_training_test(framework: ExternalDQNFramework, device: torch.device):
+def in_training_test(framework: ExternalDQNFramework):
     mue_spectral_eff_bag = list()
     d2d_spectral_eff_bag = list()
     rewards_bag = list()

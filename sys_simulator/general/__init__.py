@@ -303,3 +303,12 @@ def sns_confidence_interval_plot(
     plt.xticks(x_ticks)
     plt.ylabel(y_label)
     plt.xlabel('Number of D2D pairs')
+
+
+def random_seed(seed: int):
+    random.seed(seed)
+    np.random.seed(seed)
+
+
+def get_elapsed_time_minutes(start: int):
+    return (time() - start) / 60

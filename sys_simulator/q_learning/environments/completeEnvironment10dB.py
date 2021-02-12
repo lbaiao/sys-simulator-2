@@ -21,18 +21,24 @@ class CompleteEnvironment10dB(RLEnvironment):
     It has different channels to the BS and to the devices.
     The channel is dynamic, and the devices have channel information,
     just before the transmission.
+
+    Params
+    ---------
+
+    reward_function: str
+        May be 'classic', for the classic reward. 'lucas' for the lucas reward.
     """
 
     def __init__(
         self,
         params: EnvironmentParameters,
-        reward_function,
         channel_to_bs: Channel,
         channel_to_devices: Channel,
         memory=1,
         n_closest_devices=1,
         reward_penalty=1,
         bs_height=25,
+        reward_function='classic',
         **kwargs
     ):
         self.params = params
@@ -63,6 +69,13 @@ class CompleteEnvironment10dB(RLEnvironment):
         self.small_scale_fadings_are_set = False
         self.total_losses_are_set = False
         self.pathlosses_are_calculated = False
+        # reward function
+        if reward_function == 'classic':
+            self.reward_function = self.calculate_old_reward
+        elif reward_function == 'lucas':
+            self.reward_function = self.calculate_lucas_reward
+        else:
+            raise Exception('Invalid reward function.')
 
     def build_scenario(self, agents: List[ExternalDQNAgent]):
         # declaring the bs, mues and d2d pairs
@@ -317,7 +330,9 @@ class CompleteEnvironment10dB(RLEnvironment):
         states = [self.get_state(a) for a in agents]
         # rewards
         rewards = [
-            self.calculate_old_reward(a, self.params.c_param)
+            # self.calculate_old_reward(a, self.params.c_param)
+            # self.calculate_lucas_reward(a, self.params.c_param)
+            self.reward_function(a, self.params.c_param)
             for a in agents
         ]
         # total reward
@@ -334,6 +349,8 @@ class CompleteEnvironment10dB(RLEnvironment):
         for tx, rx in self.d2d_pairs:
             pathloss_to_rx = self.total_losses[tx.id][rx.id]
             tx.set_pathloss_d2d(pathloss_to_rx)
+            pathloss_to_bs = self.total_losses[tx.id][self.bs.id]
+            tx.set_pathloss_to_bs(pathloss_to_bs)
 
     def set_mue_pathloss(self):
         pathloss_to_bs = self.total_losses[self.mue.id][self.bs.id]
@@ -475,7 +492,7 @@ class CompleteEnvironment10dB(RLEnvironment):
         for itx, irx in d2d_interferers:
             pathloss = self.pathlosses[itx.id][self.bs.id]
             pathlosses[itx.id] = pathloss
-            itx.set_pathloss_to_bs(pathloss)
+            # itx.set_pathloss_to_bs(pathloss)
         self.mue.set_pathlosses_to_interfering(pathlosses)
 
     def set_n_d2d(self, n_d2d):
@@ -659,6 +676,18 @@ class CompleteEnvironment10dB(RLEnvironment):
         reward = -self.reward_penalty
         if self.mue.sinr >= self.params.sinr_threshold:
             reward = 1/C * d2d_speff
+        return reward
+
+    def calculate_lucas_reward(
+        self, agent: ExternalDQNAgent, C: int
+    ) -> float:
+        d2d_tx = agent.d2d_tx
+        d2d_speff = d2d_tx.speffs[0]
+        reward = -self.reward_penalty
+        if self.mue.sinr >= self.params.sinr_threshold:
+            aux = self.mue.sinr - self.params.sinr_threshold
+            aux = aux if aux > 0 else 0
+            reward = 1/C * d2d_speff - 1/(C**2) * (aux)
         return reward
 
     def calculate_mue_speff_without_interferer(

@@ -24,8 +24,11 @@ from sys_simulator.q_learning.rewards import dis_reward_tensor_db
 from copy import deepcopy
 import torch
 import numpy as np
+import random
 
 
+RND_SEED = 42
+random.seed(RND_SEED)
 n_mues = 1  # number of mues
 n_d2d = 2  # number of d2d pairs
 n_rb = n_mues   # number of RBs

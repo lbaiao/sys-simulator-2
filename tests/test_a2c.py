@@ -1,4 +1,4 @@
-from sys_simulator.a2c.a2c import compute_gae_returns
+from sys_simulator.a2c import compute_gae_returns
 import torch
 
 

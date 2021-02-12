@@ -1,10 +1,9 @@
 # Uses CompleteEnvironment10dB
-# Random power allocation
-# Simulates many times, for different number of agents, and take the averages.
+# Transmit only with the chosen power
+# Simulates only one episode and extracts the rewards, the pathloss_to_bs
 # There are different channels to the BS and to the devices.
 import random
 from shutil import copyfile
-from itertools import product
 from time import time
 from typing import List
 from sys_simulator.general \
@@ -13,13 +12,11 @@ from sys_simulator.channels import BANChannel, UrbanMacroNLOSWinnerChannel
 from sys_simulator import general as gen
 from sys_simulator.q_learning.environments.completeEnvironment10dB \
     import CompleteEnvironment10dB
-from sys_simulator.dqn.agents.dqnAgent import CentralDQNAgent, ExternalDQNAgent
-from sys_simulator.dqn.externalDQNFramework import ExternalDQNFramework
+from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
 from sys_simulator.parameters.parameters import \
     EnvironmentParameters, TrainingParameters, DQNAgentParameters
 from sys_simulator.q_learning.rewards import dis_reward_tensor_db
 from copy import deepcopy
-import torch
 import numpy as np
 
 
@@ -48,8 +45,8 @@ CHANNEL_RND = True
 # q-learning parameters
 # training
 NUMBER = 1
-STEPS_PER_EPISODE = 500
-TEST_STEPS_PER_EPISODE = 1000
+STEPS_PER_EPISODE = 1000
+TEST_STEPS_PER_EPISODE = 100
 # STEPS_PER_EPISODE = 2
 # TEST_STEPS_PER_EPISODE = 2
 # common
@@ -141,76 +138,6 @@ def calculate_interferences(env: CompleteEnvironment10dB):
     return interferences, tx_labels, rx_labels
 
 
-def train(n_agents, env):
-    global actions
-    actions_tuples = \
-        list(product(range(len(actions)), repeat=n_agents))
-    framework = ExternalDQNFramework(
-        agent_params,
-        env_state_size * n_agents,
-        len(actions_tuples),
-        HIDDEN_SIZE,
-        NUM_HIDDEN_LAYERS,
-        LEARNING_RATE
-    )
-    best_reward = float('-inf')
-    mue_spectral_eff_bag = list()
-    d2d_spectral_eff_bag = list()
-    rewards_bag = list()
-    # aux_range = range(max_d2d+1)[1:]
-    epsilon = agent_params.start_epsilon
-    # n_agents = np.random.choice(aux_range)
-    agents = [ExternalDQNAgent(agent_params, actions)
-              for _ in range(n_agents)]  # 1 agent per d2d tx
-    central_agent = CentralDQNAgent(agent_params, actions, n_agents)
-    central_agent.set_epsilon(epsilon)
-    for a in agents:
-        a.set_epsilon(epsilon)
-    env.build_scenario(agents)
-    obs_aux, _ = env.step(agents)
-    obs = torch.cat(obs_aux).view(1, -1).float()
-    # env.build_scenario(agents)
-    # obs = [env.get_state(a).float() for a in agents]
-    total_reward = 0.0
-    i = 0
-    bag = list()
-    while True:
-        if i >= params.steps_per_episode:
-            break
-        else:
-            tuple_index = central_agent.get_action(framework, obs).item()
-            action_tuple = actions_tuples[tuple_index]
-            for j, agent in enumerate(agents):
-                agent.set_action(action_tuple[j], actions[action_tuple[j]])
-            next_obs_aux, rewards = env.step(agents)
-            total_reward = np.sum(rewards)
-            next_obs = torch.cat(next_obs_aux).view(1, -1).float()
-            i += 1
-            framework.replay_memory.push(
-                obs, tuple_index, next_obs, total_reward
-            )
-            framework.learn()
-            bag.append(total_reward.item())
-            obs = next_obs
-            if i % TARGET_UPDATE == 0:
-                framework.target_net.load_state_dict(
-                    framework.policy_net.state_dict()
-                )
-            if total_reward > best_reward:
-                best_reward = total_reward
-            # mue spectral eff
-            mue_spectral_eff_bag.append(env.mue_spectral_eff)
-            # average d2d spectral eff
-            d2d_spectral_eff_bag.append(env.d2d_spectral_eff)
-            rewards_bag.append(env.reward)
-            # print("Step#:{} sum reward:{} best_sum_reward:{} eps:{}".format(
-            #     i, total_reward, best_reward, agents[0].epsilon)
-            # )
-    epsilon = central_agent.epsilon
-    # Return the trained policy
-    return framework, central_agent, agents, actions_tuples
-
-
 def print_stuff(actions, env: CompleteEnvironment10dB):
     actions = [f'{i:.2f}' for i in actions]
     sinr_d2ds = [f'{d[0].sinr:.2f}' for d in env.d2d_pairs]
@@ -224,29 +151,31 @@ def test(
     agents: List[ExternalDQNAgent],
 ):
     global actions
-    n_agents = len(agents)
-    actions_tuples = \
-        list(product(range(len(actions)), repeat=n_agents))
     mue_spectral_effs = []
     d2d_spectral_effs = []
     rewards_bag = []
+    rewards = []
+    pathlosses_d2d_to_bs = []
     test_env = deepcopy(ref_env)
     test_env.build_scenario(agents)
     total_reward = 0.0
-    i = 0
-    while True:
-        action_tuple = random.choice(actions_tuples)
+    action_index = 0
+    # search for the best action_tuple
+    # this should be in the `train` function
+    # but i am too lazy for that, at the moment
+    # use the best action tuple throughout the whole testing
+    for _ in range(TEST_STEPS_PER_EPISODE):
         for j, agent in enumerate(agents):
-            agent.set_action(action_tuple[j], actions[action_tuple[j]])
+            agent.set_action(action_index, actions[action_index])
         _, rewards = test_env.step(agents)
         total_reward = sum(rewards)
         # saving stuff
         rewards_bag.append(total_reward)
         mue_spectral_effs.append(test_env.mue_spectral_eff.item())
         d2d_spectral_effs.append(test_env.d2d_spectral_eff.item())
-        i += 1
-        if i >= TEST_STEPS_PER_EPISODE:
-            break
+        pathlosses_d2d_to_bs.append(
+            test_env.total_losses[agents[0].id][test_env.bs.id]
+        )
     mue_success_rate = np.mean(
         np.array(mue_spectral_effs) > np.log2(
             1 + db_to_power(sinr_threshold_train)
@@ -256,7 +185,8 @@ def test(
     # for i, j in enumerate(jain_index):
     #     jain_index_avg.append(np.average(j))
     # save data
-    return mue_success_rate, mue_spectral_effs, d2d_spectral_effs, rewards
+    return mue_success_rate, mue_spectral_effs, d2d_spectral_effs, \
+        rewards_bag, pathlosses_d2d_to_bs
 
 
 def run():
@@ -264,31 +194,21 @@ def run():
     mue_spectral_effs_total = []
     d2d_spectral_effs_total = []
     rewards_total = []
+    pathlosses_d2d_to_bs = []
     start = time()
-    for n in range(1, MAX_NUMBER_OF_AGENTS+1, 1):
-        mue_suc_rates = []
-        mue_speff_rates = []
-        d2d_speff_rates = []
-        rews = []
-        for it in range(ITERATIONS_PER_NUM_AGENTS):
-            now = (time() - start) / 60
-            print(
-                f'Number of agents: {n}/{MAX_NUMBER_OF_AGENTS}. ' +
-                f'Iteration: {it}/{ITERATIONS_PER_NUM_AGENTS-1}. ' +
-                f'Elapsed time: {now} minutes.'
-            )
-            agents = [ExternalDQNAgent(agent_params, actions)
-                      for _ in range(n)]
-            mue_success_rate, mue_spectral_effs, d2d_spectral_effs, rewards = \
-                test(agents)
-            mue_suc_rates.append(mue_success_rate)
-            mue_speff_rates.append(mue_spectral_effs)
-            d2d_speff_rates.append(d2d_spectral_effs)
-            rews.append(rewards)
-        mue_sucess_rate_total.append(mue_suc_rates)
-        mue_spectral_effs_total.append(mue_speff_rates)
-        d2d_spectral_effs_total.append(d2d_speff_rates)
-        rewards_total.append(rews)
+    now = (time() - start) / 60
+    print(
+        f'Number of agents: {1}. ' +
+        f'Elapsed time: {now} minutes.'
+    )
+    agents = [ExternalDQNAgent(agent_params, actions)
+              for _ in range(1)]
+    mue_success_rate, mue_spectral_effs, d2d_spectral_effs, rewards, \
+        pathlosses_d2d_to_bs = test(agents)
+    mue_sucess_rate_total.append(mue_success_rate)
+    mue_spectral_effs_total.append(mue_spectral_effs)
+    d2d_spectral_effs_total.append(d2d_spectral_effs)
+    rewards_total += rewards
     # save stuff
     now = (time() - start) / 60
     filename = gen.path_leaf(__file__)
@@ -302,7 +222,8 @@ def run():
         'mue_speffs': mue_spectral_effs_total,
         'rewards': rewards_total,
         'mue_sinr_threshold': sinr_threshold_train,
-        'elapsed_time': now
+        'elapsed_time': now,
+        'pathlosses_d2d_to_bs': pathlosses_d2d_to_bs,
     }
     save_with_pickle(data, data_file_path)
     copyfile(__file__, f'{data_path}/{filename}.py')

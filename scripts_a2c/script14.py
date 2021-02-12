@@ -5,6 +5,7 @@
 # There are different channels to the BS and to the devices.
 # Distributed learning-Distributed execution
 # Single episode convergence. Everything is in dB. One NN for each agent.
+from time import time
 from shutil import copyfile
 import os
 from sys_simulator.a2c.framework import ContinuousFramework
@@ -13,7 +14,7 @@ from sys_simulator.a2c.agent import Agent
 from sys_simulator.a2c import ActorCriticDiscrete
 from typing import List
 from sys_simulator.general import db_to_power, make_dir_timestamp, power_to_db, save_with_pickle
-from sys_simulator.channels import BANChannel, UrbanMacroLOSWinnerChannel
+from sys_simulator.channels import BANChannel, UrbanMacroLOSWinnerChannel, UrbanMacroNLOSWinnerChannel
 from sys_simulator import general as gen
 from sys_simulator.q_learning.environments.completeEnvironment10dB \
     import CompleteEnvironment10dB
@@ -54,9 +55,9 @@ CHANNEL_RND = True
 # training
 NUMBER = 1
 # run params
-STEPS_PER_EPISODE = 10
+STEPS_PER_EPISODE = 20
 TEST_STEPS_PER_EPISODE = 100
-MAX_NUM_EPISODES = 140
+MAX_NUM_EPISODES = 1000
 # debugging params
 # STEPS_PER_EPISODE = 2
 # TEST_STEPS_PER_EPISODE = 2
@@ -65,15 +66,15 @@ MAX_NUM_EPISODES = 140
 EPSILON_INITIAL = 1
 EPSILON_MIN = .05
 EPSILON_DECAY = 1.3 / STEPS_PER_EPISODE    # fast training
-GAMMA = 0.5  # Discount factor
+GAMMA = 0.3  # Discount factor
 C = 8  # C constant for the improved reward function
 TARGET_UPDATE = 10
 REPLAY_MEMORY_SIZE = 10000
 BATCH_SIZE = 64
 HIDDEN_SIZE = 128
 NUM_HIDDEN_LAYERS = 1
-LEARNING_RATE = 1e-8
-BETA = 1e-8
+LEARNING_RATE = 5e-4
+BETA = 1e-2
 REWARD_PENALTY = 1.5
 ENVIRONMENT_MEMORY = 2
 MAX_NUMBER_OF_AGENTS = 5
@@ -98,17 +99,17 @@ agent_params = DQNAgentParameters(
 )
 reward_function = dis_reward_tensor_db
 channel_to_devices = BANChannel(rnd=CHANNEL_RND)
-channel_to_bs = UrbanMacroLOSWinnerChannel(
+channel_to_bs = UrbanMacroNLOSWinnerChannel(
     rnd=CHANNEL_RND, f_c=carrier_frequency, h_bs=bs_height, h_ms=device_height
 )
 ref_env = CompleteEnvironment10dB(
     env_params,
-    reward_function,
     channel_to_bs,
     channel_to_devices,
     reward_penalty=REWARD_PENALTY,
     memory=ENVIRONMENT_MEMORY,
-    bs_height=bs_height
+    bs_height=bs_height,
+    reward_function='classic'
 )
 # foo env and foo agents stuff
 foo_env = deepcopy(ref_env)
@@ -154,7 +155,7 @@ def calculate_interferences(env: CompleteEnvironment10dB):
     return interferences, tx_labels, rx_labels
 
 
-def train(env: CompleteEnvironment10dB):
+def train(env: CompleteEnvironment10dB, start: int):
     mue_spectral_eff_bag = list()
     d2d_spectral_eff_bag = list()
     rewards_bag = list()
@@ -202,11 +203,13 @@ def train(env: CompleteEnvironment10dB):
             # average d2d spectral eff
             d2d_spectral_eff_bag.append(env.d2d_spectral_eff)
             rewards_bag.append(env.reward)
+            elapsed_time = (time() - start)/60
             print(
-                "Episode#:{}. Step#:{}. sum reward:{}. best sumreward:{}."
+                "Episode#:{}. Step#:{}. sum reward:{}. best sumreward:{}. Elapsed time: {} min."  # noqa
                 .format(
                     episode, i, total_reward,
-                    best_reward
+                    best_reward,
+                    elapsed_time
                 )
             )
         # gae and returns
@@ -248,7 +251,8 @@ def print_stuff(actions, env: CompleteEnvironment10dB):
 def test(
     test_env: CompleteEnvironment10dB,
     frameworks: List[ActorCriticDiscrete],
-    agents: List[Agent]
+    agents: List[Agent],
+    start: int
 ):
     for f in frameworks:
         f.a2c.eval()
@@ -257,7 +261,7 @@ def test(
     rewards_bag = []
     # jain_index = [list() for _ in range(max_d2d+1)]
     bag = list()  # 1 agent per d2d tx
-    test_env.reset_before_build_set()
+    # test_env.reset_before_build_set()
     obs, _ = test_env.step(agents)
     total_reward = 0.0
     i = 0
@@ -300,6 +304,8 @@ def test(
             test_env.mue.sinr > sinr_threshold_train, sinr_threshold_train,
             test_env.reward, interferences, tx_labels, rx_labels
         )
+    elapsed_time = (time() - start)/60
+    print(elapsed_time)
     # jain_index[n_agents].append(gen.jain_index(test_env.sinr_d2ds))
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
@@ -313,7 +319,8 @@ def test(
         'd2d_speffs': d2d_spectral_effs,
         'mue_speffs': mue_spectral_effs,
         'rewards': rewards_bag,
-        'mue_sinr_threshold': sinr_threshold_train
+        'mue_sinr_threshold': sinr_threshold_train,
+        'elapsed_time': elapsed_time
     }
     save_with_pickle(data, data_file_path)
     copyfile(__file__, f'{data_path}/{filename}.py')
@@ -329,9 +336,10 @@ def test(
 
 
 def run():
+    start = time()
     env = deepcopy(ref_env)
-    frameworks, agents = train(env)
-    test(env, frameworks, agents)
+    frameworks, agents = train(env, start)
+    test(env, frameworks, agents, start)
 
 
 if __name__ == '__main__':

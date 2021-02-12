@@ -7,7 +7,7 @@ from sys_simulator.q_learning.environments.completeEnvironmentA2C2 \
 from sys_simulator.q_learning.rewards import dis_reward_tensor
 from sys_simulator.parameters.parameters import EnvironmentParameters
 from sys_simulator.a2c.agent import Agent
-from sys_simulator.a2c.a2c import ActorCriticDiscrete, compute_gae_returns
+from sys_simulator.a2c import ActorCriticDiscrete, compute_gae_returns
 from torch import optim, nn
 import torch
 import os

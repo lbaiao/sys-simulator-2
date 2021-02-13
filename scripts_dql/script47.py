@@ -111,12 +111,12 @@ channel_to_bs = UrbanMacroNLOSWinnerChannel(
 )
 ref_env = CompleteEnvironment10dB(
     env_params,
-    reward_function,
     channel_to_bs,
     channel_to_devices,
     reward_penalty=REWARD_PENALTY,
     memory=ENVIRONMENT_MEMORY,
-    bs_height=bs_height
+    bs_height=bs_height,
+    reward_function='classic'
 )
 # foo env and foo agents stuff
 foo_env = deepcopy(ref_env)

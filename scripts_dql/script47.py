@@ -198,7 +198,7 @@ def train(start):
                     best_reward = total_reward
         epsilon = agents[0].epsilon
         if episode % EVAL_EVERY == 0:
-            r, d_speff, m_speff = in_training_test(framework, device)
+            r, d_speff, m_speff = in_training_test(framework)
             rewards_bag.append(r)
             # average d2d spectral eff
             d2d_spectral_eff_bag.append(d_speff)

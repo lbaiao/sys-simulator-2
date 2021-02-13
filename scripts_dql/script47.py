@@ -49,9 +49,10 @@ CHANNEL_RND = True
 # q-learning parameters
 # training
 NUMBER = 1
+REWARD_FUNCTION = 'classic'
 # exec params
-STEPS_PER_EPISODE = 10
-TEST_STEPS_PER_EPISODE = 5
+STEPS_PER_EPISODE = 25
+TEST_STEPS_PER_EPISODE = 25
 MAX_NUM_EPISODES = 1500      # medium training
 ITERATIONS_PER_NUM_AGENTS = 100
 EVAL_EVERY = 150
@@ -74,7 +75,7 @@ GAMMA = 0.9  # Discount factor
 C = 8  # C constant for the improved reward function
 TARGET_UPDATE = 20
 REPLAY_MEMORY_SIZE = 100000
-BATCH_SIZE = 128
+BATCH_SIZE = 512
 HIDDEN_SIZE = 128
 NUM_HIDDEN_LAYERS = 1
 LEARNING_RATE = 1e-2
@@ -116,7 +117,7 @@ ref_env = CompleteEnvironment10dB(
     reward_penalty=REWARD_PENALTY,
     memory=ENVIRONMENT_MEMORY,
     bs_height=bs_height,
-    reward_function='classic'
+    reward_function=REWARD_FUNCTION
 )
 # foo env and foo agents stuff
 foo_env = deepcopy(ref_env)

@@ -86,9 +86,13 @@ class CompleteEnvironment10dB(RLEnvironment):
         self.bs.set_gain(self.params.bs_gain)
         self.mue = mobile_user(0, self.params.p_max)
         self.mue.set_gain(self.params.user_gain)
-        self.d2d_pairs = [(d2d_user(x, d2d_node_type.TX, self.params.p_max),
-                           d2d_user(x, d2d_node_type.RX, self.params.p_max))
-                          for x in range(len(agents))]
+        self.d2d_pairs = [
+            (d2d_user(x, d2d_node_type.TX, self.params.p_max,
+                      memory_size=self.memory),
+             d2d_user(x, d2d_node_type.RX, self.params.p_max,
+                      memory_size=self.memory))
+            for x in range(len(agents))
+        ]
         # set diff
         diff = self.n_closest_devices - len(self.d2d_pairs) + 1
         self.diff = 0 if diff < 0 else diff
@@ -142,8 +146,10 @@ class CompleteEnvironment10dB(RLEnvironment):
         self.mue.set_distance_to_bs(euclidean(mue_position, self.bs.position))
         # instantiate d2d_pairs
         self.d2d_pairs = [(
-            d2d_user(x, d2d_node_type.TX, self.params.p_max),
-            d2d_user(x, d2d_node_type.RX, self.params.p_max)
+            d2d_user(x, d2d_node_type.TX, self.params.p_max,
+                     memory_size=self.memory),
+            d2d_user(x, d2d_node_type.RX, self.params.p_max,
+                     memory_size=self.memory)
         ) for x in range(len(agents))]
         # set diff
         diff = self.n_closest_devices - len(self.d2d_pairs) + 1

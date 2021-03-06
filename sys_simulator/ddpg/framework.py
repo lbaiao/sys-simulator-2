@@ -77,7 +77,7 @@ class Framework:
         # train actor
         actions_tp = self.ddpg.actor(obses_t)
         q_tp_actor = self.ddpg.critic(obses_t, actions_tp)
-        actor_loss = q_tp_actor.mean()
+        actor_loss = -q_tp_actor.mean()
         actor_loss.backward()
         self.actor_optimizer.step()
         self.polyak_update(self.target_ddpg.critic, self.ddpg.critic)

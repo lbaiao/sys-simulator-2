@@ -11,10 +11,11 @@ class Agent:
         self.a_max = a_max
         self.device = device
 
-    def act(self, obs: ndarray, framework: Framework, is_training=False):        
+    def act(self, obs: ndarray, framework: Framework, is_training=False):
         obs = torch.Tensor(obs).to(self.device)
         mu = framework.ddpg.actor(obs).item()
         if is_training:
             mu += normal(loc=0, scale=1)
+        action = mu * (self.a_max - self.a_min) / 2
         action = np.clip(mu, self.a_min, self.a_max)
         return action

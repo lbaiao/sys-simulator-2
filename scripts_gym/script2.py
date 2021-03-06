@@ -77,7 +77,7 @@ def train(start):
         if episode % EVAL_EVERY == 0:
             t_rewards = test(framework)
             test_rewards.append(t_rewards)
-        # framework.replay_memory.correct_beta(i, STEPS_PER_EPISODE)
+        framework.replay_memory.correct_beta(i, STEPS_PER_EPISODE)
     # last test
     t_rewards = test(framework)
     test_rewards.append(t_rewards)

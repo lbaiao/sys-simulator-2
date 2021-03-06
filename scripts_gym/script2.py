@@ -7,12 +7,11 @@ from time import time
 import sys_simulator.general as gen
 import numpy as np
 
-MAX_NUM_EPISODES = 800
-STEPS_PER_EPISODE = 100
+MAX_NUM_EPISODES = 4000
+STEPS_PER_EPISODE = 1000
 EVAL_NUM_EPISODES = 10
 REPLAY_MEMORY_SIZE = 100000
-HIDDEN_SIZE = 300
-NUM_HIDDEN_LAYERS = 3
+REPLAY_INITIAL = 10000
 LEARNING_RATE = 1E-4
 BATCH_SIZE = 64
 GAMMA = .99
@@ -31,10 +30,9 @@ a_min = env.action_space.low
 a_max = env.action_space.high
 framework = Framework(
     REPLAY_MEMORY_SIZE,
+    REPLAY_INITIAL,
     state_size,
     action_size,
-    HIDDEN_SIZE,
-    NUM_HIDDEN_LAYERS,
     LEARNING_RATE,
     BATCH_SIZE,
     GAMMA,

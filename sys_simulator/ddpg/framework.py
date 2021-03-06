@@ -9,10 +9,9 @@ class Framework:
     def __init__(
         self,
         replay_memory_size: int,
+        replay_initial: int,
         state_size: int,
         action_size: int,
-        hidden_size: int,
-        n_hidden_layers: int,
         learning_rate: float,
         batch_size: int,
         gamma: float,
@@ -27,11 +26,12 @@ class Framework:
         self.replay_memory = PrioritizedReplayBuffer(
             replay_memory_size, alpha, beta, beta_its
         )
+        self.replay_initial = replay_initial
         # ddpg
-        self.ddpg = DDPG(state_size, action_size, hidden_size, n_hidden_layers)
+        self.ddpg = DDPG(state_size, action_size)
         self.ddpg.to(device)
         self.target_ddpg = \
-            DDPG(state_size, action_size, hidden_size, n_hidden_layers, True)
+            DDPG(state_size, action_size, True)
         self.target_ddpg.to(device)
         # clone ddpg NNs to the target
         self.target_ddpg.actor.load_state_dict(self.ddpg.actor.state_dict())
@@ -45,7 +45,7 @@ class Framework:
         self.polyak = polyak
 
     def learn(self):
-        if len(self.replay_memory) < self.batch_size:
+        if len(self.replay_memory) < self.replay_initial:
             return
         obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes = \
             self.replay_memory.sample(self.batch_size)

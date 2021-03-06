@@ -1,5 +1,5 @@
 import torch
-from torch.nn import Module, Sequential, Linear
+from torch.nn import Module, Linear
 from torch import nn
 from torch.nn.modules.container import ModuleList
 from torch import tanh
@@ -75,14 +75,9 @@ class DDPG(Module):
         self,
         state_size: int,
         action_size: int,
-        hidden_size: int,
-        n_hidden_layers=1,
         is_target=False
     ):
         super(DDPG, self).__init__()
-        actor_hidden_layers = ModuleList()
-        for _ in range(n_hidden_layers):
-            actor_hidden_layers.append(Linear(hidden_size, hidden_size))
         self.actor = DDPGActor(state_size, action_size)
         self.critic = DDPGCritic(state_size, action_size)
         if is_target:

@@ -4,7 +4,7 @@ from sys_simulator.dqn.dqn import DQN
 from sys_simulator.parameters.parameters import DQNAgentParameters
 from sys_simulator.q_learning.agents.agent import Agent
 from sys_simulator.dqn.replayMemory import ReplayMemory, Transition
-from sys_simulator.dqn.externalDQNFramework import ExternalDQNFramework
+from sys_simulator.dqn.externalDQNFramework import ExternalDQNFramework, RainbowFramework
 import torch
 
 
@@ -12,6 +12,7 @@ class DQNAgent(Agent):
     """
     don't forget to set the agent actions with the set_actions method
     """
+
     def __init__(self, params: DQNAgentParameters, actions):
         super(DQNAgent, self).__init__(params, actions)
         self.batchsize = params.batchsize
@@ -105,6 +106,7 @@ class ExternalDQNAgent(Agent):
     don't forget to set the agent actions with the set_actions method
     Same as DQNAgent, but the agent does not have its own DQN.
     """
+
     def __init__(self, params: DQNAgentParameters, actions):
         super(ExternalDQNAgent, self).__init__(params, actions)
         self.device = torch.device("cuda")
@@ -135,6 +137,26 @@ class ExternalDQNAgent(Agent):
     def act(self, framework: ExternalDQNFramework, obs: torch.Tensor):
         return framework.policy_net(obs)
 
+    def act_rainbow(self, framework: RainbowFramework, obs: torch.Tensor):
+        return framework.policy_net.qvals(obs)
+
+    def get_action_rainbow(self, policy: RainbowFramework, obs):
+        if self.epsilon > self.epsilon_min:
+            self.epsilon -= self.epsilon_decay
+        if np.random.random() > self.epsilon:
+            # aux = torch.tensor([obs[0]], device=self.device)
+            self.action_index = policy.policy_net.qvals(obs).max(1)[1].item()
+            self.action = self.actions[self.action_index]
+        else:
+            self.action_index = torch.tensor(
+                np.random.choice([i for i in range(len(self.actions))])
+            ).item()
+            # self.action_index = torch.tensor(
+            #     self.action_index, device=self.device
+            # )
+            self.action = self.actions[self.action_index]
+        return self.action
+
     def set_action(self, action_index: torch.Tensor, action: torch.Tensor):
         self.action_index = action_index
         self.action = action
@@ -151,6 +173,7 @@ class CentralDQNAgent(Agent):
     don't forget to set the agent actions with the set_actions method
     Same as DQNAgent, but the agent does not have its own DQN.
     """
+
     def __init__(self, params: DQNAgentParameters, actions, n_agents):
         super(CentralDQNAgent, self).__init__(params, actions)
         self.device = torch.device("cuda")

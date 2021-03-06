@@ -47,6 +47,7 @@ noise_power = noise_power - 30
 # channel parameters
 CHANNEL_RND = True
 # q-learning parameters
+REWARD_FUNCTION = 'classic'
 # training
 NUMBER = 1
 # run params
@@ -104,12 +105,12 @@ channel_to_bs = UrbanMacroLOSWinnerChannel(
 )
 ref_env = CompleteEnvironment10dB(
     env_params,
-    reward_function,
     channel_to_bs,
     channel_to_devices,
     reward_penalty=REWARD_PENALTY,
     memory=ENVIRONMENT_MEMORY,
-    bs_height=bs_height
+    bs_height=bs_height,
+    reward_function=REWARD_FUNCTION
 )
 # foo env and foo agents stuff
 foo_env = deepcopy(ref_env)
@@ -167,6 +168,7 @@ def train(env: CompleteEnvironment10dB):
             len(actions),
             HIDDEN_SIZE,
             NUM_HIDDEN_LAYERS,
+            1,
             STEPS_PER_EPISODE,
             LEARNING_RATE,
             BETA,

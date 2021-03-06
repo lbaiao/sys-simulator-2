@@ -285,7 +285,8 @@ def save_with_pickle(obj, path: str):
 def sns_confidence_interval_plot(
     y_ticks: np.ndarray,
     y_label: str,
-    legend: str
+    legend: str,
+    x_label='Number of D2D pairs'
 ):
     """x_ticks is the number of d2d pairs.
     """
@@ -302,7 +303,7 @@ def sns_confidence_interval_plot(
     x_ticks.sort()
     plt.xticks(x_ticks)
     plt.ylabel(y_label)
-    plt.xlabel('Number of D2D pairs')
+    plt.xlabel(x_label)
 
 
 def random_seed(seed: int):

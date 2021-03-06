@@ -22,11 +22,11 @@ class CompleteEnvironment10dB(RLEnvironment):
     The channel is dynamic, and the devices have channel information,
     just before the transmission.
 
-    Params
+    Parameters
     ---------
-
     reward_function: str
         May be 'classic', for the classic reward. 'lucas' for the lucas reward.
+        'individual' for the individual reward.
     """
 
     def __init__(
@@ -74,6 +74,8 @@ class CompleteEnvironment10dB(RLEnvironment):
             self.reward_function = self.calculate_old_reward
         elif reward_function == 'lucas':
             self.reward_function = self.calculate_lucas_reward
+        elif reward_function == 'individual':
+            self.reward_function = self.calculate_individual_reward
         else:
             raise Exception('Invalid reward function.')
 
@@ -694,6 +696,16 @@ class CompleteEnvironment10dB(RLEnvironment):
             aux = self.mue.sinr - self.params.sinr_threshold
             aux = aux if aux > 0 else 0
             reward = 1/C * d2d_speff - 1/(C**2) * (aux)
+        return reward
+
+    def calculate_individual_reward(
+        self, agent: ExternalDQNAgent, C: int
+    ) -> float:
+        d2d_tx = agent.d2d_tx
+        d2d_speff = d2d_tx.speffs[0]
+        reward = -self.reward_penalty * d2d_tx.interference_contrib_pct
+        if self.mue.sinr >= self.params.sinr_threshold:
+            reward = 1/C * d2d_speff
         return reward
 
     def calculate_mue_speff_without_interferer(

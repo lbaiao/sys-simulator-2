@@ -1,6 +1,6 @@
 # Similar to script5. The same environment
 # is passed from training to testing, after being reset.
-# Distributed Learnin-Distributed execution
+# Distributed Learning-Distributed execution
 # Uses CompleteEnvironment10dB.
 # Simulates many times, for different number of agents, and take the averages.
 # There are different channels to the BS and to the devices.

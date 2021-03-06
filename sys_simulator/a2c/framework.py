@@ -1,10 +1,11 @@
 import torch
 import math
 from sys_simulator.a2c import \
-    ActorCriticContinous, ActorCriticDiscrete, compute_gae_returns
+    A2C, ActorCriticContinous, ActorCriticDiscrete, compute_gae_returns
 
 
 class Framework:
+    a2c: A2C
     log_probs: torch.Tensor
     values: torch.Tensor
     rewards: torch.Tensor
@@ -70,6 +71,8 @@ class Framework:
         )
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
+        # for param in self.a2c.critic.parameters():
+        #     param.grad.data.clamp_(-1, 1)
         self.critic_optimizer.step()
         # update actor
         actor_loss = torch.mul(advantages, self.log_probs)
@@ -79,6 +82,8 @@ class Framework:
         # actor_loss = -torch.mean(actor_loss)
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
+        for param in self.a2c.actor.parameters():
+            param.grad.data.clamp_(-1, 1)
         self.actor_optimizer.step()
         # reset values
         self.reset_values(self.n_environments)

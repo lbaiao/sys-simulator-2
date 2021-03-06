@@ -47,9 +47,8 @@ noise_power = noise_power - 30
 # channel parameters
 CHANNEL_RND = True
 # q-learning parameters
-# training
-NUMBER = 1
 # exec params
+NUMBER = 1
 STEPS_PER_EPISODE = 25
 TEST_STEPS_PER_EPISODE = 25
 MAX_NUM_EPISODES = 480      # medium training
@@ -58,6 +57,7 @@ EVAL_EVERY = 20
 EVAL_NUM_EPISODES = 20
 EVAL_STEPS_PER_EPISODE = 5
 # debug params
+# NUMBER = 1
 # STEPS_PER_EPISODE = 2
 # TEST_STEPS_PER_EPISODE = 2
 # MAX_NUM_EPISODES = 10

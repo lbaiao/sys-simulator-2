@@ -111,6 +111,11 @@ class NeuralNetwork(nn.Module):
         return x
 
 
+class A2C:
+    critic: nn.Module
+    actor: nn.Module
+
+
 class TwoHeadedMonster(nn.Module):
     def __init__(
         self,
@@ -136,7 +141,7 @@ class TwoHeadedMonster(nn.Module):
         return mu, var
 
 
-class ActorCriticDiscrete(nn.Module):
+class ActorCriticDiscrete(nn.Module, A2C):
     def __init__(
         self,
         num_inputs,
@@ -162,7 +167,7 @@ class ActorCriticDiscrete(nn.Module):
         return dist, value, probs
 
 
-class ActorCriticContinous(nn.Module):
+class ActorCriticContinous(nn.Module, A2C):
     def __init__(
         self,
         num_inputs: int,
@@ -178,10 +183,10 @@ class ActorCriticContinous(nn.Module):
         self.min_output = min_output
         self.max_output = max_output
         self.common = NeuralNetwork(
-            num_inputs, hidden_size//4,
+            num_inputs, hidden_size,
             hidden_size, n_hidden_layers).to(self.device)
         self.actor = TwoHeadedMonster(
-            hidden_size//4, n_actions, hidden_size//2
+            hidden_size, n_actions, hidden_size
         ).to(self.device)
         self.critic = NeuralNetwork(
             num_inputs, 1,
@@ -189,7 +194,7 @@ class ActorCriticContinous(nn.Module):
         ).to(self.device)
 
     def forward(self, x):
-        value = self.critic(x).item()
+        value = self.critic(x)
         common = self.common(x)
         mu, var = self.actor(common)
         std = np.sqrt(var.item())

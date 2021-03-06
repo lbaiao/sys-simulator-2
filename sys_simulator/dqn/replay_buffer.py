@@ -198,3 +198,8 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         v = self._beta + self._beta_delta
         self._beta = min(1.0, v)
         return self._beta
+
+    def correct_beta(self, i: int, stpe: int):
+        v = self._beta + self._beta_delta * (stpe - i)
+        self._beta = min(1.0, v)
+        return self._beta

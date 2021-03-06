@@ -7,18 +7,21 @@ from time import time
 import sys_simulator.general as gen
 import numpy as np
 
-MAX_NUM_EPISODES = 4000
-STEPS_PER_EPISODE = 1000
+# MAX_NUM_EPISODES = 4000
+# STEPS_PER_EPISODE = 1000
+# REPLAY_INITIAL = 10000
+MAX_NUM_EPISODES = 400
+STEPS_PER_EPISODE = 100
+REPLAY_INITIAL = 1000
 EVAL_NUM_EPISODES = 10
 REPLAY_MEMORY_SIZE = 100000
-REPLAY_INITIAL = 10000
 LEARNING_RATE = 1E-4
 BATCH_SIZE = 64
 GAMMA = .99
 POLYAK = .999
 ALPHA = .6
 BETA = .4
-PRIO_BETA_ITS = int(.8*MAX_NUM_EPISODES*STEPS_PER_EPISODE)
+PRIO_BETA_ITS = int(.8*(MAX_NUM_EPISODES*STEPS_PER_EPISODE - REPLAY_INITIAL))
 EVAL_EVERY = int(MAX_NUM_EPISODES / 20)
 
 
@@ -74,6 +77,7 @@ def train(start):
         if episode % EVAL_EVERY == 0:
             t_rewards = test(framework)
             test_rewards.append(t_rewards)
+        # framework.replay_memory.correct_beta(i, STEPS_PER_EPISODE)
     # last test
     t_rewards = test(framework)
     test_rewards.append(t_rewards)

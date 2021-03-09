@@ -133,7 +133,7 @@ def test(framework: Framework):
         ep_rewards = []
         while not done and i < STEPS_PER_EPISODE:
             action = agent.act(obs, framework, False)
-            next_obs, reward, done, _ = env.step(action)
+            next_obs, reward, done, _ = env.step(np.array(action))
             obs = next_obs
             ep_rewards.append(reward)
         # rewards.append(np.mean(ep_rewards))
@@ -146,7 +146,9 @@ def test_video(
     num_episodes: int,
     steps_per_episode: int
 ):
-    env = gym.make('Pendulum-v0')
+    env = NormalizedActions(gym.make('Pendulum-v0'))
+    agent = Agent(env.action_space.low,
+                  env.action_space.high, EXPLORATION, torch_device)
     for _ in range(num_episodes):
         obs = env.reset()
         done = False

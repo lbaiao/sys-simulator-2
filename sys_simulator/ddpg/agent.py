@@ -34,13 +34,12 @@ class Agent:
     def act(self, obs: ndarray, framework: Framework,
             is_training=False, **kwargs):
         obs = torch.FloatTensor(obs).unsqueeze(0).to(self.device)
-        mu = framework.actor(obs)
-        mu = mu.detach().cpu().numpy()[0, 0]
+        action = framework.actor(obs)
+        action = action.detach().cpu().numpy()[0, 0]
         if is_training:
-            self.explore(action=mu, **kwargs)
-        # action = mu * (self.a_max - self.a_min) / 2
-        # action = np.clip(mu, self.a_min, self.a_max)
-        action = mu
+            action = self.explore(action=action, **kwargs)
+        # action = action * (self.a_max - self.a_min) / 2
+        # action = np.clip(action, self.a_min, self.a_max)
         return action
 
     def gauss_explore(self, **kwargs):

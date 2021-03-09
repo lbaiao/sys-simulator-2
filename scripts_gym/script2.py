@@ -1,83 +1,117 @@
+from sys_simulator.general.normalized_actions import NormalizedActions
 from shutil import copyfile
+import numpy as np
+from sys_simulator.general.ou_noise import OUNoise
 from sys_simulator.ddpg.agent import Agent
 import torch
 from sys_simulator.ddpg.framework import Framework
 import gym
 from time import time
 import sys_simulator.general as gen
-import numpy as np
 
-MAX_NUM_EPISODES = 4000
-STEPS_PER_EPISODE = 1000
-REPLAY_INITIAL = 10000
-# MAX_NUM_EPISODES = 400
-# STEPS_PER_EPISODE = 100
-# REPLAY_INITIAL = 1000
+# MAX_NUM_EPISODES = 12000
+# STEPS_PER_EPISODE = 500
+# REPLAY_INITIAL = 10000
+MAX_STEPS = 12000
+STEPS_PER_EPISODE = 500
+REPLAY_INITIAL = int(0E3)
 EVAL_NUM_EPISODES = 10
-REPLAY_MEMORY_SIZE = 100000
-LEARNING_RATE = 1E-4
-BATCH_SIZE = 64
+REPLAY_MEMORY_SIZE = int(1E6)
+ACTOR_LEARNING_RATE = 1E-4
+CRITIC_LEARNING_RATE = 1E-3
+HIDDEN_SIZE_1 = 256
+HIDDEN_SIZE_2 = 256
+BATCH_SIZE = 128
 GAMMA = .99
-POLYAK = .999
+SOFT_TAU = 1E-2
 ALPHA = .6
 BETA = .4
-PRIO_BETA_ITS = int(.8*(MAX_NUM_EPISODES*STEPS_PER_EPISODE - REPLAY_INITIAL))
-EVAL_EVERY = int(MAX_NUM_EPISODES / 20)
+EXPLORATION = 'ou'
+REPLAY_MEMORY_TYPE = 'standard'
+PRIO_BETA_ITS = int(.8*(MAX_STEPS - REPLAY_INITIAL))
+EVAL_EVERY = int(MAX_STEPS / 20)
+OU_DECAY_PERIOD = 100000
+OU_MU = 0.0
+OU_THETA = .15
+OU_MAX_SIGMA = .3
+OU_MIN_SIGMA = .3
 
 
 torch_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-env = gym.make('Pendulum-v0')
+env = NormalizedActions(gym.make('Pendulum-v0'))
 state_size = env.observation_space.shape[0]
 action_size = env.action_space.shape[0]
 a_min = env.action_space.low
 a_max = env.action_space.high
 framework = Framework(
+    REPLAY_MEMORY_TYPE,
     REPLAY_MEMORY_SIZE,
     REPLAY_INITIAL,
     state_size,
     action_size,
-    LEARNING_RATE,
+    HIDDEN_SIZE_1,
+    HIDDEN_SIZE_2,
+    ACTOR_LEARNING_RATE,
+    CRITIC_LEARNING_RATE,
     BATCH_SIZE,
     GAMMA,
-    POLYAK,
-    PRIO_BETA_ITS,
-    ALPHA,
-    BETA,
-    torch_device
+    SOFT_TAU,
+    torch_device,
+    alpha=ALPHA,
+    beta=BETA,
+    beta_its=PRIO_BETA_ITS
 )
-agent = Agent(a_min, a_max, torch_device)
+ou_noise = OUNoise(
+    env.action_space,
+    OU_MU, OU_THETA,
+    OU_MAX_SIGMA,
+    OU_MIN_SIGMA,
+    OU_DECAY_PERIOD
+)
+agent = Agent(-1.0, 1.0, EXPLORATION, torch_device)
+
+
+def print_stuff(step: int, now: int):
+    if REPLAY_MEMORY_TYPE == 'prioritized':
+        out = 'Training. ' + \
+            f'Step: {step}/{MAX_STEPS-1}. ' + \
+            f'Prio_Beta: {framework.replay_memory._beta}. ' + \
+            f'Elapsed time: {now} minutes.'
+    else:
+        out = 'Training. ' + \
+            f'Step: {step}/{MAX_STEPS-1}. ' + \
+            f'Elapsed time: {now} minutes.'
+    print(out)
 
 
 def train(start):
     best_reward = float('-inf')
     test_rewards = []
-    for episode in range(MAX_NUM_EPISODES):
+    step = 0
+    while step < MAX_STEPS:
         obs = env.reset()
+        ou_noise.reset()
         now = (time() - start) / 60
-        print(
-            'Training. ' +
-            f'Episode: {episode}/{MAX_NUM_EPISODES-1}. ' +
-            f'Prio_Beta: {framework.replay_memory._beta}. ' +
-            f'Elapsed time: {now} minutes.'
-        )
+        print_stuff(step, now)
         reward = 0.0
         done = False
         i = 0
-        while not done:
-            if i >= STEPS_PER_EPISODE:
-                break
-            action = agent.act(obs, framework, True)
+        while not done and i < STEPS_PER_EPISODE:
+            action = agent.act(obs, framework, True, ou=ou_noise, step=i)
             next_obs, reward, done, _ = env.step(action)
             framework.replay_memory.push(
                 obs, action, reward, next_obs, done
             )
-            i += 1
             framework.learn()
             best_reward = reward if reward > best_reward else best_reward
-        if episode % EVAL_EVERY == 0:
+            obs = next_obs
+            i += 1
+            step += 1
+        if step % EVAL_EVERY == 0:
             t_rewards = test(framework)
             test_rewards.append(t_rewards)
-        framework.replay_memory.correct_beta(i, STEPS_PER_EPISODE)
+        # if REPLAY_MEMORY_TYPE == 'prioritized':
+        #     framework.replay_memory.correct_beta(i, STEPS_PER_EPISODE)
     # last test
     t_rewards = test(framework)
     test_rewards.append(t_rewards)
@@ -102,7 +136,8 @@ def test(framework: Framework):
             next_obs, reward, done, _ = env.step(action)
             obs = next_obs
             ep_rewards.append(reward)
-        rewards.append(np.mean(ep_rewards))
+        # rewards.append(np.mean(ep_rewards))
+        rewards.append(np.sum(ep_rewards))
     return rewards
 
 

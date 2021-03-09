@@ -35,51 +35,55 @@ class DDPGCritic(nn.Module):
         self,
         obs_size: int,
         act_size: int,
+        h1: int,
+        h2: int,
+        init_w=3e-4
     ):
         super(DDPGCritic, self).__init__()
-        self.obs_net = nn.Sequential(
-            nn.Linear(obs_size, 400),
-            nn.ReLU(),
-        )
-
-        self.out_net = nn.Sequential(
-            nn.Linear(400 + act_size, 300),
-            nn.ReLU(),
-            nn.Linear(300, 1)
-        )
+        self.linear1 = Linear(obs_size + act_size, h1)
+        self.linear2 = Linear(h1, h2)
+        self.linear3 = Linear(h2, 1)
+        self.linear3.weight.data.uniform_(-init_w, init_w)
+        self.linear3.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, x, a):
-        obs = self.obs_net(x)
-        return self.out_net(torch.cat([obs, a], dim=1))
+        x = torch.relu(self.linear1(torch.cat([x, a], dim=1)))
+        x = torch.relu(self.linear2(x))
+        x = self.linear3(x)
+        return x
 
 
 class DDPGActor(nn.Module):
-    def __init__(self, obs_size, act_size):
+    def __init__(
+        self,
+        obs_size: int,
+        act_size: int,
+        h1: int,
+        h2: int,
+        init_w=3e-3
+    ):
         super(DDPGActor, self).__init__()
-
-        self.net = nn.Sequential(
-            nn.Linear(obs_size, 400),
-            nn.ReLU(),
-            nn.Linear(400, 300),
-            nn.ReLU(),
-            nn.Linear(300, act_size),
-            nn.Tanh()
-        )
+        self.linear1 = Linear(obs_size, h1)
+        self.linear2 = Linear(h1, h2)
+        self.linear3 = Linear(h2, act_size)
+        self.linear3.weight.data.uniform_(-init_w, init_w)
+        self.linear3.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, x):
-        return self.net(x)
+        x = torch.relu(self.linear1(x))
+        x = torch.relu(self.linear2(x))
+        x = torch.tanh(self.linear3(x))
+        return x
 
 
-class DDPG(Module):
+class DDPG:
     def __init__(
         self,
         state_size: int,
         action_size: int,
-        is_target=False
+        h1: int,
+        h2: int,
+        device: torch.device
     ):
-        super(DDPG, self).__init__()
-        self.actor = DDPGActor(state_size, action_size)
-        self.critic = DDPGCritic(state_size, action_size)
-        if is_target:
-            self.actor.eval()
-            self.critic.eval()
+        self.actor = DDPGActor(state_size, action_size, h1, h2).to(device)
+        self.critic = DDPGCritic(state_size, action_size, h1, h2).to(device)

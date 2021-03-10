@@ -37,6 +37,25 @@ def compute_gae_returns(device, rewards: torch.Tensor,
     return advantages, returns
 
 
+def compute_gae_ppo(device, rewards: torch.Tensor, masks: torch.Tensor,
+                    values: torch.Tensor, gamma=0.99, lbda=0.95,):
+    gae = torch.zeros(len(rewards)).to(device)
+    R = torch.zeros(len(rewards)).to(device)
+    values = values.detach()
+    advantages = torch.zeros(rewards.shape, requires_grad=True).to(device)
+    returns = torch.zeros(rewards.shape, requires_grad=True).to(device)
+    for step in reversed(range(len(rewards))):
+        # GAE
+        delta = \
+            rewards[step] + gamma * values[step + 1] \
+            * masks[step] - values[step]
+        advantages[step] = gae = delta + gamma * lbda * gae * masks[step]
+        # returns
+        R = rewards[step] + gamma * R
+        returns[step] = R
+    return advantages, returns
+
+
 def choose_action(mu, std):
     dist = Normal(mu, std)
     action = dist.sample()
@@ -46,7 +65,7 @@ def choose_action(mu, std):
 
 class ActorCritic(nn.Module):
     def __init__(self, num_inputs, num_outputs,
-                 hidden_size, mean=0.0, std=0.1):
+                 hidden_size, mean=0.0, std=1):
         super(ActorCritic, self).__init__()
         self.mean = mean
         self.std = std
@@ -56,6 +75,8 @@ class ActorCritic(nn.Module):
         self.critic = nn.Sequential(
             nn.Linear(num_inputs, hidden_size),
             nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
             nn.Linear(hidden_size, 1)
         ).to(self.device)
 
@@ -63,6 +84,8 @@ class ActorCritic(nn.Module):
             nn.Linear(num_inputs, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, num_outputs),
+            nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size),
             nn.Softmax(dim=1),
         ).to(self.device)
 

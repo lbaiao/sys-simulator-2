@@ -1,7 +1,9 @@
+from typing import List
+from torch.optim import SGD, Adam
 import torch
 import math
 from sys_simulator.a2c import \
-    A2C, ActorCriticContinous, ActorCriticDiscrete, compute_gae_returns
+    A2C, ActorCriticContinous, ActorCriticDiscrete, compute_gae_ppo, compute_gae_returns
 
 
 class Framework:
@@ -164,9 +166,9 @@ class ContinuousFramework(Framework):
             device
         )
         self.actor_optimizer = \
-            torch.optim.SGD(self.a2c.actor.parameters(), lr=learning_rate)
+            SGD(self.a2c.actor.parameters(), lr=learning_rate)
         self.critic_optimizer = \
-            torch.optim.SGD(self.a2c.critic.parameters(), lr=learning_rate)
+            SGD(self.a2c.critic.parameters(), lr=learning_rate)
         self.steps_per_episode = steps_per_episode
         self.device = device
 
@@ -186,3 +188,73 @@ def calc_logprob(mu_v, var_v, actions_v):
     p1 = -((mu_v - actions_v) ** 2) / (2*var_v.clamp(min=1e-3))
     p2 = -torch.log(torch.sqrt(2 * math.pi * var_v))
     return p1 + p2
+
+
+class PPOContinuousFramework():
+    def __init__(
+        self,
+        input_size: int,
+        output_size: int,
+        hidden_size: int,
+        n_hidden_layers: int,
+        min_output: float,
+        max_output: float,
+        steps_per_episode: int,
+        learning_rate: float,
+        beta: float,
+        gamma: float,
+        device=torch.device(
+            'cuda' if torch.cuda.is_available() else 'cpu'
+        )
+    ):
+        self.device = device
+        self.beta = beta
+        self.gamma = gamma
+        self.steps_per_episode = steps_per_episode
+        self.states = []
+        self.rewards = []
+        self.dones = []
+        self.values = []
+        self.entropies = []
+        self.a2c = ActorCriticContinous(
+            input_size,
+            output_size,
+            hidden_size,
+            n_hidden_layers,
+            min_output,
+            max_output,
+            device
+        )
+        self.actor_optimizer = \
+            Adam(self.a2c.actor.parameters(), lr=learning_rate)
+        self.critic_optimizer = \
+            Adam(self.a2c.critic.parameters(), lr=learning_rate)
+
+    def reset_values(self):
+        self.states = []
+        self.rewards = []
+        self.dones = []
+        self.values = []
+        self.log_probs = []
+        self.entropies = []
+
+    def learn(self):
+        # gae and returns
+        masks = 1 - self.dones
+        returns   = torch.cat(self.returns).detach()
+        log_probs = torch.cat(self.log_probs).detach()
+        values    = torch.cat(self.values).detach()
+        states    = torch.cat(self.states)
+        actions   = torch.cat(self.actions)
+
+        advantages, returns = \
+            compute_gae_ppo(
+                self.device, self.rewards, self.masks,
+                self.values, self.gamma
+            )
+
+
+
+
+
+

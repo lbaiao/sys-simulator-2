@@ -1,13 +1,13 @@
-import random
 from types import MethodType
 import numpy as np
 import torch
 from torch.nn.modules.module import Module
 from sys_simulator.dqn.replay_buffer \
-    import PrioritizedReplayBuffer
+    import PrioritizedReplayBuffer, ReplayBuffer
 from sys_simulator.ddpg import DDPGActor, DDPGCritic
 from torch.optim import Adam
 from torch.nn import MSELoss
+# import random
 
 
 class Framework:
@@ -71,6 +71,8 @@ class Framework:
         self.target_critic = DDPGCritic(
             state_size, action_size,
             hidden_size_1, hidden_size_2).to(device)
+        self.target_actor.eval()
+        self.target_critic.eval()
         # clone ddpg NNs to the target
         self.target_actor.load_state_dict(self.actor.state_dict())
         self.target_critic.load_state_dict(self.critic.state_dict())
@@ -144,16 +146,18 @@ class Framework:
             target_nn.parameters(),
             nn.parameters()
         ):
-            p_.data.copy_(
-                p_.data * (1 - self.soft_tau) + p.data * self.soft_tau
-            )
+            with torch.no_grad():
+                p_.data.copy_(
+                    p_.data * (1 - self.soft_tau) + p.data * self.soft_tau
+                )
 
     def copy_nn(self, target_nn: Module, nn: Module):
         for p_, p in zip(
             target_nn.parameters(),
             nn.parameters()
         ):
-            p_.data.copy_(p.data)
+            with torch.no_grad():
+                p_.data.copy_(p.data)
 
     def unpack_std(self):
         obses_t, actions, rewards, obses_tp1, dones = \
@@ -167,22 +171,22 @@ class Framework:
         return obses_t, actions, rewards, obses_tp1, dones, kwargs
 
 
-class ReplayBuffer:
-    def __init__(self, capacity):
-        self.capacity = capacity
-        self.buffer = []
-        self.position = 0
+# class ReplayBuffer:
+#     def __init__(self, capacity):
+#         self.capacity = capacity
+#         self.buffer = []
+#         self.position = 0
 
-    def push(self, state, action, reward, next_state, done):
-        if len(self.buffer) < self.capacity:
-            self.buffer.append(None)
-        self.buffer[self.position] = (state, action, reward, next_state, done)
-        self.position = (self.position + 1) % self.capacity
+#     def push(self, state, action, reward, next_state, done):
+#         if len(self.buffer) < self.capacity:
+#             self.buffer.append(None)
+#         self.buffer[self.position] = (state, action, reward, next_state, done)
+#         self.position = (self.position + 1) % self.capacity
 
-    def sample(self, batch_size):
-        batch = random.sample(self.buffer, batch_size)
-        state, action, reward, next_state, done = map(np.stack, zip(*batch))
-        return state, action, reward, next_state, done
+#     def sample(self, batch_size):
+#         batch = random.sample(self.buffer, batch_size)
+#         state, action, reward, next_state, done = map(np.stack, zip(*batch))
+#         return state, action, reward, next_state, done
 
-    def __len__(self):
-        return len(self.buffer)
+#     def __len__(self):
+#         return len(self.buffer)

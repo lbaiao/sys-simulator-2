@@ -122,7 +122,8 @@ class ExternalDQNAgent(Agent):
             self.epsilon -= self.epsilon_decay
         if np.random.random() > self.epsilon:
             # aux = torch.tensor([obs[0]], device=self.device)
-            self.action_index = policy.policy_net(obs).max(1)[1].item()
+            obs = torch.FloatTensor(obs).to(self.device)
+            self.action_index = policy.policy_net(obs).max(0)[1].item()
             self.action = self.actions[self.action_index]
         else:
             self.action_index = torch.tensor(
@@ -135,7 +136,10 @@ class ExternalDQNAgent(Agent):
         return self.action
 
     def act(self, framework: ExternalDQNFramework, obs: torch.Tensor):
-        return framework.policy_net(obs)
+        obs = torch.FloatTensor(obs).to(self.device)
+        self.action_index = framework.policy_net(obs).max(0)[1].item()
+        self.action = self.actions[self.action_index]
+        return self.action
 
     def act_rainbow(self, framework: RainbowFramework, obs: torch.Tensor):
         return framework.policy_net.qvals(obs)

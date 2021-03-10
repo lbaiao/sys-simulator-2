@@ -1,74 +1,57 @@
 from shutil import copyfile
 import numpy as np
-from sys_simulator.general.ou_noise import OUNoise
-from sys_simulator.ddpg.agent import Agent
-import torch
-from sys_simulator.ddpg.framework import Framework
-import gym
-from time import time
 import sys_simulator.general as gen
+from time import time
+from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
+from sys_simulator.dqn.externalDQNFramework import ExternalDQNFramework
+from sys_simulator.parameters.parameters import DQNAgentParameters
+import torch
+import gym
 
-# MAX_NUM_EPISODES = 12000
-# STEPS_PER_EPISODE = 500
-# REPLAY_INITIAL = 10000
-MAX_STEPS = 12000
-STEPS_PER_EPISODE = 500
-REPLAY_INITIAL = int(0E3)
+
+# ENV_NAME = 'CartPole-v1'
+ENV_NAME = 'MountainCar-v0'
+MAX_STEPS = 20000
+STEPS_PER_EPISODE = 300
 EVAL_NUM_EPISODES = 10
-REPLAY_MEMORY_SIZE = int(1E6)
-ACTOR_LEARNING_RATE = 1E-4
-CRITIC_LEARNING_RATE = 1E-3
-HIDDEN_SIZE_1 = 256
-HIDDEN_SIZE_2 = 256
-BATCH_SIZE = 128
-GAMMA = .99
-SOFT_TAU = 1E-2
+REPLAY_MEMORY_TYPE = 'prioritized'
+REPLAY_MEMORY_SIZE = int(1E5)
 ALPHA = .6
 BETA = .4
-EXPLORATION = 'ou'
-REPLAY_MEMORY_TYPE = 'standard'
-PRIO_BETA_ITS = int(.8*(MAX_STEPS - REPLAY_INITIAL))
+PRIO_BETA_ITS = int(.8*MAX_STEPS)
+LEARNING_RATE = 1E-3
+HIDDEN_SIZE = 256
+BATCH_SIZE = 128
+GAMMA = .98
+EPSILON_INITIAL = 1
+EPSILON_MIN = .02
+EPSILON_DECAY = 1.2/(MAX_STEPS)  # medium training
+TARGET_UPDATE = 20
 EVAL_EVERY = int(MAX_STEPS / 20)
-OU_DECAY_PERIOD = 100000
-OU_MU = 0.0
-OU_THETA = .15
-OU_MAX_SIGMA = .3
-OU_MIN_SIGMA = .3
 
 
 torch_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# env = NormalizedActions(gym.make('Pendulum-v0'))
-env = gym.make('Pendulum-v0')
+env = gym.make(ENV_NAME)
 state_size = env.observation_space.shape[0]
-action_size = env.action_space.shape[0]
-a_min = env.action_space.low
-a_max = env.action_space.high
-framework = Framework(
-    REPLAY_MEMORY_TYPE,
-    REPLAY_MEMORY_SIZE,
-    REPLAY_INITIAL,
+action_size = env.action_space.n
+agent_params = DQNAgentParameters(
+    EPSILON_MIN, EPSILON_DECAY, EPSILON_INITIAL, REPLAY_MEMORY_SIZE,
+    BATCH_SIZE, GAMMA
+)
+framework = ExternalDQNFramework(
+    agent_params,
     state_size,
     action_size,
-    HIDDEN_SIZE_1,
-    HIDDEN_SIZE_2,
-    ACTOR_LEARNING_RATE,
-    CRITIC_LEARNING_RATE,
-    BATCH_SIZE,
-    GAMMA,
-    SOFT_TAU,
+    HIDDEN_SIZE,
     torch_device,
+    n_hidden_layers=2,
+    learning_rate=LEARNING_RATE,
     alpha=ALPHA,
     beta=BETA,
-    beta_its=PRIO_BETA_ITS
+    beta_its=PRIO_BETA_ITS,
+    replay_memory_type=REPLAY_MEMORY_TYPE
 )
-ou_noise = OUNoise(
-    env.action_space,
-    OU_MU, OU_THETA,
-    OU_MAX_SIGMA,
-    OU_MIN_SIGMA,
-    OU_DECAY_PERIOD
-)
-agent = Agent(-1.0, 1.0, EXPLORATION, torch_device)
+agent = ExternalDQNAgent(agent_params, list(range(action_size)))
 
 
 def print_stuff(step: int, now: int):
@@ -80,6 +63,7 @@ def print_stuff(step: int, now: int):
     else:
         out = 'Training. ' + \
             f'Step: {step}/{MAX_STEPS-1}. ' + \
+            f'Epsilon: {agent.epsilon}' + \
             f'Elapsed time: {now} minutes.'
     print(out)
 
@@ -90,14 +74,14 @@ def train(start):
     step = 0
     while step < MAX_STEPS:
         obs = env.reset()
-        ou_noise.reset()
         now = (time() - start) / 60
         print_stuff(step, now)
         reward = 0.0
         done = False
+        t_flag = False
         i = 0
         while not done and i < STEPS_PER_EPISODE:
-            action = agent.act(obs, framework, True, ou=ou_noise, step=i)
+            action = agent.get_action(framework, obs)
             next_obs, reward, done, _ = env.step(action)
             framework.replay_memory.push(
                 obs, action, reward, next_obs, done
@@ -105,26 +89,30 @@ def train(start):
             framework.learn()
             best_reward = reward if reward > best_reward else best_reward
             obs = next_obs
+            t_flag = True if step % EVAL_EVERY == 0 else t_flag
             i += 1
             step += 1
-        if step % EVAL_EVERY == 0:
+        if step % TARGET_UPDATE == 0:
+            framework.target_net.load_state_dict(
+                framework.policy_net.state_dict()
+            )
+        if t_flag:
             t_rewards = test(framework)
             test_rewards.append(t_rewards)
-        # if REPLAY_MEMORY_TYPE == 'prioritized':
-        #     framework.replay_memory.correct_beta(i, STEPS_PER_EPISODE)
+            t_flag = False
     # last test
     t_rewards = test(framework)
     test_rewards.append(t_rewards)
     # save stuff
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
-    data_path = f'models/ddpg/gym/{filename}'
+    data_path = f'models/dql/gym/{filename}'
     data_path = gen.make_dir_timestamp(data_path)
     torch.save(framework, f'{data_path}/framework.pt')
     return test_rewards
 
 
-def test(framework: Framework):
+def test(framework: ExternalDQNFramework):
     rewards = []
     for _ in range(EVAL_NUM_EPISODES):
         obs = env.reset()
@@ -132,7 +120,7 @@ def test(framework: Framework):
         i = 0
         ep_rewards = []
         while not done and i < STEPS_PER_EPISODE:
-            action = agent.act(obs, framework, False)
+            action = agent.act(framework, obs)
             next_obs, reward, done, _ = env.step(action)
             obs = next_obs
             ep_rewards.append(reward)
@@ -142,20 +130,18 @@ def test(framework: Framework):
 
 
 def test_video(
-    framework: Framework,
+    framework: ExternalDQNFramework,
     num_episodes: int,
     steps_per_episode: int
 ):
-    env = gym.make('Pendulum-v0')
-    agent = Agent(env.action_space.low,
-                  env.action_space.high, EXPLORATION, torch_device)
+    env = gym.make(ENV_NAME)
     for _ in range(num_episodes):
         obs = env.reset()
         done = False
         i = 0
         while not done and i < steps_per_episode:
             env.render()
-            action = agent.act(obs, framework, False)
+            action = agent.act(framework, obs)
             next_obs, _, done, _ = env.step(action)
             obs = next_obs
 
@@ -170,7 +156,7 @@ def run():
     now = (time() - start) / 60
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
-    dir_path = f'data/ddpg/gym/{filename}'
+    dir_path = f'data/dql/gym/{filename}'
     data_path = gen.make_dir_timestamp(dir_path)
     data_file_path = f'{data_path}/log.pickle'
     data = {

@@ -35,11 +35,12 @@ class Agent:
             is_training=False, **kwargs):
         obs = torch.FloatTensor(obs).unsqueeze(0).to(self.device)
         action = framework.actor(obs)
-        action = action.detach().cpu().numpy()[0, 0]
+        action = action.detach().cpu()
+        action = action.squeeze(0)
         if is_training:
             action = self.explore(action=action, **kwargs)
-        # action = action * (self.a_max - self.a_min) / 2
-        # action = np.clip(action, self.a_min, self.a_max)
+        action = action * (self.a_max - self.a_min) / 2
+        action = np.clip(action, self.a_min, self.a_max)
         return action
 
     def gauss_explore(self, **kwargs):

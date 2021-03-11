@@ -1,3 +1,4 @@
+from torch.utils.tensorboard import SummaryWriter
 from shutil import copyfile
 from sys_simulator import general as gen
 import numpy as np
@@ -15,11 +16,11 @@ ENV_NAME = "Pendulum-v0"
 HIDDEN_SIZE = 256
 NUM_HIDDEN_LAYERS = 1
 LEARNING_RATE = 3E-4
-MAX_STEPS = 15000
+MAX_STEPS = 10000
 STEPS_PER_EPISODE = 20
 MINI_BATCH_SIZE = 5
 PPO_EPOCHS = 4
-THRESHOLD_REWARD = -200
+THRESHOLD_REWARD = -250
 BETA = .001
 GAMMA = .99
 LBDA = .95
@@ -60,7 +61,9 @@ def print_stuff(step: int, now: int):
     print(out)
 
 
-def train(start):
+def train(start: int, writer: SummaryWriter, timestamp: str):
+    # writer.add_graph(framework.a2c.actor)
+    # writer.add_graph(framework.a2c.critic)
     test_rewards = []
     step = 0
     early_stop = False
@@ -84,19 +87,23 @@ def train(start):
         if t_flag:
             t_rewards = test(framework)
             test_rewards.append(t_rewards)
+            writer.add_scalar('mean reward', np.mean(t_rewards), step)
             if np.mean(t_rewards) > THRESHOLD_REWARD:
                 early_stop = True
         _, _, _, next_value = agent.act(next_obs, framework)
         framework.push_next(next_obs, next_value, total_entropy)
-        framework.learn(PPO_EPOCHS, MINI_BATCH_SIZE)
+        losses = framework.learn(PPO_EPOCHS, MINI_BATCH_SIZE)
+        writer.add_scalar(
+            'training loss', np.sum(losses), step)
+
     # last test
     t_rewards = test(framework)
     test_rewards.append(t_rewards)
     # save stuff
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
-    data_path = f'models/{ALGO_NAME}/gym/{filename}'
-    data_path = gen.make_dir_timestamp(data_path)
+    data_path = f'models/{ALGO_NAME}/gym/{filename}/{timestamp}'
+    data_path = gen.make_dir(data_path)
     torch.save(framework, f'{data_path}/framework.pt')
     return test_rewards
 
@@ -136,17 +143,21 @@ def test_video(
 
 
 def run():
-    train_rewards = []
-    test_rewards = []
-    start = time()
-    train_rewards = train(start)
-    test_rewards = test(framework)
-    # save stuff
-    now = (time() - start) / 60
+    # make data dir
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
     dir_path = f'data/{ALGO_NAME}/gym/{filename}'
-    data_path = gen.make_dir_timestamp(dir_path)
+    data_path, timestamp = gen.make_dir_timestamp(dir_path)
+    writer = SummaryWriter(f'{data_path}/tensorboard')
+    # train and test
+    train_rewards = []
+    test_rewards = []
+    start = time()
+    train_rewards = train(start, writer, timestamp)
+    writer.close()
+    test_rewards = test(framework)
+    # save stuff
+    now = (time() - start) / 60
     data_file_path = f'{data_path}/log.pickle'
     data = {
         'train_rewards': train_rewards,

@@ -37,23 +37,16 @@ def compute_gae_returns(device, rewards: torch.Tensor,
     return advantages, returns
 
 
-def compute_gae_ppo(device, rewards: torch.Tensor, masks: torch.Tensor,
-                    values: torch.Tensor, gamma=0.99, lbda=0.95,):
-    gae = torch.zeros(len(rewards)).to(device)
-    R = torch.zeros(len(rewards)).to(device)
-    values = values.detach()
-    advantages = torch.zeros(rewards.shape, requires_grad=True).to(device)
-    returns = torch.zeros(rewards.shape, requires_grad=True).to(device)
+def compute_gae(next_value, rewards, masks, values, gamma=0.99, lbda=0.95):
+    values = values + [next_value]
+    gae = 0
+    returns = []
     for step in reversed(range(len(rewards))):
-        # GAE
-        delta = \
-            rewards[step] + gamma * values[step + 1] \
-            * masks[step] - values[step]
-        advantages[step] = gae = delta + gamma * lbda * gae * masks[step]
-        # returns
-        R = rewards[step] + gamma * R
-        returns[step] = R
-    return advantages, returns
+        delta = rewards[step] + gamma * \
+            values[step + 1] * masks[step] - values[step]
+        gae = delta + gamma * lbda * masks[step] * gae
+        returns.insert(0, gae + values[step])
+    return returns
 
 
 def choose_action(mu, std):
@@ -63,45 +56,43 @@ def choose_action(mu, std):
     return action, log_prob
 
 
-class ActorCritic(nn.Module):
-    def __init__(self, num_inputs, num_outputs,
-                 hidden_size, mean=0.0, std=1):
-        super(ActorCritic, self).__init__()
-        self.mean = mean
-        self.std = std
-        self.device =\
-            torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def init_weights(m):
+    if isinstance(m, nn.Linear):
+        nn.init.normal_(m.weight, mean=0., std=0.1)
+        nn.init.constant_(m.bias, 0.1)
 
+
+class ActorCritic(nn.Module):
+    def __init__(
+        self, num_inputs, num_outputs,
+        hidden_size, n_hidden_layers,
+        mean=0.0, std=.1
+    ):
+        super(ActorCritic, self).__init__()
+        self.hidden_layers = ModuleList()
+        # for _ in range(n_hidden_layers):
+        #     self.hidden_layers.append(Linear(hidden_size, hidden_size))
         self.critic = nn.Sequential(
             nn.Linear(num_inputs, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, 1)
-        ).to(self.device)
-
+        )
         self.actor = nn.Sequential(
             nn.Linear(num_inputs, hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size, num_outputs),
-            nn.ReLU(),
             nn.Linear(hidden_size, hidden_size),
-            nn.Softmax(dim=1),
-        ).to(self.device)
-
+            nn.ReLU(),
+            nn.Linear(hidden_size, num_outputs)
+        )
         self.log_std = nn.Parameter(torch.ones(1, num_outputs) * std)
-
-        def init_weights(m):
-            if isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, mean=self.mean, std=self.std)
-                nn.init.constant_(m.bias, 0.0)
-
         self.apply(init_weights)
 
     def forward(self, x):
-        value = self.critic(x).to(self.device)
-        mu = self.actor(x.view(1, -1))
-        std = self.log_std.exp().expand_as(mu).to(self.device)
+        value = self.critic(x)
+        mu = self.actor(x)
+        std = self.log_std.exp().expand_as(mu)
         dist = Normal(mu, std)
         return dist, value
 

@@ -1,9 +1,10 @@
-from typing import List
+import numpy as np
 from torch.optim import SGD, Adam
 import torch
 import math
 from sys_simulator.a2c import \
-    A2C, ActorCriticContinous, ActorCriticDiscrete, compute_gae_ppo, compute_gae_returns
+    A2C, ActorCritic, ActorCriticContinous, ActorCriticDiscrete, compute_gae, \
+    compute_gae_returns
 
 
 class Framework:
@@ -190,19 +191,21 @@ def calc_logprob(mu_v, var_v, actions_v):
     return p1 + p2
 
 
-class PPOContinuousFramework():
+class PPOFramework():
+
     def __init__(
         self,
         input_size: int,
         output_size: int,
         hidden_size: int,
         n_hidden_layers: int,
-        min_output: float,
-        max_output: float,
         steps_per_episode: int,
+        n_envs: int,
         learning_rate: float,
-        beta: float,
-        gamma: float,
+        beta=.001,
+        gamma=.99,
+        lbda=.95,
+        clip_param=.2,
         device=torch.device(
             'cuda' if torch.cuda.is_available() else 'cpu'
         )
@@ -210,51 +213,105 @@ class PPOContinuousFramework():
         self.device = device
         self.beta = beta
         self.gamma = gamma
+        self.lbda = lbda
+        self.clip_param = clip_param
         self.steps_per_episode = steps_per_episode
+        self.n_envs = n_envs
         self.states = []
+        self.actions = []
         self.rewards = []
-        self.dones = []
+        self.masks = []
         self.values = []
-        self.entropies = []
-        self.a2c = ActorCriticContinous(
+        self.log_probs = []
+        self.entropy = 0
+        self.next_state = 0
+        self.next_value = 0
+        self.input_size = input_size
+        self.output_size = output_size
+        self.hidden_size = hidden_size
+        self.n_hidden_layers = n_hidden_layers
+        self.a2c = ActorCritic(
             input_size,
             output_size,
             hidden_size,
             n_hidden_layers,
-            min_output,
-            max_output,
-            device
-        )
-        self.actor_optimizer = \
-            Adam(self.a2c.actor.parameters(), lr=learning_rate)
-        self.critic_optimizer = \
-            Adam(self.a2c.critic.parameters(), lr=learning_rate)
+        ).to(device)
+        # self.actor_optimizer = \
+        # Adam(self.a2c.actor.parameters(), lr=learning_rate)
+        # self.critic_optimizer = \
+        # Adam(self.a2c.critic.parameters(), lr=learning_rate)
+        self.optimizer = Adam(self.a2c.parameters(), lr=learning_rate)
 
     def reset_values(self):
         self.states = []
+        self.actions = []
         self.rewards = []
-        self.dones = []
+        self.masks = []
         self.values = []
         self.log_probs = []
-        self.entropies = []
+        self.next_state = 0
+        self.next_value = 0
+        self.entropy = 0
 
-    def learn(self):
-        # gae and returns
-        masks = 1 - self.dones
-        returns   = torch.cat(self.returns).detach()
+    def ppo_iter(self, mini_batch_size, states, actions, log_probs,
+                 returns, advantage):
+        batch_size = states.size(0)
+        for _ in range(batch_size // mini_batch_size):
+            rand_ids = np.random.randint(0, batch_size, mini_batch_size)
+            yield states[rand_ids, :], actions[rand_ids, :], \
+                log_probs[rand_ids, :], returns[rand_ids, :], \
+                advantage[rand_ids, :]
+
+    def learn(self, ppo_epochs, mini_batch_size):
+        returns = compute_gae(self.next_value, self.rewards,
+                              self.masks, self.values, self.gamma, self.lbda)
+        returns = torch.cat(returns).detach()
         log_probs = torch.cat(self.log_probs).detach()
-        values    = torch.cat(self.values).detach()
-        states    = torch.cat(self.states)
-        actions   = torch.cat(self.actions)
+        values = torch.cat(self.values).detach()
+        states = torch.cat(self.states)
+        actions = torch.cat(self.actions)
+        advantages = returns - values
+        for _ in range(ppo_epochs):
+            for state, action, old_log_probs, return_, advantage in \
+                    self.ppo_iter(mini_batch_size, states, actions,
+                                  log_probs, returns, advantages):
+                dist, value = self.a2c(state)
+                entropy = dist.entropy().mean()
+                new_log_probs = dist.log_prob(action)
+                # importance sampling
+                ratio = (new_log_probs - old_log_probs).exp()
+                surr1 = ratio * advantage
+                surr2 = torch.clamp(ratio, 1.0 - self.clip_param,
+                                    1.0 + self.clip_param) * advantage
+                # losses
+                actor_loss = -torch.min(surr1, surr2).mean()
+                critic_loss = (return_ - value).pow(2).mean()
+                loss = 0.5 * critic_loss + actor_loss - self.beta * entropy
+                # update
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+        self.reset_values()
 
-        advantages, returns = \
-            compute_gae_ppo(
-                self.device, self.rewards, self.masks,
-                self.values, self.gamma
-            )
+    def push_experience(self, log_prob, value, reward, done, state, action):
+        self.log_probs.append(log_prob)
+        self.values.append(value)
+        self.rewards.append(
+            torch.FloatTensor(reward)
+            .view(self.n_envs, -1).to(self.device))
+        self.masks.append(
+            torch.FloatTensor(1 - done)
+            .view(self.n_envs, -1).to(self.device))
+        self.states.append(
+            torch.FloatTensor(state)
+            .view(self.n_envs, -1).to(self.device))
+        self.actions.append(
+            torch.FloatTensor(action)
+            .view(self.n_envs, -1).to(self.device))
 
-
-
-
-
-
+    def push_next(self, next_state, next_value, entropy):
+        self.next_state = \
+            torch.FloatTensor(next_state)\
+            .view(self.n_envs, -1).to(self.device)
+        self.next_value = next_value
+        self.entropy = entropy

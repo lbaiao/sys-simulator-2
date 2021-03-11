@@ -92,10 +92,10 @@ def train(start):
             t_flag = True if step % EVAL_EVERY == 0 else t_flag
             i += 1
             step += 1
-        if step % TARGET_UPDATE == 0:
-            framework.target_net.load_state_dict(
-                framework.policy_net.state_dict()
-            )
+            if step % TARGET_UPDATE == 0:
+                framework.target_net.load_state_dict(
+                    framework.policy_net.state_dict()
+                )
         if t_flag:
             t_rewards = test(framework)
             test_rewards.append(t_rewards)

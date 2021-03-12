@@ -9,25 +9,27 @@ import torch
 import gym
 
 
-# ENV_NAME = 'CartPole-v1'
-ENV_NAME = 'MountainCar-v0'
-MAX_STEPS = 20000
+ENV_NAME = 'CartPole-v1'
+# ENV_NAME = 'MountainCar-v0'
+MAX_STEPS = 30000
 STEPS_PER_EPISODE = 300
 EVAL_NUM_EPISODES = 10
-REPLAY_MEMORY_TYPE = 'prioritized'
-REPLAY_MEMORY_SIZE = int(1E5)
+REPLAY_MEMORY_TYPE = 'standard'
+REPLAY_MEMORY_SIZE = int(1E3)
 ALPHA = .6
 BETA = .4
 PRIO_BETA_ITS = int(.8*MAX_STEPS)
-LEARNING_RATE = 1E-3
-HIDDEN_SIZE = 256
-BATCH_SIZE = 128
-GAMMA = .98
+LEARNING_RATE = 3E-4
+NUM_HIDDEN_LAYERS = 2
+HIDDEN_SIZE = 128
+BATCH_SIZE = 32
+GAMMA = .99
 EPSILON_INITIAL = 1
 EPSILON_MIN = .02
 EPSILON_DECAY = 1.2/(MAX_STEPS)  # medium training
 TARGET_UPDATE = 20
 EVAL_EVERY = int(MAX_STEPS / 20)
+EARLY_STOP_THRESHOLD = 350
 
 
 torch_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -44,7 +46,7 @@ framework = ExternalDQNFramework(
     action_size,
     HIDDEN_SIZE,
     torch_device,
-    n_hidden_layers=2,
+    n_hidden_layers=NUM_HIDDEN_LAYERS,
     learning_rate=LEARNING_RATE,
     alpha=ALPHA,
     beta=BETA,
@@ -63,7 +65,7 @@ def print_stuff(step: int, now: int):
     else:
         out = 'Training. ' + \
             f'Step: {step}/{MAX_STEPS-1}. ' + \
-            f'Epsilon: {agent.epsilon}' + \
+            f'Epsilon: {agent.epsilon}. ' + \
             f'Elapsed time: {now} minutes.'
     print(out)
 
@@ -72,15 +74,15 @@ def train(start):
     best_reward = float('-inf')
     test_rewards = []
     step = 0
-    while step < MAX_STEPS:
+    early_stop = False
+    while step < MAX_STEPS and not early_stop:
         obs = env.reset()
         now = (time() - start) / 60
         print_stuff(step, now)
         reward = 0.0
         done = False
         t_flag = False
-        i = 0
-        while not done and i < STEPS_PER_EPISODE:
+        while not done:
             action = agent.get_action(framework, obs)
             next_obs, reward, done, _ = env.step(action)
             framework.replay_memory.push(
@@ -90,7 +92,6 @@ def train(start):
             best_reward = reward if reward > best_reward else best_reward
             obs = next_obs
             t_flag = True if step % EVAL_EVERY == 0 else t_flag
-            i += 1
             step += 1
         if step % TARGET_UPDATE == 0:
             framework.target_net.load_state_dict(
@@ -100,6 +101,8 @@ def train(start):
             t_rewards = test(framework)
             test_rewards.append(t_rewards)
             t_flag = False
+            if np.mean(test_rewards) > EARLY_STOP_THRESHOLD:
+                early_stop = True
     # last test
     t_rewards = test(framework)
     test_rewards.append(t_rewards)

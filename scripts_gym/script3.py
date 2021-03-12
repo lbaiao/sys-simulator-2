@@ -103,7 +103,7 @@ def train(start: int, writer: SummaryWriter, timestamp: str):
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
     data_path = f'models/{ALGO_NAME}/gym/{filename}/{timestamp}'
-    data_path = gen.make_dir(data_path)
+    gen.make_dir(data_path)
     torch.save(framework, f'{data_path}/framework.pt')
     return test_rewards
 

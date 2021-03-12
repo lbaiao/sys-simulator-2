@@ -65,11 +65,10 @@ def init_weights(m):
 class ActorCritic(nn.Module):
     def __init__(
         self, num_inputs, num_outputs,
-        hidden_size, n_hidden_layers,
-        mean=0.0, std=.1
+        hidden_size, n_hidden_layers, std=0.0
     ):
         super(ActorCritic, self).__init__()
-        self.hidden_layers = ModuleList()
+        # self.hidden_layers = ModuleList()
         # for _ in range(n_hidden_layers):
         #     self.hidden_layers.append(Linear(hidden_size, hidden_size))
         self.critic = nn.Sequential(

@@ -271,6 +271,7 @@ class PPOFramework():
         states = torch.cat(self.states)
         actions = torch.cat(self.actions)
         advantages = returns - values
+        losses = []
         for _ in range(ppo_epochs):
             for state, action, old_log_probs, return_, advantage in \
                     self.ppo_iter(mini_batch_size, states, actions,
@@ -291,7 +292,9 @@ class PPOFramework():
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+                losses.append(loss.item())
         self.reset_values()
+        return losses
 
     def push_experience(self, log_prob, value, reward, done, state, action):
         self.log_probs.append(log_prob)

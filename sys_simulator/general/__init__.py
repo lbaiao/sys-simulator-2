@@ -269,7 +269,7 @@ def make_dir_timestamp(dir_name: str):
     timestr = time.strftime(r"%Y%m%d-%H%M%S")
     path = f'{dir_name}/{timestr}'
     make_dir(path)
-    return path
+    return path, timestr
 
 
 def load_with_pickle(path: str, mode='rb'):

@@ -13,7 +13,7 @@ class ExternalDQNFramework:
     def __init__(self, params: DQNAgentParameters,
                  input_size: int, output_size: int, hidden_size: int,
                  device: torch.device,
-                 n_hidden_layers=5, learning_rate=.5,
+                 n_hidden_layers=5, learning_rate=1e-3,
                  replay_memory_type='standard', **kwargs):
         self.device = device
         # replay memory

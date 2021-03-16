@@ -19,17 +19,17 @@ REPLAY_MEMORY_SIZE = int(1E3)
 ALPHA = .6
 BETA = .4
 PRIO_BETA_ITS = int(.8*MAX_STEPS)
-LEARNING_RATE = 3E-4
+LEARNING_RATE = 1E-3
 NUM_HIDDEN_LAYERS = 2
 HIDDEN_SIZE = 128
 BATCH_SIZE = 32
 GAMMA = .99
 EPSILON_INITIAL = 1
-EPSILON_MIN = .02
-EPSILON_DECAY = 1.2/(MAX_STEPS)  # medium training
+EPSILON_MIN = .01
+EPSILON_DECAY = 1/(MAX_STEPS)  # medium training
 TARGET_UPDATE = 20
 EVAL_EVERY = int(MAX_STEPS / 20)
-EARLY_STOP_THRESHOLD = 350
+EARLY_STOP_THRESHOLD = 450
 
 
 torch_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -101,7 +101,8 @@ def train(start):
             t_rewards = test(framework)
             test_rewards.append(t_rewards)
             t_flag = False
-            if np.mean(test_rewards) > EARLY_STOP_THRESHOLD:
+            ref = np.mean(t_rewards)
+            if ref > EARLY_STOP_THRESHOLD:
                 early_stop = True
     # last test
     t_rewards = test(framework)
@@ -110,7 +111,7 @@ def train(start):
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
     data_path = f'models/dql/gym/{filename}'
-    data_path = gen.make_dir_timestamp(data_path)
+    data_path, _ = gen.make_dir_timestamp(data_path)
     torch.save(framework, f'{data_path}/framework.pt')
     return test_rewards
 
@@ -160,7 +161,7 @@ def run():
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
     dir_path = f'data/dql/gym/{filename}'
-    data_path = gen.make_dir_timestamp(dir_path)
+    data_path, _ = gen.make_dir_timestamp(dir_path)
     data_file_path = f'{data_path}/log.pickle'
     data = {
         'train_rewards': train_rewards,

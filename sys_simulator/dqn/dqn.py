@@ -90,12 +90,10 @@ class SimpleNN(Module):
     def forward(self, obs):
         x = self.fc1(obs)
         x = torch.relu(x)
-        # x = torch.dropout(x, .2, True)
         for i in self.hidden_layers:
             x = i(x)
             x = torch.relu(x)
         x = self.fc_out(x)
-        # output = F.softmax(x, dim=1)
         output = x
         return output
 

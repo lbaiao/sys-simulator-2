@@ -124,9 +124,9 @@ class DiscreteFramework(Framework):
             device
         )
         self.actor_optimizer = \
-            torch.optim.SGD(self.a2c.actor.parameters(), lr=learning_rate)
+            torch.optim.Adam(self.a2c.actor.parameters(), lr=learning_rate)
         self.critic_optimizer = \
-            torch.optim.SGD(self.a2c.critic.parameters(), lr=learning_rate)
+            torch.optim.Adam(self.a2c.critic.parameters(), lr=learning_rate)
 
 
 class ContinuousFramework(Framework):
@@ -192,7 +192,6 @@ def calc_logprob(mu_v, var_v, actions_v):
 
 
 class PPOFramework():
-
     def __init__(
         self,
         input_size: int,
@@ -201,11 +200,13 @@ class PPOFramework():
         n_hidden_layers: int,
         steps_per_episode: int,
         n_envs: int,
-        learning_rate: float,
+        actor_lr: float,
+        critic_lr: float,
         beta=.001,
         gamma=.99,
         lbda=.95,
         clip_param=.2,
+        optimizers='adam',
         device=torch.device(
             'cuda' if torch.cuda.is_available() else 'cpu'
         )
@@ -236,11 +237,14 @@ class PPOFramework():
             hidden_size,
             n_hidden_layers,
         ).to(device)
-        # self.actor_optimizer = \
-        # Adam(self.a2c.actor.parameters(), lr=learning_rate)
-        # self.critic_optimizer = \
-        # Adam(self.a2c.critic.parameters(), lr=learning_rate)
-        self.optimizer = Adam(self.a2c.parameters(), lr=learning_rate)
+        if optimizers == 'adam':
+            self.a_optim = Adam(self.a2c.actor.parameters(), lr=actor_lr)
+            self.c_optim = Adam(self.a2c.critic.parameters(), lr=critic_lr)
+        elif optimizers == 'sgd':
+            self.a_optim = SGD(self.a2c.actor.parameters(), lr=actor_lr)
+            self.c_optim = SGD(self.a2c.critic.parameters(), lr=critic_lr)
+        else:
+            raise Exception('Invalid optimizer.')
 
     def reset_values(self):
         self.states = []
@@ -263,14 +267,14 @@ class PPOFramework():
                 advantage[rand_ids, :]
 
     def learn(self, ppo_epochs, mini_batch_size):
-        returns = compute_gae(self.next_value, self.rewards,
-                              self.masks, self.values, self.gamma, self.lbda)
+        advantages, returns = compute_gae_returns(
+            self.next_value, self.rewards,
+            self.masks, self.values, self.gamma, self.lbda)
         returns = torch.cat(returns).detach()
         log_probs = torch.cat(self.log_probs).detach()
-        values = torch.cat(self.values).detach()
         states = torch.cat(self.states)
         actions = torch.cat(self.actions)
-        advantages = returns - values
+        advantages = torch.cat(advantages).detach()
         losses = []
         for _ in range(ppo_epochs):
             for state, action, old_log_probs, return_, advantage in \
@@ -285,16 +289,55 @@ class PPOFramework():
                 surr2 = torch.clamp(ratio, 1.0 - self.clip_param,
                                     1.0 + self.clip_param) * advantage
                 # losses
-                actor_loss = -torch.min(surr1, surr2).mean()
+                actor_loss = \
+                    -torch.min(surr1, surr2).mean() - self.beta * entropy
                 critic_loss = (return_ - value).pow(2).mean()
-                loss = 0.5 * critic_loss + actor_loss - self.beta * entropy
                 # update
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
-                losses.append(loss.item())
+                self.c_optim.zero_grad()
+                critic_loss.backward()
+                self.c_optim.step()
+                self.a_optim.zero_grad()
+                actor_loss.backward()
+                self.a_optim.step()
+                self.reset_values()
+                losses.append((actor_loss.item(), critic_loss.item()))
         self.reset_values()
         return losses
+
+    # def learn(self, ppo_epochs, mini_batch_size):
+    #     returns = compute_gae(self.next_value, self.rewards,
+    #                           self.masks, self.values, self.gamma, self.lbda)
+    #     returns = torch.cat(returns).detach()
+    #     log_probs = torch.cat(self.log_probs).detach()
+    #     values = torch.cat(self.values).detach()
+    #     states = torch.cat(self.states)
+    #     actions = torch.cat(self.actions)
+    #     advantages = returns - values
+    #     advantages = returns
+    #     losses = []
+    #     for _ in range(ppo_epochs):
+    #         for state, action, old_log_probs, return_, advantage in \
+    #                 self.ppo_iter(mini_batch_size, states, actions,
+    #                               log_probs, returns, advantages):
+    #             dist, value = self.a2c(state)
+    #             entropy = dist.entropy().mean()
+    #             new_log_probs = dist.log_prob(action)
+    #             # importance sampling
+    #             ratio = (new_log_probs - old_log_probs).exp()
+    #             surr1 = ratio * advantage
+    #             surr2 = torch.clamp(ratio, 1.0 - self.clip_param,
+    #                                 1.0 + self.clip_param) * advantage
+    #             # losses
+    #             actor_loss = -torch.min(surr1, surr2).mean()
+    #             critic_loss = (return_ - value).pow(2).mean()
+    #             loss = 0.5 * critic_loss + actor_loss - self.beta * entropy
+    #             # update
+    #             self.optimizer.zero_grad()
+    #             loss.backward()
+    #             self.optimizer.step()
+    #             losses.append(loss.item())
+    #     self.reset_values()
+    #     return losses
 
     def push_experience(self, log_prob, value, reward, done, state, action):
         self.log_probs.append(log_prob)
@@ -318,3 +361,155 @@ class PPOFramework():
             .view(self.n_envs, -1).to(self.device)
         self.next_value = next_value
         self.entropy = entropy
+
+
+class A2CFramework(PPOFramework):
+    def __init__(
+        self,
+        input_size: int,
+        output_size: int,
+        hidden_size: int,
+        n_hidden_layers: int,
+        steps_per_episode: int,
+        n_envs: int,
+        learning_rate: float,
+        beta=.001,
+        gamma=.99,
+        lbda=.95,
+        optimizers='adam',
+        device=torch.device(
+            'cuda' if torch.cuda.is_available() else 'cpu'
+        )
+    ):
+        super(A2CFramework, self).__init__(
+            input_size,
+            output_size,
+            hidden_size,
+            n_hidden_layers,
+            steps_per_episode,
+            n_envs,
+            learning_rate,
+            learning_rate,
+            beta,
+            gamma,
+            lbda,
+            .2,
+            optimizers,
+            device
+        )
+        if optimizers == 'adam':
+            self.a_optim = Adam(self.a2c.actor.parameters(), lr=learning_rate)
+            self.c_optim = Adam(self.a2c.critic.parameters(), lr=learning_rate)
+        elif optimizers == 'sgd':
+            self.a_optim = SGD(self.a2c.actor.parameters(), lr=learning_rate)
+            self.c_optim = SGD(self.a2c.critic.parameters(), lr=learning_rate)
+        else:
+            raise Exception('Invalid optimizer.')
+
+    def learn(self):
+        advantages, returns = compute_gae_returns(
+            self.next_value, self.rewards,
+            self.masks, self.values, self.gamma, self.lbda)
+        advantages = torch.cat(advantages).view(-1, self.n_envs).detach()
+        returns = torch.cat(returns).detach()
+        log_probs = torch.cat(self.log_probs).view(-1, self.n_envs)
+        values = torch.cat(self.values)
+        entropy = self.entropy
+        # losses
+        actor_loss = -(log_probs * advantages).sum(dim=0)
+        actor_loss = actor_loss.mean() - self.beta * entropy
+        critic_loss = (values - returns).pow(2).mean()
+        # update
+        self.c_optim.zero_grad()
+        critic_loss.backward()
+        self.c_optim.step()
+        self.a_optim.zero_grad()
+        actor_loss.backward()
+        self.a_optim.step()
+        self.reset_values()
+        return actor_loss.item(), critic_loss.item()
+
+
+class A2CDiscreteFramework(A2CFramework):
+    def __init__(
+        self,
+        input_size: int,
+        output_size: int,
+        hidden_size: int,
+        n_hidden_layers: int,
+        steps_per_episode: int,
+        n_envs: int,
+        learning_rate: float,
+        beta=.001,
+        gamma=.99,
+        lbda=.95,
+        optimizers='adam',
+        device=torch.device(
+            'cuda' if torch.cuda.is_available() else 'cpu'
+        )
+    ):
+        super(A2CDiscreteFramework, self).__init__(
+            input_size,
+            output_size,
+            hidden_size,
+            n_hidden_layers,
+            steps_per_episode,
+            n_envs,
+            learning_rate,
+            beta,
+            gamma,
+            lbda,
+            optimizers,
+            device
+        )
+        self.a2c = ActorCriticDiscrete(
+            input_size, output_size, hidden_size,
+            n_hidden_layers
+        ).to(device)
+        if optimizers == 'adam':
+            self.a_optim = Adam(self.a2c.actor.parameters(), lr=learning_rate)
+            self.c_optim = Adam(self.a2c.critic.parameters(), lr=learning_rate)
+        elif optimizers == 'sgd':
+            self.a_optim = SGD(self.a2c.actor.parameters(), lr=learning_rate)
+            self.c_optim = SGD(self.a2c.critic.parameters(), lr=learning_rate)
+        else:
+            raise Exception('Invalid optimizer.')
+
+    def push_experience(self, log_prob, value, reward, done, state, action):
+        self.log_probs.append(log_prob)
+        self.values.append(value)
+        self.rewards.append(
+            torch.FloatTensor(reward)
+            .view(self.n_envs, -1).to(self.device))
+        self.masks.append(
+            torch.FloatTensor(1 - done)
+            .view(self.n_envs, -1).to(self.device))
+        self.states.append(
+            torch.FloatTensor(state)
+            .view(self.n_envs, -1).to(self.device))
+        self.actions.append(
+            torch.LongTensor(action))
+
+    def learn(self):
+        advantages, returns = \
+            compute_gae_returns(
+                self.next_value, self.rewards,
+                self.masks, self.values, self.gamma, self.lbda)
+        advantages = torch.cat(advantages).view(-1, self.n_envs).detach()
+        returns = torch.cat(returns).detach()
+        log_probs = torch.cat(self.log_probs).view(-1, self.n_envs)
+        values = torch.cat(self.values)
+        entropy = self.entropy
+        # losses
+        actor_loss = -(log_probs * advantages).sum(dim=0)
+        actor_loss = actor_loss.mean() - self.beta * entropy
+        critic_loss = (values - returns).pow(2).mean()
+        # update
+        self.c_optim.zero_grad()
+        critic_loss.backward()
+        self.c_optim.step()
+        self.a_optim.zero_grad()
+        actor_loss.backward()
+        self.a_optim.step()
+        self.reset_values()
+        return actor_loss.item(), critic_loss.item()

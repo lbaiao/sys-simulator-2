@@ -10,8 +10,8 @@ import numpy as np
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def compute_gae_returns(device, rewards: torch.Tensor,
-                        values: torch.Tensor, gamma=0.99, lbda=0.95,):
+def compute_gae_returns_old(device, rewards: torch.Tensor, masks,
+                            values: torch.Tensor, gamma=0.99, lbda=0.95,):
     gae = torch.zeros(len(rewards)).to(device)
     R = torch.zeros(len(rewards)).to(device)
     values = values.detach()
@@ -21,9 +21,9 @@ def compute_gae_returns(device, rewards: torch.Tensor,
     returns = torch.zeros(rewards.shape, requires_grad=True).to(device)
     for step in reversed(range(rewards.shape[1])):
         # GAE
-        delta = \
-            rewards[:, step] + gamma * values[:, step + 1] - values[:, step]
-        advantages[:, step] = gae = delta + gamma * lbda * gae
+        delta = rewards[:, step] + gamma * \
+            values[:, step + 1] * masks[step] - values[:, step]
+        advantages[:, step] = gae = delta + gamma * lbda * gae * masks[step]
         # returns
         R = rewards[:, step] + gamma * R
         returns[:, step] = R
@@ -49,6 +49,24 @@ def compute_gae(next_value, rewards, masks, values, gamma=0.99, lbda=0.95):
     return returns
 
 
+def compute_gae_returns(next_value, rewards, masks,
+                        values, gamma=0.99, lbda=0.95):
+    values = values + [next_value]
+    gae = 0
+    R = 0
+    returns = []
+    advantages = []
+    for step in reversed(range(len(rewards))):
+        delta = rewards[step] + gamma * \
+            values[step + 1] * masks[step] - values[step]
+        gae = delta + gamma * lbda * masks[step] * gae
+        advantages.insert(0, gae + values[step])
+        # returns
+        R = rewards[step] + gamma * R
+        returns.insert(0, R)
+    return advantages, returns
+
+
 def choose_action(mu, std):
     dist = Normal(mu, std)
     action = dist.sample()
@@ -68,23 +86,10 @@ class ActorCritic(nn.Module):
         hidden_size, n_hidden_layers, std=0.0
     ):
         super(ActorCritic, self).__init__()
-        # self.hidden_layers = ModuleList()
-        # for _ in range(n_hidden_layers):
-        #     self.hidden_layers.append(Linear(hidden_size, hidden_size))
-        self.critic = nn.Sequential(
-            nn.Linear(num_inputs, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, 1)
-        )
-        self.actor = nn.Sequential(
-            nn.Linear(num_inputs, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, num_outputs)
-        )
+        self.actor = SimpleNN(num_inputs, num_outputs,
+                              hidden_size, n_hidden_layers)
+        self.critic = SimpleNN(num_inputs, 1,
+                               hidden_size, num_outputs)
         self.log_std = nn.Parameter(torch.ones(1, num_outputs) * std)
         self.apply(init_weights)
 
@@ -154,6 +159,35 @@ class TwoHeadedMonster(nn.Module):
         return mu, var
 
 
+class SimpleNN(nn.Module):
+    def __init__(
+        self,
+        input_size: int,
+        output_size: int,
+        hidden_size: int,
+        n_hidden_layers=1,
+        # init_w=3e-4
+    ):
+        super(SimpleNN, self).__init__()
+        self.hidden_layers = ModuleList()
+        for _ in range(n_hidden_layers):
+            self.hidden_layers.append(Linear(hidden_size, hidden_size))
+        self.fc1 = Linear(input_size, hidden_size)
+        self.fc_out = Linear(hidden_size, output_size)
+        # self.fc_out.weight.data.uniform_(-init_w, init_w)
+        # self.fc_out.bias.data.uniform_(-init_w, init_w)
+
+    def forward(self, obs):
+        x = self.fc1(obs)
+        x = torch.relu(x)
+        for i in self.hidden_layers:
+            x = i(x)
+            x = torch.relu(x)
+        x = self.fc_out(x)
+        output = x
+        return output
+
+
 class ActorCriticDiscrete(nn.Module, A2C):
     def __init__(
         self,
@@ -165,19 +199,19 @@ class ActorCriticDiscrete(nn.Module, A2C):
     ):
         super(ActorCriticDiscrete, self).__init__()
         self.device = device
-        self.actor = NeuralNetwork(
+        self.actor = SimpleNN(
             num_inputs, num_outputs,
             hidden_size, n_hidden_layers).to(self.device)
-        self.critic = NeuralNetwork(
+        self.critic = SimpleNN(
             num_inputs, 1,
             hidden_size, n_hidden_layers).to(self.device)
 
     def forward(self, x):
         value = self.critic(x)
         probs = self.actor(x)
-        probs = torch.softmax(probs.view(1, -1), dim=1)
+        probs = torch.softmax(probs, dim=1)
         dist = Categorical(probs)
-        return dist, value, probs
+        return dist, value
 
 
 class ActorCriticContinous(nn.Module, A2C):

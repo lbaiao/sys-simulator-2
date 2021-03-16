@@ -1,5 +1,5 @@
 from sys_simulator.general import power_to_db, db_to_power
-from sys_simulator.a2c.framework import ContinuousFramework, DiscreteFramework, PPOFramework
+from sys_simulator.a2c.framework import A2CDiscreteFramework, ContinuousFramework, DiscreteFramework, PPOFramework
 import torch
 from sys_simulator.a2c import A2CLSTMDiscrete
 from sys_simulator.q_learning.agents.agent import Agent as QAgent
@@ -62,6 +62,20 @@ class PPOAgent:
         self.device = device
 
     def act(self, obs: np.ndarray, framework: PPOFramework):
+        obs = torch.FloatTensor(obs)\
+            .view(-1, framework.input_size).to(self.device)
+        dist, value = framework.a2c(obs)
+        action = dist.sample()
+        log_prob = dist.log_prob(action)
+        entropy = dist.entropy().mean()
+        return action, log_prob, entropy, value
+
+
+class A2CAgent:
+    def __init__(self, device: torch.device):
+        self.device = device
+
+    def act(self, obs: np.ndarray, framework: A2CDiscreteFramework):
         obs = torch.FloatTensor(obs)\
             .view(-1, framework.input_size).to(self.device)
         dist, value = framework.a2c(obs)

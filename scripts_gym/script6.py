@@ -4,29 +4,25 @@ from sys_simulator import general as gen
 import numpy as np
 from time import time
 from sys_simulator.a2c.agent import PPOAgent
-from sys_simulator.a2c.framework import PPOFramework
+from sys_simulator.a2c.framework import A2CFramework
 import torch
 import gym
 from sys_simulator.general.multiprocessing_env \
     import SubprocVecEnv, make_env
 
-ALGO_NAME = 'ppo'
+ALGO_NAME = 'a2c'
+OPTIMIZERS = 'adam'
 NUM_ENVS = 16
 ENV_NAME = "Pendulum-v0"
-OPTIMIZERS = "adam"
 HIDDEN_SIZE = 256
 NUM_HIDDEN_LAYERS = 1
-CRITIC_LEARNING_RATE = 1E-3
-ACTOR_LEARNING_RATE = 3E-4
-MAX_STEPS = 20000
-STEPS_PER_EPISODE = 100
-MINI_BATCH_SIZE = 25
-PPO_EPOCHS = 80
-THRESHOLD_REWARD = -200
+LEARNING_RATE = 5E-5
+MAX_STEPS = 15000
+STEPS_PER_EPISODE = 20
+THRESHOLD_REWARD = -150
 BETA = .001
 GAMMA = .99
 LBDA = .95
-CLIP_PARAM = .2
 EVAL_NUM_EPISODES = 10
 EVAL_EVERY = int(MAX_STEPS / 20)
 
@@ -39,19 +35,17 @@ env = gym.make(ENV_NAME)
 # framework
 input_size = envs.observation_space.shape[0]
 output_size = envs.action_space.shape[0]
-framework = PPOFramework(
+framework = A2CFramework(
     input_size,
     output_size,
     HIDDEN_SIZE,
     NUM_HIDDEN_LAYERS,
     STEPS_PER_EPISODE,
     NUM_ENVS,
-    ACTOR_LEARNING_RATE,
-    CRITIC_LEARNING_RATE,
+    LEARNING_RATE,
     BETA,
     GAMMA,
     LBDA,
-    CLIP_PARAM,
     OPTIMIZERS,
     torch_device
 )
@@ -96,8 +90,7 @@ def train(start: int, writer: SummaryWriter, timestamp: str):
                 early_stop = True
         _, _, _, next_value = agent.act(next_obs, framework)
         framework.push_next(next_obs, next_value, total_entropy)
-        losses = framework.learn(PPO_EPOCHS, MINI_BATCH_SIZE)
-        a_loss, c_loss = np.sum(losses, axis=0)
+        a_loss, c_loss = framework.learn()
         writer.add_scalar('actor loss', a_loss, step)
         writer.add_scalar('critic loss', c_loss, step)
 
@@ -113,7 +106,7 @@ def train(start: int, writer: SummaryWriter, timestamp: str):
     return test_rewards
 
 
-def test(framework: PPOFramework):
+def test(framework: A2CFramework):
     rewards = []
     for _ in range(EVAL_NUM_EPISODES):
         obs = env.reset()
@@ -130,7 +123,7 @@ def test(framework: PPOFramework):
 
 
 def test_video(
-    framework: PPOFramework,
+    framework: A2CFramework,
     num_episodes: int,
     steps_per_episode: int
 ):

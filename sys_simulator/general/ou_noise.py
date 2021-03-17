@@ -30,3 +30,19 @@ class OUNoise(object):
         self.sigma = self.max_sigma - \
             (self.max_sigma - self.min_sigma) * min(1.0, t / self.decay_period)
         return np.clip(action + ou_state, self.low, self.high)
+
+
+class SysSimOUNoise(OUNoise):
+    def __init__(self, action_size, action_low, action_high,
+                 mu=0.0, theta=0.15, max_sigma=0.3,
+                 min_sigma=0.3, decay_period=100000):
+        self.mu = mu
+        self.theta = theta
+        self.sigma = max_sigma
+        self.max_sigma = max_sigma
+        self.min_sigma = min_sigma
+        self.decay_period = decay_period
+        self.action_dim = action_size
+        self.low = action_low
+        self.high = action_high
+        self.reset()

@@ -313,3 +313,19 @@ def random_seed(seed: int):
 
 def get_elapsed_time_minutes(start: int):
     return (time() - start) / 60
+
+
+def print_stuff_ddpg(
+    step: int, now: int, max_steps: int,
+    rm_type: str, prio_beta=0.0
+):
+    if rm_type == 'prioritized':
+        out = 'Training. ' + \
+            f'Step: {step}/{max_steps-1}. ' + \
+            f'Prio_Beta: {prio_beta}. ' + \
+            f'Elapsed time: {now} minutes.'
+    else:
+        out = 'Training. ' + \
+            f'Step: {step}/{max_steps-1}. ' + \
+            f'Elapsed time: {now} minutes.'
+    print(out)

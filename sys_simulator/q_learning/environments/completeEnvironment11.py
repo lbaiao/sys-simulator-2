@@ -13,7 +13,7 @@ from typing import Tuple
 import numpy as np
 
 
-class CompleteEnvironment10dB(RLEnvironment):
+class CompleteEnvironment11(RLEnvironment):
     """
     Similar to CompleteEnvironment9dB, but only the small scale fading changes
     if the device stays at the same position.
@@ -41,10 +41,10 @@ class CompleteEnvironment10dB(RLEnvironment):
         **kwargs
     ):
         self.params = params
-        super(CompleteEnvironment10dB, self).__init__(params,
-                                                      reward_function,
-                                                      **kwargs)
-        self.states = [0, 0, 1]        
+        super(CompleteEnvironment11, self).__init__(params,
+                                                    reward_function,
+                                                    **kwargs)
+        self.states = [0, 0, 1]
         self.mue: mobile_user = None
         self.sinr_d2ds: float = []
         self.d2d_pairs: List[Tuple[d2d_user, d2d_user]] = []
@@ -283,7 +283,7 @@ class CompleteEnvironment10dB(RLEnvironment):
         state.append(device_contrib_pct)
         # state.append(recent_d2d_pathloss / 30)
         # state.append(recent_bs_pathloss / 30)
-        # state = db_to_power(torch.tensor(state)).view(1, -1).to(self.device)        
+        # state = db_to_power(torch.tensor(state)).view(1, -1).to(self.device)
         # end
         self.reset_sets()
         return state

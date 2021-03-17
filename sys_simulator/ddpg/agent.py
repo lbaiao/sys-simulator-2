@@ -54,3 +54,16 @@ class Agent:
         step = kwargs['step']
         mu = ou.get_action(action, step)
         return mu
+
+
+class SysSimAgent(Agent):
+    def __init__(
+        self,
+        a_min: float,
+        a_max: float,
+        exploration: str,
+        device: torch.device,
+    ):
+        super(SysSimAgent, self).__init__(a_min, a_max, exploration, device)
+        self.d2d_tx = None
+        self.d2d_txs = []

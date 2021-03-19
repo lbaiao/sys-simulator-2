@@ -73,11 +73,9 @@ class SysSimAgent(Agent):
     def act(self, obs: ndarray, framework: Framework,
             is_training=False, **kwargs):
         action = super(SysSimAgent, self)\
-                .act(obs, framework, is_training, **kwargs)
+            .act(obs, framework, is_training, **kwargs)
         action = power_to_db(action)
         return action
-        
-
 
 
 class SurrogateAgent:

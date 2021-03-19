@@ -1,3 +1,5 @@
+from sys_simulator.general import power_to_db
+from sys_simulator.devices.devices import d2d_user
 from sys_simulator.general.ou_noise import OUNoise
 from types import MethodType
 import numpy as np
@@ -67,3 +69,30 @@ class SysSimAgent(Agent):
         super(SysSimAgent, self).__init__(a_min, a_max, exploration, device)
         self.d2d_tx = None
         self.d2d_txs = []
+
+    def act(self, obs: ndarray, framework: Framework,
+            is_training=False, **kwargs):
+        action = super(SysSimAgent, self)\
+                .act(obs, framework, is_training, **kwargs)
+        action = power_to_db(action)
+        return action
+        
+
+
+
+class SurrogateAgent:
+    """Agent that will just interface the environment with the `SysSimAgent`.
+    """
+
+    def __init__(self):
+        self.action = 1e-9
+        self.d2d_tx = None
+
+    def set_d2d_tx(self, d2d_tx: d2d_user):
+        self.d2d_tx = d2d_tx
+
+    def set_d2d_tx_id(self, id: str):
+        self.id = id
+
+    def set_action(self, action: float):
+        self.action = action

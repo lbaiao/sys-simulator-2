@@ -88,7 +88,7 @@ class Framework:
     def learn(self):
         if len(self.replay_memory) < self.replay_initial \
                 or len(self.replay_memory) < self.batch_size:
-            return
+            return float('-inf'), float('inf')
         obses_t, actions, rewards, obses_tp1, dones, extra_args = \
             self.unpack_batch()
         obses_t = torch.tensor(
@@ -96,7 +96,7 @@ class Framework:
         ).view(obses_t.shape[0], -1)
         actions = torch.tensor(
             actions, dtype=torch.float, device=self.device
-        ).view(-1, 1)
+        ).view(-1, actions.shape[2])
         rewards = torch.tensor(
             rewards, dtype=torch.float, device=self.device
         ).view(-1, 1)
@@ -139,6 +139,7 @@ class Framework:
             prios += 1e-5
             self.replay_memory.update_priorities(batch_idxes, prios)
             self.replay_memory.update_beta()
+        return actor_loss.item(), critic_loss.item()
 
     def soft_tau_update(self, target_nn: Module, nn: Module):
         # with torch.no_grad():
@@ -170,23 +171,3 @@ class Framework:
         kwargs = {'weights': weights, 'batch_idxes': batch_idxes}
         return obses_t, actions, rewards, obses_tp1, dones, kwargs
 
-
-# class ReplayBuffer:
-#     def __init__(self, capacity):
-#         self.capacity = capacity
-#         self.buffer = []
-#         self.position = 0
-
-#     def push(self, state, action, reward, next_state, done):
-#         if len(self.buffer) < self.capacity:
-#             self.buffer.append(None)
-#         self.buffer[self.position] = (state, action, reward, next_state, done)
-#         self.position = (self.position + 1) % self.capacity
-
-#     def sample(self, batch_size):
-#         batch = random.sample(self.buffer, batch_size)
-#         state, action, reward, next_state, done = map(np.stack, zip(*batch))
-#         return state, action, reward, next_state, done
-
-#     def __len__(self):
-#         return len(self.buffer)

@@ -285,6 +285,7 @@ class CompleteEnvironment11(RLEnvironment):
         # state.append(recent_bs_pathloss / 30)
         # state = db_to_power(torch.tensor(state)).view(1, -1).to(self.device)
         # end
+        state = np.array(state).reshape(1, -1)
         self.reset_sets()
         return state
 
@@ -301,6 +302,8 @@ class CompleteEnvironment11(RLEnvironment):
         return x_std, y_std
 
     def step(self, agents: List[DistanceAgent]):
+        done = False
+        extra_info = ''
         # allocate agents tx power
         for agent in agents:
             for pair in self.d2d_pairs:
@@ -347,7 +350,7 @@ class CompleteEnvironment11(RLEnvironment):
             [d[0].speffs[0] for d in self.d2d_pairs]
         )
         # end
-        return states, rewards
+        return states, rewards, done, extra_info
 
     def set_d2d_pathlosses(self):
         for tx, rx in self.d2d_pairs:

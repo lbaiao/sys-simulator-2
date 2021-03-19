@@ -1,22 +1,27 @@
+from shutil import copyfile
+import sys_simulator.general as gen
+from time import time
 from sys_simulator.general import print_stuff_ddpg
-from sys_simulator.q_learning.environments.completeEnvironment11 import CompleteEnvironment11
-from sys_simulator.ddpg.agent import SysSimAgent
-from sys_simulator.general.ou_noise import OUNoise, SysSimOUNoise
+from sys_simulator.q_learning.environments.completeEnvironment11 \
+        import CompleteEnvironment11
+from sys_simulator.ddpg.agent import SysSimAgent, SurrogateAgent
+from sys_simulator.general.ou_noise import SysSimOUNoise
 from torch.utils.tensorboard import SummaryWriter
 from copy import deepcopy
 from sys_simulator.ddpg.framework import Framework
 from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
 from sys_simulator.devices.devices import db_to_power
-from sys_simulator.q_learning.environments.completeEnvironment10dB import CompleteEnvironment10dB
 from sys_simulator.channels import BANChannel, UrbanMacroNLOSWinnerChannel
-from sys_simulator.parameters.parameters import DQNAgentParameters, EnvironmentParameters, LearningParameters
+from sys_simulator.parameters.parameters import \
+        DQNAgentParameters, EnvironmentParameters
 import torch
+import numpy as np
 
-# Uses CompleteEnvironment10dB
+# Uses CompleteEnvironment11
 # Centralized Learning-Centralized Execution
 # Trains a central agent for a fixed amount of devices.
 # There are different channels to the BS and to the devices.
-# Multiple episodes convergence. Everything is in dB.
+# Multiple episodes convergence. The states are in linear scale.
 n_mues = 1  # number of mues
 n_d2d = 2  # number of d2d pairs
 n_rb = n_mues   # number of RBs
@@ -43,6 +48,7 @@ MAX_NUMBER_OF_AGENTS = 3
 REWARD_PENALTY = 1.5
 # q-learning parameters
 # training
+ALGO_NAME = 'ddpg'
 REWARD_FUNCTION = 'classic'
 MAX_STEPS = 12000
 STEPS_PER_EPISODE = 500
@@ -95,8 +101,8 @@ agent_params = DQNAgentParameters(
 foo_env = deepcopy(ref_env)
 foo_agents = [ExternalDQNAgent(agent_params, [1]) for _ in range(4)]
 foo_env.build_scenario(foo_agents)
-_, _ = foo_env.step(foo_agents)
-a_min = 0
+_, _, _, _ = foo_env.step(foo_agents)
+a_min = 0 + 1e-9
 a_max = db_to_power(p_max)
 action_size = MAX_NUMBER_OF_AGENTS
 env_state_size = MAX_NUMBER_OF_AGENTS * foo_env.get_state_size(foo_agents[0])
@@ -129,16 +135,137 @@ ou_noise = SysSimOUNoise(
     OU_DECAY_PERIOD
 )
 
-agent = SysSimAgent(a_min, a_max, EXPLORATION, torch_device)
+central_agent = SysSimAgent(a_min, a_max, EXPLORATION, torch_device)
+surr_agents = [SurrogateAgent() for _ in range(MAX_NUMBER_OF_AGENTS)]
 
 
 def train(start: int, writer: SummaryWriter, timestamp: str):
+    actor_losses_bag = list()
+    critic_losses_bag = list()
     mue_spectral_eff_bag = list()
     d2d_spectral_eff_bag = list()
     rewards_bag = list()
     step = 0
     while step < MAX_STEPS:
-        obs = env.reset()
         env = deepcopy(ref_env)
+        env.build_scenario(surr_agents)
+        obs_aux, _, _, _ = env.step(surr_agents)
+        obs = np.concatenate(obs_aux, axis=1)
         now = (time() - start) / 60
         print_stuff_ddpg(step, now, MAX_STEPS, REPLAY_MEMORY_TYPE)
+        total_reward = 0.0
+        done = False
+        i = 0
+        while not done and i < STEPS_PER_EPISODE:
+            actions = central_agent.act(obs, framework, True, ou=ou_noise,
+                                        step=i)
+            for j, agent in enumerate(surr_agents):
+                agent.set_action(actions[0][j])
+            next_obs_aux, rewards, done, _ = env.step(surr_agents)
+            total_reward = np.sum(rewards)
+            next_obs = np.concatenate(next_obs_aux, axis=1)
+            framework.replay_memory.push(obs, actions, total_reward, next_obs,
+                                         done)
+            actor_loss, critic_loss = framework.learn()
+            obs = next_obs
+            i += 1
+            step += 1
+            writer.add_scalar('Actor Losses', actor_loss, step)
+            writer.add_scalar('Critic Losses', critic_loss, step)
+            actor_losses_bag.append(actor_loss)
+            critic_losses_bag.append(critic_loss)
+        if step % EVAL_EVERY == 0:
+            t_bags = test(framework)
+            t_rewards = t_bags['rewards']
+            t_mue_spectral_effs = t_bags['mue_spectral_effs']
+            t_d2d_spectral_effs = t_bags['d2d_spectral_effs']
+            # mue spectral eff
+            mue_spectral_eff_bag.append(t_mue_spectral_effs)
+            # average d2d spectral eff
+            d2d_spectral_eff_bag.append(t_d2d_spectral_effs)
+            rewards_bag.append(t_rewards)
+            # write metrics
+            writer.add_scalar('Average MUE Spectral efficiencies',
+                              np.mean(t_mue_spectral_effs), step)
+            writer.add_scalar('Average D2D Spectral Efficiencies',
+                              np.mean(t_d2d_spectral_effs), step)
+            writer.add_scalar('Aggregated Rewards', np.sum(t_rewards), step)
+            writer.add_scalar('Average Actions', np.mean(actions), step)
+            writer.add_scalar('Aggregated Actions', np.sum(actions), step)
+            framework.actor.train()
+            framework.critic.train()
+    all_bags = {
+        'actor_losses': actor_losses_bag,
+        'critic_losses': critic_losses_bag,
+        'mue_spectral_effs': mue_spectral_eff_bag,
+        'd2d_spectral_effs': d2d_spectral_eff_bag
+    }
+    return all_bags
+
+
+def test(framework: Framework):
+    surr_agents = [SurrogateAgent() for _ in range(MAX_NUMBER_OF_AGENTS)]
+    framework.actor.eval()
+    framework.critic.eval()
+    mue_spectral_effs = []
+    d2d_spectral_effs = []
+    rewards_bag = []
+    for _ in range(EVAL_NUM_EPISODES):
+        env = deepcopy(ref_env)
+        env.build_scenario(surr_agents)
+        obs_aux, _, _, _ = env.step(surr_agents)
+        obs = np.concatenate(obs_aux, axis=1)
+        i = 0
+        done = False
+        ep_rewards = []
+        ep_mue_speffs = []
+        ep_d2d_speffs = []
+        while not done and i < STEPS_PER_EPISODE:
+            actions = central_agent.act(obs, framework, False)
+            for j, agent in enumerate(surr_agents):
+                agent.set_action(actions[0][j])
+            next_obs_aux, rewards, done, _ = env.step(surr_agents)
+            next_obs = np.concatenate(next_obs_aux, axis=1)
+            obs = next_obs
+            ep_rewards.append(np.sum(rewards))
+            ep_mue_speffs.append(env.mue_spectral_eff)
+            ep_d2d_speffs.append(env.d2d_spectral_eff)
+            i += 1
+        rewards_bag.append(np.sum(ep_rewards))
+        mue_spectral_effs.append(np.mean(ep_mue_speffs))
+        d2d_spectral_effs.append(np.mean(ep_d2d_speffs))
+    all_bags = {
+        'rewards': rewards_bag,
+        'mue_spectral_effs': mue_spectral_effs,
+        'd2d_spectral_effs': d2d_spectral_effs
+    }
+    return all_bags
+
+
+def run():
+    # make data dir
+    filename = gen.path_leaf(__file__)
+    filename = filename.split('.')[0]
+    dir_path = f'data/{ALGO_NAME}/{filename}'
+    data_path, timestamp = gen.make_dir_timestamp(dir_path)
+    writer = SummaryWriter(f'{data_path}/tensorboard')
+    start = time()
+    train_bags = train(start, writer, timestamp)
+    writer.close()
+    test_bags = test(framework)
+    # save stuff
+    now = (time() - start) / 60
+    data_file_path = f'{data_path}/log.pickle'
+    data = {
+        'train_bags': train_bags,
+        'test_bags': test_bags,
+        'elapsed_time': now,
+        'eval_every': EVAL_EVERY,
+    }
+    gen.save_with_pickle(data, data_file_path)
+    copyfile(__file__, f'{data_path}/{filename}.py')
+    print(f'done. Elapsed time: {now} minutes.')
+
+
+if __name__ == '__main__':
+    run()

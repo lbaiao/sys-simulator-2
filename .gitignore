@@ -7,3 +7,4 @@ __pycache__/*
 env_variables.*
 data/
 models/
+.ycm_extra_conf.py

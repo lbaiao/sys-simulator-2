@@ -3,7 +3,7 @@ import sys_simulator.general as gen
 from time import time
 from sys_simulator.general import print_stuff_ddpg
 from sys_simulator.q_learning.environments.completeEnvironment11 \
-        import CompleteEnvironment11
+    import CompleteEnvironment11
 from sys_simulator.ddpg.agent import SysSimAgent, SurrogateAgent
 from sys_simulator.general.ou_noise import SysSimOUNoise
 from torch.utils.tensorboard import SummaryWriter
@@ -13,7 +13,7 @@ from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
 from sys_simulator.devices.devices import db_to_power
 from sys_simulator.channels import BANChannel, UrbanMacroNLOSWinnerChannel
 from sys_simulator.parameters.parameters import \
-        DQNAgentParameters, EnvironmentParameters
+    DQNAgentParameters, EnvironmentParameters
 import torch
 import numpy as np
 
@@ -103,7 +103,7 @@ foo_agents = [ExternalDQNAgent(agent_params, [1]) for _ in range(4)]
 foo_env.build_scenario(foo_agents)
 _, _, _, _ = foo_env.step(foo_agents)
 a_min = 0 + 1e-9
-a_max = db_to_power(p_max)
+a_max = db_to_power(p_max - 10)
 action_size = MAX_NUMBER_OF_AGENTS
 env_state_size = MAX_NUMBER_OF_AGENTS * foo_env.get_state_size(foo_agents[0])
 
@@ -172,8 +172,13 @@ def train(start: int, writer: SummaryWriter, timestamp: str):
             step += 1
             writer.add_scalar('Actor Losses', actor_loss, step)
             writer.add_scalar('Critic Losses', critic_loss, step)
+            aux_actions = actions.cpu().numpy()
+            writer.add_scalar('Average Actions', aux_actions.mean(), step)
+            writer.add_scalar('Aggregated Actions', aux_actions.sum(), step)
             actor_losses_bag.append(actor_loss)
             critic_losses_bag.append(critic_loss)
+            framework.actor.train()
+            framework.critic.train()
         if step % EVAL_EVERY == 0:
             t_bags = test(framework)
             t_rewards = t_bags['rewards']
@@ -190,10 +195,6 @@ def train(start: int, writer: SummaryWriter, timestamp: str):
             writer.add_scalar('Average D2D Spectral Efficiencies',
                               np.mean(t_d2d_spectral_effs), step)
             writer.add_scalar('Aggregated Rewards', np.sum(t_rewards), step)
-            writer.add_scalar('Average Actions', np.mean(actions), step)
-            writer.add_scalar('Aggregated Actions', np.sum(actions), step)
-            framework.actor.train()
-            framework.critic.train()
     all_bags = {
         'actor_losses': actor_losses_bag,
         'critic_losses': critic_losses_bag,

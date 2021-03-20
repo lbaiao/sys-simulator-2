@@ -329,3 +329,10 @@ def print_stuff_ddpg(
             f'Step: {step}/{max_steps-1}. ' + \
             f'Elapsed time: {now} minutes.'
     print(out)
+
+
+def scale_tanh(qty: float, a_min: float, a_max: float):
+    res = qty * (a_max - a_min) / 2
+    # res = np.clip(res, a_min, a_max)
+    return res
+

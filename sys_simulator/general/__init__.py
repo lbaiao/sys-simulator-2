@@ -332,7 +332,7 @@ def print_stuff_ddpg(
 
 
 def scale_tanh(qty: float, a_min: float, a_max: float):
-    res = qty * (a_max - a_min) / 2
+    diff = a_max - a_min
+    res = (qty / 2 + .5) * diff + a_min
     # res = np.clip(res, a_min, a_max)
     return res
-

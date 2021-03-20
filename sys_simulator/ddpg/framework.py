@@ -31,8 +31,8 @@ class Framework:
         replay_initial: int,
         state_size: int,
         action_size: int,
-        hidden_size_1: int,
-        hidden_size_2: int,
+        hidden_size: int,
+        n_hidden_layers: int,
         actor_learning_rate: float,
         critic_learning_rate: float,
         batch_size: int,
@@ -61,16 +61,16 @@ class Framework:
         # ddpg
         self.actor = DDPGActor(
             state_size, action_size,
-            hidden_size_1, hidden_size_2).to(device)
+            hidden_size, n_hidden_layers).to(device)
         self.critic = DDPGCritic(
             state_size, action_size,
-            hidden_size_1, hidden_size_2).to(device)
+            hidden_size, n_hidden_layers).to(device)
         self.target_actor = DDPGActor(
             state_size, action_size,
-            hidden_size_1, hidden_size_2).to(device)
+            hidden_size, n_hidden_layers).to(device)
         self.target_critic = DDPGCritic(
             state_size, action_size,
-            hidden_size_1, hidden_size_2).to(device)
+            hidden_size, n_hidden_layers).to(device)
         self.target_actor.eval()
         self.target_critic.eval()
         # clone ddpg NNs to the target
@@ -170,4 +170,3 @@ class Framework:
             self.replay_memory.sample(self.batch_size)
         kwargs = {'weights': weights, 'batch_idxes': batch_idxes}
         return obses_t, actions, rewards, obses_tp1, dones, kwargs
-

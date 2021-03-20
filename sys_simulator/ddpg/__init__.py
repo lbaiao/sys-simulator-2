@@ -35,21 +35,26 @@ class DDPGCritic(nn.Module):
         self,
         obs_size: int,
         act_size: int,
-        h1: int,
-        h2: int,
+        hidden_size: int,
+        n_hidden_layers: int,
         init_w=3e-4
     ):
         super(DDPGCritic, self).__init__()
-        self.linear1 = Linear(obs_size + act_size, h1)
-        self.linear2 = Linear(h1, h2)
-        self.linear3 = Linear(h2, 1)
-        self.linear3.weight.data.uniform_(-init_w, init_w)
-        self.linear3.bias.data.uniform_(-init_w, init_w)
+        self.hidden_layers = ModuleList()
+        for _ in range(n_hidden_layers):
+            self.hidden_layers.append(Linear(hidden_size, hidden_size))
+        self.linear1 = Linear(obs_size + act_size, hidden_size)
+        self.linear_out = Linear(hidden_size, 1)
+        self.linear_out.weight.data.uniform_(-init_w, init_w)
+        self.linear_out.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, x, a):
-        x = torch.relu(self.linear1(torch.cat([x, a], dim=1)))
-        x = torch.relu(self.linear2(x))
-        x = self.linear3(x)
+        x = self.linear1(torch.cat([x, a], dim=1))
+        x = torch.relu(x)
+        for i in self.hidden_layers:
+            x = i(x)
+            x = torch.relu(x)
+        x = self.linear_out(x)
         return x
 
 
@@ -58,21 +63,27 @@ class DDPGActor(nn.Module):
         self,
         obs_size: int,
         act_size: int,
-        h1: int,
-        h2: int,
+        hidden_size: int,
+        n_hidden_layers: int,
         init_w=3e-3
     ):
         super(DDPGActor, self).__init__()
-        self.linear1 = Linear(obs_size, h1)
-        self.linear2 = Linear(h1, h2)
-        self.linear3 = Linear(h2, act_size)
-        self.linear3.weight.data.uniform_(-init_w, init_w)
-        self.linear3.bias.data.uniform_(-init_w, init_w)
+
+        self.hidden_layers = ModuleList()
+        for _ in range(n_hidden_layers):
+            self.hidden_layers.append(Linear(hidden_size, hidden_size))
+        self.linear1 = Linear(obs_size, hidden_size)
+        self.linear_out = Linear(hidden_size, act_size)
+        self.linear_out.weight.data.uniform_(-init_w, init_w)
+        self.linear_out.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, x):
-        x = torch.relu(self.linear1(x))
-        x = torch.relu(self.linear2(x))
-        x = torch.tanh(self.linear3(x))
+        x = self.linear1(x)
+        x = torch.relu(x)
+        for i in self.hidden_layers:
+            x = i(x)
+            x = torch.relu(x)
+        x = self.linear_out(x)
         return x
 
 

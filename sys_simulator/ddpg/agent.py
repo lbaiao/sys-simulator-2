@@ -1,4 +1,4 @@
-from sys_simulator.general import power_to_db
+from sys_simulator.general import power_to_db, scale_tanh
 from sys_simulator.devices.devices import d2d_user
 from sys_simulator.general.ou_noise import OUNoise
 from types import MethodType
@@ -41,7 +41,6 @@ class Agent:
         action = action.squeeze(0)
         if is_training:
             action = self.explore(action=action, **kwargs)
-        action = action * (self.a_max - self.a_min) / 2
         action = np.clip(action, self.a_min, self.a_max)
         return action
 

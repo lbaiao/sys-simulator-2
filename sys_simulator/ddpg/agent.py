@@ -1,4 +1,4 @@
-from sys_simulator.general import power_to_db, scale_tanh
+from sys_simulator.general import power_to_db
 from sys_simulator.devices.devices import d2d_user
 from sys_simulator.general.ou_noise import OUNoise
 from types import MethodType

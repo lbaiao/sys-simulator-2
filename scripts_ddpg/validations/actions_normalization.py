@@ -1,16 +1,32 @@
 # validate if the agent's actions are normalized between 0 and 1
+from sys_simulator.ddpg import DDPGActor
 from sys_simulator.general import scale_tanh
-from random import random 
+from random import random
 import matplotlib.pyplot as plt
+import numpy as np
+import torch
 
 N_SAMPLES = int(1e6)
 N_BINS = int(1e2)
+OBS_SIZE = 30
 tanh_min = -1
 tanh_max = 1
 a_min = 1e-9
-a_max = 1e9
+a_max = 1
 
-diff = tanh_max - tanh_max
+diff = tanh_max - tanh_min
 inputs = [random()*diff - diff/2 for _ in range(N_SAMPLES)]
-plt.hist(inputs, density=True)
+scaled = scale_tanh(np.array(inputs), a_min, a_max)
+plt.figure()
+plt.hist(scaled, density=True, bins=N_BINS)
+
+torch_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+actor = DDPGActor(OBS_SIZE, 1, 128, 2, 3e-3).to(torch_device)
+ac_inputs = np.random.random((N_SAMPLES, OBS_SIZE))
+ac_outputs = actor(torch.FloatTensor(
+    ac_inputs).to(torch_device)).detach().cpu().numpy()
+ac_outputs = ac_outputs.reshape(-1)
+plt.figure()
+plt.hist(ac_outputs, density=True, bins=N_BINS)
+
 plt.show()

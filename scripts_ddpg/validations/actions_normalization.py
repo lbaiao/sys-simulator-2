@@ -9,6 +9,7 @@ import torch
 N_SAMPLES = int(1e6)
 N_BINS = int(1e2)
 OBS_SIZE = 30
+ACTION_SIZE = 3
 tanh_min = -1
 tanh_max = 1
 a_min = 1e-9
@@ -21,12 +22,12 @@ plt.figure()
 plt.hist(scaled, density=True, bins=N_BINS)
 
 torch_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-actor = DDPGActor(OBS_SIZE, 1, 128, 2, 3e-3).to(torch_device)
+actor = DDPGActor(OBS_SIZE, ACTION_SIZE, 128, 2, 3e-3).to(torch_device)
 ac_inputs = np.random.random((N_SAMPLES, OBS_SIZE))
 ac_outputs = actor(torch.FloatTensor(
     ac_inputs).to(torch_device)).detach().cpu().numpy()
-ac_outputs = ac_outputs.reshape(-1)
+ac_outputs = ac_outputs.reshape((N_SAMPLES, ACTION_SIZE))
 plt.figure()
-plt.hist(ac_outputs, density=True, bins=N_BINS)
-
+for i in range(ACTION_SIZE):
+    plt.hist(ac_outputs[:, i], density=True, bins=N_BINS)
 plt.show()

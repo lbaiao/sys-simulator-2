@@ -32,8 +32,9 @@ ENVIRONMENT_MEMORY = 2
 MAX_NUMBER_OF_AGENTS = 3
 REWARD_PENALTY = 1.5
 REWARD_FUNCTION = 'classic'
-MAX_NUM_EPISODES = int(1e2)
+MAX_NUM_EPISODES = int(1e4)
 STEPS_PER_EPISODE = 5
+NUM_BINS = int(1e2)
 # ========== END OF PARAMETERS =============
 channel_to_bs = UrbanMacroNLOSWinnerChannel(
     rnd=CHANNEL_RND, f_c=carrier_frequency, h_bs=bs_height, h_ms=device_height
@@ -70,19 +71,19 @@ for episode in range(MAX_NUM_EPISODES):
         collected_states += obs_aux
 # marcela
 # plot distributions
-collected_states = np.array(collected_states)
+collected_states = np.array(collected_states).reshape(-1, env.state_size())
 total_plots = collected_states.shape[1]
 n_rows = ceil(sqrt(total_plots))
 n_cols = ceil(sqrt(total_plots))
+fig, axs = plt.subplots(n_rows, n_cols, sharey=True, tight_layout=True)
 index = 0
-for i in range(n_rows):
-    for j in range(n_cols):
-        print(f'index: {index}')
-        plt.subplot(n_rows, n_cols, index+1)
-        plt.hist(collected_states[:, index], density=True)
-        index += 1
-        if index >= total_plots:
+for i in axs:
+    for j in i:
+        j.hist(collected_states[:, index], density=True, bins=NUM_BINS)
+        if index < total_plots-1:
+            index += 1
+        else:
             break
-    if index >= total_plots:
+    if index >= total_plots-1:
         break
-plt.show()        
+plt.show()

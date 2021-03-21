@@ -1,16 +1,22 @@
-from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
-from sys_simulator.channels import Channel
-from sys_simulator.general import db_to_power, power_to_db
-from sys_simulator.devices.devices \
-    import base_station, mobile_user, d2d_user, d2d_node_type, node
-from sys_simulator import general as gen
-from sys_simulator.q_learning.agents.distanceAgent import DistanceAgent
-from sys_simulator.q_learning.environments.environment import RLEnvironment
+from sys_simulator.ddpg.agent import SurrogateAgent
 from typing import List
-from sys_simulator.parameters.parameters import EnvironmentParameters
-from scipy.spatial.distance import euclidean
 from typing import Tuple
 import numpy as np
+from scipy.spatial.distance import euclidean
+from sys_simulator import general as gen
+from sys_simulator.channels import Channel
+from sys_simulator.devices.devices import (
+    base_station,
+    d2d_node_type,
+    d2d_user,
+    mobile_user,
+    node,
+)
+from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
+from sys_simulator.general import db_to_power, power_to_db
+from sys_simulator.parameters.parameters import EnvironmentParameters
+from sys_simulator.q_learning.agents.distanceAgent import DistanceAgent
+from sys_simulator.q_learning.environments.environment import RLEnvironment
 
 
 class CompleteEnvironment11(RLEnvironment):
@@ -27,7 +33,6 @@ class CompleteEnvironment11(RLEnvironment):
         May be 'classic', for the classic reward. 'lucas' for the lucas reward.
         'individual' for the individual reward.
     """
-
     def __init__(
         self,
         params: EnvironmentParameters,
@@ -76,7 +81,7 @@ class CompleteEnvironment11(RLEnvironment):
         else:
             raise Exception('Invalid reward function.')
 
-    def build_scenario(self, agents: List[ExternalDQNAgent]):
+    def build_scenario(self, agents: List[SurrogateAgent]):
         # declaring the bs, mues and d2d pairs
         self.reset_before_build_set()
         self.sinr_d2ds = []
@@ -248,7 +253,7 @@ class CompleteEnvironment11(RLEnvironment):
         # close_devs_sinrs = [np.clip(i, -30, 30) for i in close_devs_sinrs]
         # inverse_link_price = d2d_tx.avg_speffs[0]
         # state
-        state = [
+        linear_qts = [
             number_of_d2d_pairs / 10,
             d2d_tx.position[0] / self.bs.radius,
             d2d_tx.position[1] / self.bs.radius,
@@ -259,32 +264,39 @@ class CompleteEnvironment11(RLEnvironment):
             # self.mue.tx_power / 30,
             int(interference_indicator),
             int(not interference_indicator),
-            np.clip(received_interference, -30, 30) / 30,
-            np.clip(d2d_tx.pathloss_d2d, -30, 30) / 30,
-            np.clip(d2d_tx.pathloss_to_bs, -30, 30) / 30,
         ]
-        state += (np.array(close_devices_x) / self.bs.radius).tolist()
-        state += (np.array(close_devices_y) / self.bs.radius).tolist()
+        linear_qts += (np.array(close_devices_x) / self.bs.radius).tolist()
+        linear_qts += (np.array(close_devices_y) / self.bs.radius).tolist()
+        log_qts = [
+            np.clip(received_interference, -30, 30) - 30,
+            np.clip(d2d_tx.pathloss_d2d, -30, 30) - 30,
+            np.clip(d2d_tx.pathloss_to_bs, -30, 30) - 30,
+        ]
         # state += (np.array(last_mue_powers) / 30).tolist()
         # state += (np.array(mue_sinrs) / 30).tolist()
-        state += mue_speffs.tolist()
+        log_qts += mue_speffs.tolist()
         # state += mue_inverse_link_prices
         # state += (np.clip(device_sinrs, -30, 30) / 30).tolist()
-        state += (np.clip(device_powers, -30, 30) / 30).tolist()
-        state += (np.clip(close_interferences, -30, 30) / 30).tolist()
+        log_qts += (np.clip(device_powers, -30, 30) - 30).tolist()
+        log_qts += (np.clip(close_interferences, -30, 30) - 30).tolist()
         # state.append(d2d_pathloss / 30)
         # state += (np.clip(close_devs_powers, -30, 30) / 30).tolist()
         # state += (np.clip(close_devs_sinrs, -30, 30) / 30).tolist()
         # state += close_inverse_link_prices
-        state += close_speffs
-        state += (np.clip(caused_interferences, -30, 30) / 30).tolist()
-        state += d2d_tx.speffs.tolist()
-        state.append(np.clip(device_contrib, -30, 30) / 30)
-        state.append(device_contrib_pct)
+        linear_qts += close_speffs
+        log_qts += (np.clip(caused_interferences, -30, 30) - 30).tolist()
+        linear_qts += d2d_tx.speffs.tolist()
+        log_qts.append(np.clip(device_contrib, -30, 30) - 30)
+        linear_qts.append(device_contrib_pct)
         # state.append(recent_d2d_pathloss / 30)
         # state.append(recent_bs_pathloss / 30)
         # state = db_to_power(torch.tensor(state)).view(1, -1).to(self.device)
         # end
+        state = []
+        state += linear_qts
+        log_qts = np.array(log_qts)
+        log_qts += db_to_power(log_qts)
+        state = np.concatenate((state, log_qts), axis=0)
         state = np.array(state).reshape(1, -1)
         self.reset_sets()
         return state
@@ -781,3 +793,10 @@ class CompleteEnvironment11(RLEnvironment):
 
     def get_mue_position(self):
         return self.mue.position
+
+    def state_size(self):
+        # 3m+mc+4c+12
+        state_size = 3*self.memory + self.memory*self.n_closest_devices \
+            + 4*self.n_closest_devices + 12
+        return state_size
+

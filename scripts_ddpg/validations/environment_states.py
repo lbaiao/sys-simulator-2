@@ -78,8 +78,8 @@ index = 0
 for i in range(n_rows):
     for j in range(n_cols):
         print(f'index: {index}')
-        plt.subplot(i+1, j+1, index+1)
-        plt.hist(collected_states[:, index])
+        plt.subplot(n_rows, n_cols, index+1)
+        plt.hist(collected_states[:, index], density=True)
         index += 1
         if index >= total_plots:
             break

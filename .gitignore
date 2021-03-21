@@ -8,3 +8,4 @@ env_variables.*
 data/
 models/
 .ycm_extra_conf.py
+.vimspector.json

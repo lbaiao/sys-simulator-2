@@ -119,7 +119,7 @@ class BANChannel(Channel):
         return small_scale_fading
 
 
-class UrbanMacroLOSWinnerChannel:
+class UrbanMacroLOSWinnerChannel(Channel):
     def __init__(self, rnd=True, h_bs=25, h_ms=1.5, f_c=2.4):
         self.rnd = rnd
         self.h_bs = h_bs
@@ -225,7 +225,7 @@ class UrbanMacroLOSWinnerChannel:
         return 0
 
 
-class UrbanMacroNLOSWinnerChannel:
+class UrbanMacroNLOSWinnerChannel(Channel):
     def __init__(self, rnd=True, h_bs=25, h_ms=1.5, f_c=2.4):
         self.rnd = rnd
         self.h_bs = h_bs

@@ -43,6 +43,7 @@ class CompleteEnvironment11(RLEnvironment):
         reward_penalty=1,
         bs_height=25,
         reward_function='classic',
+        memories_capacity=int(1e4),
         **kwargs
     ):
         self.params = params
@@ -60,6 +61,10 @@ class CompleteEnvironment11(RLEnvironment):
         self.diff = 0
         self.reward_penalty = reward_penalty
         self.bs_height = bs_height
+        # memories
+        self.powers_memory = SimpleMemory(memories_capacity)
+        self.interferences_memory = SimpleMemory(memories_capacity)
+        self.pathlosses_memory = SimpleMemory(memories_capacity)
         # losses
         self.pathlosses = {}
         self.small_scale_fadings = {}
@@ -230,13 +235,13 @@ class CompleteEnvironment11(RLEnvironment):
                 power_to_db(d.get_received_interference(d2d_tx.id))
             )
             # close_inverse_link_prices += d.avg_speffs[:self.memory].tolist()
-            close_speffs += d.speffs[:self.memory].tolist()
+            close_speffs += d.norm_speffs()[:self.memory].tolist()
             # close_devs_powers += d.past_actions[:self.memory].tolist()
             # close_devs_sinrs += d.past_sinrs[:self.memory].tolist()
         device_contrib = d2d_tx.past_actions[0] - d2d_tx.past_bs_losses[0]
         received_interference = d2d_tx.calc_received_interference()
         # mue states
-        mue_speffs = self.mue.speffs[:self.memory]
+        mue_speffs = self.mue.norm_speffs()[:self.memory]
         # mue_inverse_link_prices = self.mue.avg_speffs.tolist()
         # + d2d_tx.gain + self.bs.gain
         bs_interference = self.mue.past_actions[0] \
@@ -255,49 +260,45 @@ class CompleteEnvironment11(RLEnvironment):
         # state
         linear_qts = [
             number_of_d2d_pairs / 10,
-            d2d_tx.position[0] / self.bs.radius,
-            d2d_tx.position[1] / self.bs.radius,
-            self.mue.position[0] / self.bs.radius,
-            self.mue.position[1] / self.bs.radius,
+            self.norm_position(d2d_tx.position[0]),
+            self.norm_position(d2d_tx.position[1]),
+            self.norm_position(self.mue.position[0]),
+            self.norm_position(self.mue.position[1]),
             # np.clip(agent.action, -30, 30) / 30,
             # inverse_link_price,
             # self.mue.tx_power / 30,
             int(interference_indicator),
             int(not interference_indicator),
         ]
-        linear_qts += (np.array(close_devices_x) / self.bs.radius).tolist()
-        linear_qts += (np.array(close_devices_y) / self.bs.radius).tolist()
-        log_qts = [
-            np.clip(received_interference, -30, 30) - 30,
-            np.clip(d2d_tx.pathloss_d2d, -30, 30) - 30,
-            np.clip(d2d_tx.pathloss_to_bs, -30, 30) - 30,
-        ]
-        # state += (np.array(last_mue_powers) / 30).tolist()
-        # state += (np.array(mue_sinrs) / 30).tolist()
-        log_qts += mue_speffs.tolist()
-        # state += mue_inverse_link_prices
-        # state += (np.clip(device_sinrs, -30, 30) / 30).tolist()
-        log_qts += (np.clip(device_powers, -30, 30) - 30).tolist()
-        log_qts += (np.clip(close_interferences, -30, 30) - 30).tolist()
-        # state.append(d2d_pathloss / 30)
-        # state += (np.clip(close_devs_powers, -30, 30) / 30).tolist()
-        # state += (np.clip(close_devs_sinrs, -30, 30) / 30).tolist()
-        # state += close_inverse_link_prices
+        linear_qts += self.norm_position(np.array(close_devices_x)).tolist()
+        linear_qts += self.norm_position(np.array(close_devices_y)).tolist()
+        linear_qts += mue_speffs.tolist()
         linear_qts += close_speffs
-        log_qts += (np.clip(caused_interferences, -30, 30) - 30).tolist()
-        linear_qts += d2d_tx.speffs.tolist()
-        log_qts.append(np.clip(device_contrib, -30, 30) - 30)
         linear_qts.append(device_contrib_pct)
-        # state.append(recent_d2d_pathloss / 30)
-        # state.append(recent_bs_pathloss / 30)
-        # state = db_to_power(torch.tensor(state)).view(1, -1).to(self.device)
+        linear_qts += d2d_tx.norm_speffs().tolist()
+        log_powers = [
+            device_powers,
+            device_contrib
+        ]
+        log_pathlosses = [
+            d2d_tx.pathloss_d2d,
+            d2d_tx.pathloss_to_bs,
+        ]
+        log_interferences = [
+            caused_interferences,
+            close_interferences,
+            received_interference,
+        ]
+        # normalizations
+        lin_powers = self.norm_logs(log_powers, 'powers')
+        lin_pathlosses = self.norm_logs(log_pathlosses, 'pathlosses')
+        lin_interferences = self.norm_logs(log_interferences, 'interferences')
         # end
-        state = []
-        state += linear_qts
-        log_qts = np.array(log_qts)
-        log_qts += db_to_power(log_qts)
-        state = np.concatenate((state, log_qts), axis=0)
-        state = np.array(state).reshape(1, -1)
+        linear_qts = np.array(linear_qts)
+        state = np.concatenate(
+            (linear_qts, lin_powers, lin_pathlosses, lin_interferences),
+            axis = 0
+        ).reshape(1, -1)
         self.reset_sets()
         return state
 
@@ -334,6 +335,7 @@ class CompleteEnvironment11(RLEnvironment):
         )
         self.mue.calc_set_avg_speff_set_link_price()
         self.mue.calc_set_speff()
+        self.mue.calc_set_max_speff()
         # d2d pairs sinr
         for p in self.d2d_pairs:
             if p[0].rb == self.rb:
@@ -342,6 +344,7 @@ class CompleteEnvironment11(RLEnvironment):
                     self.params.noise_power, self.params.user_gain
                 )
                 p[0].calc_set_speff()
+                p[0].calc_set_max_speff()
                 p[0].calc_set_avg_speff_set_link_price()
         # calculate small scale fadings and set new losses
         self.step_losses()
@@ -546,7 +549,9 @@ class CompleteEnvironment11(RLEnvironment):
         sinr = mue_contrib - power_to_db(
             db_to_power(noise_power) + total_interference
         )
+        snr = mue_contrib - noise_power
         mue.set_sinr(sinr)
+        mue.set_snr(snr)
         return sinr
 
     def sinr_d2d(self, d2d_tx: d2d_user, d2d_rx: d2d_user,
@@ -596,8 +601,10 @@ class CompleteEnvironment11(RLEnvironment):
                 db_to_power(mue_interference) +
                 total_interference
             )
+        snr = d2d_tx_contrib - noise_power
         # set the d2d_tx sinr
         d2d_tx.set_sinr(sinr)
+        d2d_tx.set_snr(snr)
         return sinr
 
     def reset_sets(self):
@@ -800,3 +807,23 @@ class CompleteEnvironment11(RLEnvironment):
             + 4*self.n_closest_devices + 12
         return state_size
 
+    def norm_position(self, pos: float):
+        r = self.params.bs_radius
+        norm = (pos + r)/(2*r)
+        return norm
+
+    def norm_logs(self, items: list[float], normalizer: str):
+        if normalizer == 'powers':
+            ref = self.powers_memory
+        elif normalizer == 'pathlosses':
+            ref = self.pathlosses_memory
+        elif normalizer == 'interferences':
+            ref = self.interferences_memory
+        else:
+            raise Exception('Invalid normalizer.')
+        items = np.array(items)
+        items = db_to_power(items)
+        for i in items:
+            ref.push(i)
+        norm_pws = (items - np.mean(ref))/np.std(ref)
+        return norm_pws

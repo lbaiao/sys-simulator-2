@@ -14,6 +14,7 @@ class node:
     position: x,y tuple representing the BS position coordinates
     radius: BS coverage radius in meters
     """
+
     def __init__(
         self,
         max_power=-7,
@@ -23,10 +24,12 @@ class node:
     ):
         self.tx_power = -100
         self.sinr = -100
+        self.snr = -100
         self.pathloss_to_bs = 100
         self.beta = beta
         self.past_actions = -100 * np.ones(memory_size)
         self.past_sinrs = -100 * np.ones(memory_size)
+        self.past_snrs = -100 * np.ones(memory_size)
         self.past_bs_losses = 100 * np.ones(memory_size)
         self.past_d2d_losses = 100 * np.ones(memory_size)
         self.interference_contrib_pct = 0
@@ -36,10 +39,13 @@ class node:
         self.pathloss_is_set = False
         self.power_is_set = False
         self.sinr_is_set = False
+        self.snr_is_set = False
         self.pathloss_d2d_is_set = False
         self.past_interference_contrib_pct_is_set = False
         self.speffs = 1e-4 * np.ones(memory_size)
+        self.max_speffs = 1e-4 * np.ones(memory_size)
         self.speff_is_set = False
+        self.max_speff_is_set = False
         self.avg_speffs = 1e-4 * np.ones(memory_size)
         self.avg_speffs_is_set = False
         self.link_prices = 1e-4 * np.ones(memory_size)
@@ -54,9 +60,9 @@ class node:
     def set_pathlosses_to_interfering(self, pathlosses: Dict):
         if self.pathlosses_to_interfering_is_set:
             raise Exception(
-                    'Trying to set pathlosses to interfering D2Ds more than \
+                'Trying to set pathlosses to interfering D2Ds more than \
                     once in the same timestep.'
-                )
+            )
         self.pathlosses_to_interfering = pathlosses
         self.pathlosses_to_interfering_is_set = True
 
@@ -113,6 +119,17 @@ class node:
         self.past_sinrs = aux
         self.sinr_is_set = True
 
+    def set_snr(self, snr: float):
+        if self.snr_is_set:
+            raise Exception(
+                'Trying to set snr more than once in the same timestep.'
+            )
+        self.snr = snr
+        aux = np.roll(self.past_snrs, 1)
+        aux[0] = self.snr
+        self.past_snrs = aux
+        self.snr_is_set = True
+
     def set_gain(self, gain: float):
         self.gain = gain
 
@@ -120,11 +137,13 @@ class node:
         self.pathloss_is_set = False
         self.power_is_set = False
         self.sinr_is_set = False
+        self.snr_is_set = False
         self.pathloss_d2d_is_set = False
         self.past_interference_contrib_pct_is_set = False
         self.avg_speffs_is_set = False
         self.link_price_is_set = False
         self.speff_is_set = False
+        self.max_speff_is_set = False
         self.interference_is_set = False
         self.power_at_receiver_is_set = False
         self.pathlosses_to_interfering_is_set = False
@@ -176,6 +195,10 @@ class node:
         speff = np.log2(1 + db_to_power(self.sinr))
         return speff
 
+    def calculate_max_speff(self) -> float:
+        m_speff = np.log2(1 + db_to_power(self.snr))
+        return m_speff
+
     def set_speff(self, speff: float):
         if self.speff_is_set:
             raise Exception(
@@ -187,9 +210,24 @@ class node:
         self.speffs = aux
         self.speff_is_set = True
 
+    def set_max_speff(self, speff: float):
+        if self.max_speff_is_set:
+            raise Exception(
+                'Trying to set the spectral efficiency more \
+                than once in the same timestep.'
+            )
+        aux = np.roll(self.max_speffs, 1)
+        aux[0] = speff
+        self.max_speffs = aux
+        self.max_speff_is_set = True
+
     def calc_set_speff(self):
         speff = self.calculate_speff()
         self.set_speff(speff)
+
+    def calc_set_max_speff(self):
+        m_speff = self.calculate_max_speff()
+        self.set_max_speff(m_speff)
 
     def set_interferences(self, interferences: List[Tuple]):
         if self.interference_is_set:
@@ -214,6 +252,10 @@ class node:
         interference = self.interferences[index][1]
         return interference
 
+    def norm_speffs(self):
+        norm = np.array(self.speffs) / np.array(self.max_speffs)
+        return norm
+
 
 class base_station(node):
     """class representing the base station
@@ -226,6 +268,7 @@ class base_station(node):
     radius: float
         BS coverage radius in meters
     """
+
     def __init__(self, position, radius=500):
         super(base_station, self).__init__()
         self.set_position(position)
@@ -244,6 +287,7 @@ class mobile_user(node):
     class representing the mobile_user
     position: x,y tuple representing the device position coordinates
     """
+
     def __init__(self, id, p_max=-7, memory_size=2):
         super(mobile_user, self).__init__(p_max, memory_size)
         self.id: str = f'MUE:{id}'
@@ -283,6 +327,7 @@ class d2d_user(node):
     position: x,y tuple representing the
     device position coordinates
     """
+
     def __init__(self, id: int, d2d_type: d2d_node_type,
                  max_power=-7,
                  memory_size=2, **kwargs):

@@ -32,7 +32,7 @@ ENVIRONMENT_MEMORY = 2
 MAX_NUMBER_OF_AGENTS = 3
 REWARD_PENALTY = 1.5
 REWARD_FUNCTION = 'classic'
-MAX_NUM_EPISODES = int(1e4)
+MAX_NUM_EPISODES = int(1e3)
 STEPS_PER_EPISODE = 5
 NUM_BINS = int(1e2)
 # ========== END OF PARAMETERS =============
@@ -59,6 +59,7 @@ ref_env = CompleteEnvironment11(
 )
 surr_agents = [SurrogateAgent() for _ in range(MAX_NUMBER_OF_AGENTS)]
 collected_states = []
+env = deepcopy(ref_env)
 for episode in range(MAX_NUM_EPISODES):
     env = deepcopy(ref_env)
     env.build_scenario(surr_agents)
@@ -67,7 +68,7 @@ for episode in range(MAX_NUM_EPISODES):
         actions = np.random.random(MAX_NUMBER_OF_AGENTS)
         for ag, ac in zip(surr_agents, actions):
             ag.set_action(ac)
-        obs_aux, _, _, _ = env.step(surr_agents)
+        obs_ux, _, _, _ = env.step(surr_agents)
         collected_states += obs_aux
 # marcela
 # plot distributions
@@ -75,7 +76,8 @@ collected_states = np.array(collected_states).reshape(-1, env.state_size())
 total_plots = collected_states.shape[1]
 n_rows = ceil(sqrt(total_plots))
 n_cols = ceil(sqrt(total_plots))
-fig, axs = plt.subplots(n_rows, n_cols, sharey=True, tight_layout=True)
+fig, axs = plt.subplots(n_rows, n_cols, sharey=True, tight_layout=True,
+                       figsize=(10,10))
 index = 0
 for i in axs:
     for j in i:
@@ -86,4 +88,5 @@ for i in axs:
             break
     if index >= total_plots-1:
         break
-plt.show()
+plt.savefig('figs/env_states.png')
+

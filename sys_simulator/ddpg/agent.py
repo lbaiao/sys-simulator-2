@@ -92,4 +92,7 @@ class SurrogateAgent:
         self.id = id
 
     def set_action(self, action: float):
-        self.action = action
+        """Receives `action` as a float and converts it to dB
+        """
+        db_action = power_to_db(action)
+        self.action = db_action

@@ -1,10 +1,12 @@
-from sys_simulator.ddpg.agent import SurrogateAgent
-from typing import List
-from typing import Tuple
+from typing import List, Tuple
+from sys_simulator.general.simple_memory import SimpleMemory
+
 import numpy as np
 from scipy.spatial.distance import euclidean
+
 from sys_simulator import general as gen
 from sys_simulator.channels import Channel
+from sys_simulator.ddpg.agent import SurrogateAgent
 from sys_simulator.devices.devices import (
     base_station,
     d2d_node_type,
@@ -276,19 +278,17 @@ class CompleteEnvironment11(RLEnvironment):
         linear_qts += close_speffs
         linear_qts.append(device_contrib_pct)
         linear_qts += d2d_tx.norm_speffs().tolist()
-        log_powers = [
-            device_powers,
-            device_contrib
-        ]
+        log_powers = []
+        log_powers += device_powers
+        log_powers.append(device_contrib)
         log_pathlosses = [
             d2d_tx.pathloss_d2d,
             d2d_tx.pathloss_to_bs,
         ]
-        log_interferences = [
-            caused_interferences,
-            close_interferences,
-            received_interference,
-        ]
+        log_interferences = []
+        log_interferences += caused_interferences
+        log_interferences += close_interferences
+        log_interferences.append(received_interference)
         # normalizations
         lin_powers = self.norm_logs(log_powers, 'powers')
         lin_pathlosses = self.norm_logs(log_pathlosses, 'pathlosses')
@@ -314,7 +314,7 @@ class CompleteEnvironment11(RLEnvironment):
         y_std = np.std([d.position[1] for d in other_devices])
         return x_std, y_std
 
-    def step(self, agents: List[DistanceAgent]):
+    def step(self, agents: List[SurrogateAgent]):
         done = False
         extra_info = ''
         # allocate agents tx power
@@ -812,7 +812,7 @@ class CompleteEnvironment11(RLEnvironment):
         norm = (pos + r)/(2*r)
         return norm
 
-    def norm_logs(self, items: list[float], normalizer: str):
+    def norm_logs(self, items: List[float], normalizer: str):
         if normalizer == 'powers':
             ref = self.powers_memory
         elif normalizer == 'pathlosses':
@@ -825,5 +825,7 @@ class CompleteEnvironment11(RLEnvironment):
         items = db_to_power(items)
         for i in items:
             ref.push(i)
-        norm_pws = (items - np.mean(ref))/np.std(ref)
+        mu = np.mean(ref.memory)
+        std = np.std(ref.memory)
+        norm_pws = (items - mu)/std
         return norm_pws

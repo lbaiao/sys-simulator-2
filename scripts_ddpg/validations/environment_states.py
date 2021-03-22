@@ -68,7 +68,7 @@ for episode in range(MAX_NUM_EPISODES):
         actions = np.random.random(MAX_NUMBER_OF_AGENTS)
         for ag, ac in zip(surr_agents, actions):
             ag.set_action(ac)
-        obs_ux, _, _, _ = env.step(surr_agents)
+        obs_aux, _, _, _ = env.step(surr_agents)
         collected_states += obs_aux
 # marcela
 # plot distributions
@@ -81,8 +81,8 @@ fig, axs = plt.subplots(n_rows, n_cols, sharey=True, tight_layout=True,
 index = 0
 for i in axs:
     for j in i:
-        j.hist(collected_states[:, index], density=True, bins=NUM_BINS)
         if index < total_plots-1:
+            j.hist(collected_states[:, index], density=True, bins=NUM_BINS)
             index += 1
         else:
             break

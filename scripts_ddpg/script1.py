@@ -9,11 +9,9 @@ from sys_simulator.general.ou_noise import SysSimOUNoise
 from torch.utils.tensorboard import SummaryWriter
 from copy import deepcopy
 from sys_simulator.ddpg.framework import Framework
-from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
 from sys_simulator.devices.devices import db_to_power
 from sys_simulator.channels import BANChannel, UrbanMacroNLOSWinnerChannel
-from sys_simulator.parameters.parameters import \
-    DQNAgentParameters, EnvironmentParameters
+from sys_simulator.parameters.parameters import EnvironmentParameters
 import torch
 import numpy as np
 
@@ -51,7 +49,7 @@ REWARD_PENALTY = 1.5
 ALGO_NAME = 'ddpg'
 REWARD_FUNCTION = 'classic'
 MAX_STEPS = 12000
-STEPS_PER_EPISODE = 500
+STEPS_PER_EPISODE = 50
 REPLAY_INITIAL = int(0E3)
 EVAL_NUM_EPISODES = 10
 REPLAY_MEMORY_SIZE = int(1E6)
@@ -93,19 +91,10 @@ ref_env = CompleteEnvironment11(
     bs_height=bs_height,
     reward_function=REWARD_FUNCTION
 )
-# foo env and foo agents stuff
-agent_params = DQNAgentParameters(
-    .05, .05, 1, REPLAY_MEMORY_SIZE,
-    BATCH_SIZE, GAMMA
-)
-foo_env = deepcopy(ref_env)
-foo_agents = [ExternalDQNAgent(agent_params, [1]) for _ in range(4)]
-foo_env.build_scenario(foo_agents)
-_, _, _, _ = foo_env.step(foo_agents)
 a_min = 0 + 1e-9
 a_max = db_to_power(p_max - 10)
 action_size = MAX_NUMBER_OF_AGENTS
-env_state_size = MAX_NUMBER_OF_AGENTS * foo_env.get_state_size(foo_agents[0])
+env_state_size = MAX_NUMBER_OF_AGENTS * ref_env.state_size()
 
 framework = Framework(
     REPLAY_MEMORY_TYPE,

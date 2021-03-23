@@ -1,5 +1,5 @@
 from sys_simulator.general import power_to_db
-from sys_simulator.devices.devices import d2d_user
+from sys_simulator.devices.devices import d2d_node_type, d2d_user
 from sys_simulator.general.ou_noise import OUNoise
 from types import MethodType
 import numpy as np
@@ -83,7 +83,7 @@ class SurrogateAgent:
 
     def __init__(self):
         self.action = 1e-9
-        self.d2d_tx = None
+        self.d2d_tx = d2d_user(0, d2d_node_type.TX)
 
     def set_d2d_tx(self, d2d_tx: d2d_user):
         self.d2d_tx = d2d_tx
@@ -92,7 +92,6 @@ class SurrogateAgent:
         self.id = id
 
     def set_action(self, action: float):
-        """Receives `action` as a float and converts it to dB
+        """Receives `action`. Action must be in dB.
         """
-        db_action = power_to_db(action)
-        self.action = db_action
+        self.action = action

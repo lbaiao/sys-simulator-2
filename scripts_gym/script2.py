@@ -1,5 +1,6 @@
 from shutil import copyfile
 import numpy as np
+from torch.utils.tensorboard.writer import SummaryWriter
 from sys_simulator.general.ou_noise import OUNoise
 from sys_simulator.ddpg.agent import Agent
 import torch
@@ -84,7 +85,9 @@ def print_stuff(step: int, now: int):
     print(out)
 
 
-def train(start):
+def train(start, writer: SummaryWriter, timestamp: str):
+    actor_losses_bag = list()
+    critic_losses_bag = list()
     best_reward = float('-inf')
     test_rewards = []
     step = 0
@@ -102,7 +105,9 @@ def train(start):
             framework.replay_memory.push(
                 obs, action, reward, next_obs, done
             )
-            framework.learn()
+            actor_loss, critic_loss = framework.learn()
+            writer.add_scalar('Actor Losses', actor_loss, step)
+            writer.add_scalar('Critic Losses', critic_loss, step)
             best_reward = reward if reward > best_reward else best_reward
             obs = next_obs
             i += 1
@@ -110,6 +115,7 @@ def train(start):
         if step % EVAL_EVERY == 0:
             t_rewards = test(framework)
             test_rewards.append(t_rewards)
+            writer.add_scalar('Avg test rewards', np.mean(t_rewards), step)
         # if REPLAY_MEMORY_TYPE == 'prioritized':
         #     framework.replay_memory.correct_beta(i, STEPS_PER_EPISODE)
     # last test
@@ -161,17 +167,19 @@ def test_video(
 
 
 def run():
-    train_rewards = []
-    test_rewards = []
-    start = time()
-    train_rewards = train(start)
-    test_rewards = test(framework)
-    # save stuff
-    now = (time() - start) / 60
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
     dir_path = f'data/ddpg/gym/{filename}'
-    data_path = gen.make_dir_timestamp(dir_path)
+    data_path, timestamp = gen.make_dir_timestamp(dir_path)
+    writer = SummaryWriter(f'{data_path}/tensorboard')
+    train_rewards = []
+    test_rewards = []
+    start = time()
+    train_rewards = train(start, writer, timestamp)
+    writer.close()
+    test_rewards = test(framework)
+    # save stuff
+    now = (time() - start) / 60
     data_file_path = f'{data_path}/log.pickle'
     data = {
         'train_rewards': train_rewards,

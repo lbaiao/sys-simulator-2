@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from sys_simulator.ddpg import DDPGActor
-from sys_simulator.ddpg.agent import Agent
+from sys_simulator.ddpg.agent import SysSimAgent
 from sys_simulator.ddpg.framework import Framework
 # from sys_simulator.general import scale_tanh
 
@@ -43,7 +43,7 @@ framework = Framework('standard', 100, 10, OBS_SIZE, ACTION_SIZE, 128,
                       2, 3e-3, 3e-3, 64, .99, .999, torch_device)
 framework.actor.eval()
 framework.critic.eval()
-agent = Agent(a_min, a_max, 'ou', torch_device)
+agent = SysSimAgent(a_min, a_max, 'ou', torch_device)
 ac_inputs = np.random.random((N_SAMPLES, OBS_SIZE))
 ac_outputs = agent.act(ac_inputs, framework, False).detach().cpu().numpy()
 ac_outputs = ac_outputs.reshape((N_SAMPLES, ACTION_SIZE))

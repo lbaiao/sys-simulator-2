@@ -59,6 +59,10 @@ ref_env = CompleteEnvironment11(
 )
 surr_agents = [SurrogateAgent() for _ in range(MAX_NUMBER_OF_AGENTS)]
 collected_states = []
+rewards = []
+mue_speffs = []
+d2d_speffs = []
+max_speffs = []
 env = deepcopy(ref_env)
 for episode in range(MAX_NUM_EPISODES):
     env = deepcopy(ref_env)
@@ -66,10 +70,16 @@ for episode in range(MAX_NUM_EPISODES):
     for step in range(STEPS_PER_EPISODE):
         print(f'episode: {episode}; step: {step}')
         actions = np.random.random(MAX_NUMBER_OF_AGENTS)
+        s_max_speffs = []
         for ag, ac in zip(surr_agents, actions):
             ag.set_action(ac)
-        obs_aux, _, _, _ = env.step(surr_agents)
+            s_max_speffs.append(ag.d2d_tx.max_speffs[0])
+        max_speffs += s_max_speffs
+        obs_aux, s_rewards, _, _ = env.step(surr_agents)
+        rewards += s_rewards
         collected_states += obs_aux
+        mue_speffs.append(env.mue_spectral_eff)
+        d2d_speffs.append(env.d2d_spectral_eff)
 # marcela
 # plot distributions
 collected_states = np.array(collected_states).reshape(-1, env.state_size())
@@ -89,4 +99,13 @@ for i in axs:
     if index >= total_plots-1:
         break
 plt.savefig('figs/env_states.png')
-
+# plot rewards distribution
+fig, axs = plt.subplots(2, 2, sharey=True, tight_layout=True,
+                       figsize=(10,10))
+axs[0][0].hist(rewards, density=True, bins=NUM_BINS)
+axs[0][1].hist(mue_speffs, density=True, bins=NUM_BINS)
+axs[1][0].hist(d2d_speffs, density=True, bins=NUM_BINS)
+axs[1][1].hist(max_speffs, density=True, bins=NUM_BINS)
+plt.savefig('figs/env_rewards.png')
+# end
+print('done')

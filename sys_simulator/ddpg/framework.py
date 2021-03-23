@@ -42,6 +42,10 @@ class Framework:
         **kwargs
     ):
         self.device = device
+        self.action_size = action_size
+        self.state_size = state_size
+        self.hidden_size = hidden_size
+        self.n_hidden_layers = n_hidden_layers
         # replay memory
         self.replay_memory_type = replay_memory_type
         if replay_memory_type == 'standard':
@@ -96,7 +100,7 @@ class Framework:
         ).view(obses_t.shape[0], -1)
         actions = torch.tensor(
             actions, dtype=torch.float, device=self.device
-        ).view(-1, actions.shape[2])
+        ).view(-1, self.action_size)
         rewards = torch.tensor(
             rewards, dtype=torch.float, device=self.device
         ).view(-1, 1)

@@ -1,4 +1,5 @@
-from sys_simulator.general import power_to_db
+from torch.utils.tensorboard.writer import SummaryWriter
+from sys_simulator.general import power_to_db, scale_tanh
 from sys_simulator.devices.devices import d2d_node_type, d2d_user
 from sys_simulator.general.ou_noise import OUNoise
 from types import MethodType
@@ -41,6 +42,7 @@ class Agent:
         action = action.squeeze(0)
         if is_training:
             action = self.explore(action=action, **kwargs)
+        action = scale_tanh(action, self.a_min, self.a_max)
         action = np.clip(action, self.a_min, self.a_max)
         return action
 
@@ -57,6 +59,28 @@ class Agent:
         return mu
 
 
+class SysSimAgentWriter(Agent):
+    def __init__(
+        self,
+        a_min: float,
+        a_max: float,
+        exploration: str,
+        device: torch.device,
+    ):
+        super(SysSimAgentWriter, self).__init__(a_min, a_max, exploration, device)
+        self.d2d_tx = None
+        self.d2d_txs = []
+
+    def act(self, obs: ndarray, framework: Framework, writer: SummaryWriter,
+            t_step: int, is_training=False, **kwargs):
+        action = super(SysSimAgentWriter, self)\
+            .act(obs, framework, is_training, **kwargs)
+        writer.add_scalar('Average Actor output',
+                          np.mean(action.detach().numpy()), t_step)
+        action = power_to_db(action)
+        return action
+
+
 class SysSimAgent(Agent):
     def __init__(
         self,
@@ -69,12 +93,12 @@ class SysSimAgent(Agent):
         self.d2d_tx = None
         self.d2d_txs = []
 
-    def act(self, obs: ndarray, framework: Framework,
-            is_training=False, **kwargs):
+    def act(self, obs: ndarray, framework: Framework, is_training=False, **kwargs):
         action = super(SysSimAgent, self)\
             .act(obs, framework, is_training, **kwargs)
         action = power_to_db(action)
         return action
+
 
 
 class SurrogateAgent:

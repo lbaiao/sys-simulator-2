@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from sys_simulator.ddpg import DDPGActor
-from sys_simulator.ddpg.agent import SysSimAgent
+from sys_simulator.ddpg.agent import Agent, SysSimAgent
 from sys_simulator.ddpg.framework import Framework
 # from sys_simulator.general import scale_tanh
 
@@ -36,13 +36,21 @@ ac_outputs = ac_outputs.reshape((N_SAMPLES, ACTION_SIZE))
 plt.figure()
 for i in range(ACTION_SIZE):
     plt.hist(ac_outputs[:, i], density=True, bins=N_BINS)
-plt.savefig("figs/env_norm_actor_val.jpg")
-
-# agent validation
+plt.savefig("figs/env_norm_actor_val.png")
+# Agent validation
 framework = Framework('standard', 100, 10, OBS_SIZE, ACTION_SIZE, 128,
                       2, 3e-3, 3e-3, 64, .99, .999, torch_device)
 framework.actor.eval()
 framework.critic.eval()
+agent = Agent(a_min, a_max, 'ou', torch_device)
+ac_inputs = np.random.random((N_SAMPLES, OBS_SIZE))
+ac_outputs = agent.act(ac_inputs, framework, False).detach().cpu().numpy()
+ac_outputs = ac_outputs.reshape((N_SAMPLES, ACTION_SIZE))
+plt.figure()
+for i in range(ACTION_SIZE):
+    plt.hist(ac_outputs[:, i], density=True, bins=N_BINS)
+plt.savefig("figs/env_agent_val.png")
+# SysSimAgent validation
 agent = SysSimAgent(a_min, a_max, 'ou', torch_device)
 ac_inputs = np.random.random((N_SAMPLES, OBS_SIZE))
 ac_outputs = agent.act(ac_inputs, framework, False).detach().cpu().numpy()
@@ -50,5 +58,6 @@ ac_outputs = ac_outputs.reshape((N_SAMPLES, ACTION_SIZE))
 plt.figure()
 for i in range(ACTION_SIZE):
     plt.hist(ac_outputs[:, i], density=True, bins=N_BINS)
-plt.savefig("figs/env_norm_agent_val.jpg")
+plt.savefig("figs/env_syssimagent_val.png")
+# the end
 print('done')

@@ -9,6 +9,7 @@ import gym
 from time import time
 import sys_simulator.general as gen
 
+ALGO_NAME = 'ddpg'
 # MAX_NUM_EPISODES = 12000
 # STEPS_PER_EPISODE = 500
 # REPLAY_INITIAL = 10000
@@ -69,7 +70,7 @@ ou_noise = OUNoise(
     OU_MIN_SIGMA,
     OU_DECAY_PERIOD
 )
-agent = Agent(-1.0, 1.0, EXPLORATION, torch_device)
+agent = Agent(a_min, a_max, EXPLORATION, torch_device)
 
 
 def print_stuff(step: int, now: int):
@@ -124,8 +125,8 @@ def train(start, writer: SummaryWriter, timestamp: str):
     # save stuff
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
-    data_path = f'models/ddpg/gym/{filename}'
-    data_path = gen.make_dir_timestamp(data_path)
+    data_path = f'models/{ALGO_NAME}/gym/{filename}/{timestamp}'
+    gen.make_dir(data_path)
     torch.save(framework, f'{data_path}/framework.pt')
     return test_rewards
 

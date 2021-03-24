@@ -4,7 +4,7 @@ from time import time
 from sys_simulator.general import print_stuff_ddpg
 from sys_simulator.q_learning.environments.completeEnvironment11 \
     import CompleteEnvironment11
-from sys_simulator.ddpg.agent import SysSimAgent, SurrogateAgent
+from sys_simulator.ddpg.agent import SysSimAgent, SurrogateAgent, SysSimAgentWriter
 from sys_simulator.general.ou_noise import SysSimOUNoise
 from torch.utils.tensorboard import SummaryWriter
 from copy import deepcopy
@@ -49,14 +49,15 @@ REWARD_PENALTY = 1.5
 ALGO_NAME = 'ddpg'
 REWARD_FUNCTION = 'classic'
 MAX_STEPS = 12000
-STEPS_PER_EPISODE = 50
-REPLAY_INITIAL = int(0E3)
+STEPS_PER_EPISODE = 100
+# STEPS_PER_EPISODE = MAX_STEPS
+REPLAY_INITIAL = int(1E3)
 EVAL_NUM_EPISODES = 10
-REPLAY_MEMORY_SIZE = int(1E6)
-ACTOR_LEARNING_RATE = 1E-4
-CRITIC_LEARNING_RATE = 1E-3
+REPLAY_MEMORY_SIZE = int(1E4)
+ACTOR_LEARNING_RATE = 5E-5
+CRITIC_LEARNING_RATE = 5E-4
 HIDDEN_SIZE = 256
-N_HIDDEN_LAYERS = 3
+N_HIDDEN_LAYERS = 5
 BATCH_SIZE = 128
 GAMMA = .99
 SOFT_TAU = 1E-2
@@ -124,7 +125,8 @@ ou_noise = SysSimOUNoise(
     OU_DECAY_PERIOD
 )
 
-central_agent = SysSimAgent(a_min, a_max, EXPLORATION, torch_device)
+central_agent = SysSimAgentWriter(a_min, a_max, EXPLORATION, torch_device)
+central_agent_test = SysSimAgent(a_min, a_max, EXPLORATION, torch_device)
 surr_agents = [SurrogateAgent() for _ in range(MAX_NUMBER_OF_AGENTS)]
 
 
@@ -134,6 +136,7 @@ def train(start: int, writer: SummaryWriter, timestamp: str):
     mue_spectral_eff_bag = list()
     d2d_spectral_eff_bag = list()
     rewards_bag = list()
+    mue_avail_bag = list()
     step = 0
     while step < MAX_STEPS:
         env = deepcopy(ref_env)
@@ -146,8 +149,8 @@ def train(start: int, writer: SummaryWriter, timestamp: str):
         done = False
         i = 0
         while not done and i < STEPS_PER_EPISODE:
-            actions = central_agent.act(obs, framework, True, ou=ou_noise,
-                                        step=i)
+            actions = central_agent.act(obs, framework,
+                                        writer, step, True, step=i, ou=ou_noise)
             for j, agent in enumerate(surr_agents):
                 agent.set_action(actions[0][j])
             next_obs_aux, rewards, done, _ = env.step(surr_agents)
@@ -163,7 +166,7 @@ def train(start: int, writer: SummaryWriter, timestamp: str):
             writer.add_scalar('Critic Losses', critic_loss, step)
             aux_actions = actions.cpu().numpy()
             writer.add_scalar('Average Actions', aux_actions.mean(), step)
-            writer.add_scalar('Aggregated Actions', aux_actions.sum(), step)
+            # writer.add_scalar('Aggregated Actions', aux_actions.sum(), step)
             actor_losses_bag.append(actor_loss)
             critic_losses_bag.append(critic_loss)
             framework.actor.train()
@@ -173,17 +176,21 @@ def train(start: int, writer: SummaryWriter, timestamp: str):
             t_rewards = t_bags['rewards']
             t_mue_spectral_effs = t_bags['mue_spectral_effs']
             t_d2d_spectral_effs = t_bags['d2d_spectral_effs']
+            t_availability = t_bags['mue_availability']
             # mue spectral eff
             mue_spectral_eff_bag.append(t_mue_spectral_effs)
             # average d2d spectral eff
             d2d_spectral_eff_bag.append(t_d2d_spectral_effs)
             rewards_bag.append(t_rewards)
+            mue_avail_bag.append(t_availability)
             # write metrics
             writer.add_scalar('Average MUE Spectral efficiencies',
                               np.mean(t_mue_spectral_effs), step)
             writer.add_scalar('Average D2D Spectral Efficiencies',
                               np.mean(t_d2d_spectral_effs), step)
             writer.add_scalar('Aggregated Rewards', np.sum(t_rewards), step)
+            writer.add_scalar('Average MUE Availability',
+                              np.mean(t_availability), step)
     all_bags = {
         'actor_losses': actor_losses_bag,
         'critic_losses': critic_losses_bag,
@@ -197,6 +204,7 @@ def test(framework: Framework):
     surr_agents = [SurrogateAgent() for _ in range(MAX_NUMBER_OF_AGENTS)]
     framework.actor.eval()
     framework.critic.eval()
+    mue_availability = []
     mue_spectral_effs = []
     d2d_spectral_effs = []
     rewards_bag = []
@@ -207,16 +215,18 @@ def test(framework: Framework):
         obs = np.concatenate(obs_aux, axis=1)
         i = 0
         done = False
+        ep_availability = []
         ep_rewards = []
         ep_mue_speffs = []
         ep_d2d_speffs = []
         while not done and i < STEPS_PER_EPISODE:
-            actions = central_agent.act(obs, framework, False)
+            actions = central_agent_test.act(obs, framework, False)
             for j, agent in enumerate(surr_agents):
                 agent.set_action(actions[0][j])
             next_obs_aux, rewards, done, _ = env.step(surr_agents)
             next_obs = np.concatenate(next_obs_aux, axis=1)
             obs = next_obs
+            ep_availability.append(env.mue.sinr > env.params.sinr_threshold)
             ep_rewards.append(np.sum(rewards))
             ep_mue_speffs.append(env.mue_spectral_eff)
             ep_d2d_speffs.append(env.d2d_spectral_eff)
@@ -224,10 +234,12 @@ def test(framework: Framework):
         rewards_bag.append(np.sum(ep_rewards))
         mue_spectral_effs.append(np.mean(ep_mue_speffs))
         d2d_spectral_effs.append(np.mean(ep_d2d_speffs))
+        mue_availability.append(np.mean(ep_availability))
     all_bags = {
         'rewards': rewards_bag,
         'mue_spectral_effs': mue_spectral_effs,
-        'd2d_spectral_effs': d2d_spectral_effs
+        'd2d_spectral_effs': d2d_spectral_effs,
+        'mue_availability': mue_availability
     }
     return all_bags
 

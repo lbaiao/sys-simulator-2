@@ -2,6 +2,7 @@ from types import MethodType
 import numpy as np
 import torch
 from torch.nn.modules.module import Module
+from torch.optim.sgd import SGD
 from sys_simulator.dqn.replay_buffer \
     import PrioritizedReplayBuffer, ReplayBuffer
 from sys_simulator.ddpg import DDPGActor, DDPGCritic
@@ -20,7 +21,7 @@ class Framework:
     batch_size: int
     gamma: float
     soft_tau: float
-    replay_memory: str
+    replay_memory: ReplayBuffer
     device: torch.device
     unpack_batch: MethodType
 
@@ -83,7 +84,7 @@ class Framework:
         self.actor_optimizer = \
             Adam(self.actor.parameters(), lr=actor_learning_rate)
         self.critic_optimizer = \
-            Adam(self.critic.parameters(), lr=critic_learning_rate)
+            SGD(self.critic.parameters(), lr=critic_learning_rate)
         self.critic_criterion = MSELoss()
         self.batch_size = batch_size
         self.gamma = gamma

@@ -1,4 +1,5 @@
 from shutil import copyfile
+from sys_simulator.plots import plot_env_states
 import sys_simulator.general as gen
 from time import time
 from sys_simulator.general import print_stuff_ddpg
@@ -44,13 +45,14 @@ C = 8  # C constant for the improved reward function
 ENVIRONMENT_MEMORY = 2
 MAX_NUMBER_OF_AGENTS = 3
 REWARD_PENALTY = 1.5
+N_STATES_BINS = 100
 # q-learning parameters
 # training
 ALGO_NAME = 'ddpg'
 REWARD_FUNCTION = 'classic'
-MAX_STEPS = 12000
+# MAX_STEPS = 12000
+MAX_STEPS = 1000
 STEPS_PER_EPISODE = 100
-# STEPS_PER_EPISODE = MAX_STEPS
 REPLAY_INITIAL = int(1E3)
 EVAL_NUM_EPISODES = 10
 REPLAY_MEMORY_SIZE = int(1E4)
@@ -66,7 +68,8 @@ BETA = .4
 EXPLORATION = 'ou'
 REPLAY_MEMORY_TYPE = 'standard'
 PRIO_BETA_ITS = int(.8*(MAX_STEPS - REPLAY_INITIAL))
-EVAL_EVERY = int(MAX_STEPS / 20)
+# EVAL_EVERY = int(MAX_STEPS / 20)
+EVAL_EVERY = int(MAX_STEPS / 1)
 OU_DECAY_PERIOD = 100000
 OU_MU = 0.0
 OU_THETA = .15
@@ -138,6 +141,7 @@ def train(start: int, writer: SummaryWriter, timestamp: str):
     rewards_bag = list()
     mue_avail_bag = list()
     step = 0
+    collected_states = list()
     while step < MAX_STEPS:
         env = deepcopy(ref_env)
         env.build_scenario(surr_agents)
@@ -154,6 +158,7 @@ def train(start: int, writer: SummaryWriter, timestamp: str):
             for j, agent in enumerate(surr_agents):
                 agent.set_action(actions[0][j])
             next_obs_aux, rewards, done, _ = env.step(surr_agents)
+            collected_states += next_obs_aux
             total_reward = np.sum(rewards)
             next_obs = np.concatenate(next_obs_aux, axis=1)
             framework.replay_memory.push(obs, actions, total_reward, next_obs,
@@ -171,7 +176,9 @@ def train(start: int, writer: SummaryWriter, timestamp: str):
             critic_losses_bag.append(critic_loss)
             framework.actor.train()
             framework.critic.train()
-        if step % EVAL_EVERY == 0:
+            if step % EVAL_EVERY != 0:
+                continue
+            # testing
             t_bags = test(framework)
             t_rewards = t_bags['rewards']
             t_mue_spectral_effs = t_bags['mue_spectral_effs']
@@ -195,7 +202,8 @@ def train(start: int, writer: SummaryWriter, timestamp: str):
         'actor_losses': actor_losses_bag,
         'critic_losses': critic_losses_bag,
         'mue_spectral_effs': mue_spectral_eff_bag,
-        'd2d_spectral_effs': d2d_spectral_eff_bag
+        'd2d_spectral_effs': d2d_spectral_eff_bag,
+        'collected_states': collected_states
     }
     return all_bags
 
@@ -253,6 +261,8 @@ def run():
     writer = SummaryWriter(f'{data_path}/tensorboard')
     start = time()
     train_bags = train(start, writer, timestamp)
+    states = train_bags['collected_states']
+    plot_env_states(states, N_STATES_BINS, f'{data_path}/env_states.png')
     writer.close()
     test_bags = test(framework)
     # save stuff

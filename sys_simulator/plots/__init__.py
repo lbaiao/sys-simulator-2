@@ -1,3 +1,4 @@
+from math import sqrt, ceil
 from typing import List
 import matplotlib.pyplot as plt
 import numpy as np
@@ -204,3 +205,28 @@ def dashboard(
         reward
     )
     sns.heatmap(interferences)
+
+
+def plot_env_states(states: List[np.ndarray], num_bins: int, save_path: str):
+    states = np.array(states)
+    total_plots = states.shape[-1]
+    states = states.reshape(-1, total_plots)
+    n_rows = ceil(sqrt(total_plots))
+    n_cols = ceil(sqrt(total_plots))
+    fig, axs = plt.subplots(n_rows, n_cols, sharey=True, tight_layout=True,
+                           figsize=(10,10))
+    index = 0
+    for i in axs:
+        for j in i:
+            if index < total_plots-1:
+                n, _, _ = j.hist(states[:, index], density=True, bins=num_bins)
+                a_min = np.min(n)
+                a_max = np.max(n)
+                j.set_yticks([a_min, np.mean([a_min, a_max]), a_max])
+                index += 1
+            else:
+                break
+        if index >= total_plots-1:
+            break
+    plt.savefig(save_path)
+

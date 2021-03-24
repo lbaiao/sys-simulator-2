@@ -84,6 +84,7 @@ class DDPGActor(nn.Module):
             x = i(x)
             x = torch.relu(x)
         x = self.linear_out(x)
+        x = torch.tanh(x)
         return x
 
 

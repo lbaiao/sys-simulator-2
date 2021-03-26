@@ -80,9 +80,11 @@ class DDPGActor(nn.Module):
     def forward(self, x):
         x = self.linear1(x)
         x = torch.relu(x)
+        # x = torch.tanh(x)
         for i in self.hidden_layers:
             x = i(x)
             x = torch.relu(x)
+            # x = torch.tanh(x)
         x = self.linear_out(x)
         x = torch.tanh(x)
         return x

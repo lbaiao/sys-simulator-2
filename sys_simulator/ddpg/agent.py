@@ -42,7 +42,7 @@ class Agent:
         action = action.squeeze(0)
         if is_training:
             action = self.explore(action=action, **kwargs)
-        action = scale_tanh(action, self.a_min, self.a_max)
+        # action = scale_tanh(action, self.a_min, self.a_max)
         action = np.clip(action, self.a_min, self.a_max)
         return action
 

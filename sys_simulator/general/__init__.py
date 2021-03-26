@@ -316,7 +316,7 @@ def get_elapsed_time_minutes(start: int):
 
 
 def print_stuff_ddpg(
-    step: int, now: int, max_steps: int,
+    step: int, now: float, max_steps: int,
     rm_type: str, prio_beta=0.0
 ):
     if rm_type == 'prioritized':

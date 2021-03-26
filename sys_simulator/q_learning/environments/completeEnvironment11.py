@@ -1,3 +1,4 @@
+from types import MethodType
 from typing import List, Tuple
 from sys_simulator.general.simple_memory import SimpleMemory
 
@@ -246,8 +247,9 @@ class CompleteEnvironment11(RLEnvironment):
         mue_speffs = self.mue.norm_speffs()[:self.memory]
         # mue_inverse_link_prices = self.mue.avg_speffs.tolist()
         # + d2d_tx.gain + self.bs.gain
-        bs_interference = self.mue.past_actions[0] \
-            - self.mue.past_bs_losses[0] - self.mue.past_sinrs[0]
+        bs_interference = \
+            self.mue.past_actions[0] - self.mue.past_bs_losses[0] \
+            - self.mue.past_sinrs[0] - self.params.noise_power
         # + self.mue.gain + self.bs.gain
         device_contrib_pct = db_to_power(device_contrib - bs_interference)
         d2d_tx.set_interference_contrib_pct(device_contrib_pct)
@@ -255,48 +257,60 @@ class CompleteEnvironment11(RLEnvironment):
         # recent_bs_pathloss = d2d_tx.pathloss_to_bs
         number_of_d2d_pairs = len(self.d2d_pairs)
         interference_indicator = self.mue.sinr > self.params.sinr_threshold
-        # normalization
-        # device_sinrs = [np.clip(i, -30, 30) for i in device_sinrs]
-        # close_devs_sinrs = [np.clip(i, -30, 30) for i in close_devs_sinrs]
-        # inverse_link_price = d2d_tx.avg_speffs[0]
         # state
+        # positions
+        positions = [
+            d2d_tx.position[0],
+            d2d_tx.position[1],
+            self.mue.position[0],
+            self.mue.position[1],
+        ]
+        positions += close_devices_x
+        positions += close_devices_y
+        positions = np.array(positions)
+        positions = self.norm_position(positions)
+        # general linear quantities
         linear_qts = [
             number_of_d2d_pairs / 10,
-            self.norm_position(d2d_tx.position[0]),
-            self.norm_position(d2d_tx.position[1]),
-            self.norm_position(self.mue.position[0]),
-            self.norm_position(self.mue.position[1]),
-            # np.clip(agent.action, -30, 30) / 30,
-            # inverse_link_price,
-            # self.mue.tx_power / 30,
             int(interference_indicator),
             int(not interference_indicator),
         ]
-        linear_qts += self.norm_position(np.array(close_devices_x)).tolist()
-        linear_qts += self.norm_position(np.array(close_devices_y)).tolist()
-        linear_qts += mue_speffs.tolist()
-        linear_qts += close_speffs
         linear_qts.append(device_contrib_pct)
-        linear_qts += d2d_tx.norm_speffs().tolist()
+        linear_qts = np.array(linear_qts)
+        # speffs
+        speffs = []
+        speffs += mue_speffs.tolist()
+        speffs += close_speffs
+        speffs += d2d_tx.norm_speffs().tolist()
+        # log powers
         log_powers = []
         log_powers += device_powers
         log_powers.append(device_contrib)
+        log_powers = np.array(log_powers)
+        # log pathlosses
         log_pathlosses = [
             d2d_tx.pathloss_d2d,
             d2d_tx.pathloss_to_bs,
         ]
+        log_pathlosses = np.array(log_pathlosses)
+        # log interferences
         log_interferences = []
         log_interferences += caused_interferences
         log_interferences += close_interferences
         log_interferences.append(received_interference)
-        # normalizations
-        lin_powers = self.norm_logs(log_powers, 'powers')
-        lin_pathlosses = self.norm_logs(log_pathlosses, 'pathlosses')
-        lin_interferences = self.norm_logs(log_interferences, 'interferences')
+        log_interferences = np.array(log_interferences)
+        # normalizations log quantities
+        lin_powers = self.norm_logs(log_powers, self.powers_memory,
+                                    self.min_max_scaling)
+        lin_pathlosses = self.norm_logs(log_pathlosses, self.pathlosses_memory,
+                                        self.min_max_scaling)
+        lin_interferences = self.norm_logs(
+            log_interferences, self.interferences_memory, self.min_max_scaling)
         # end
         linear_qts = np.array(linear_qts)
         state = np.concatenate(
-            (linear_qts, lin_powers, lin_pathlosses, lin_interferences),
+            (positions, linear_qts, lin_powers, 
+             speffs, lin_pathlosses, lin_interferences),
             axis = 0
         ).reshape(1, -1)
         self.reset_sets()
@@ -812,20 +826,21 @@ class CompleteEnvironment11(RLEnvironment):
         norm = (pos + r)/(2*r)
         return norm
 
-    def norm_logs(self, items: List[float], normalizer: str):
-        if normalizer == 'powers':
-            ref = self.powers_memory
-        elif normalizer == 'pathlosses':
-            ref = self.pathlosses_memory
-        elif normalizer == 'interferences':
-            ref = self.interferences_memory
-        else:
-            raise Exception('Invalid normalizer.')
-        items = np.array(items)
-        items = db_to_power(items)
-        for i in items:
-            ref.push(i)
-        mu = np.mean(ref.memory)
-        std = np.std(ref.memory)
-        norm_pws = (items - mu)/std
-        return norm_pws
+    def whitening(self, items: np.ndarray, reference: SimpleMemory):
+        mu = np.mean(reference.memory)
+        var = np.var(reference.memory)
+        result = (items - mu)/var
+        return result
+
+    def min_max_scaling(self, items: np.ndarray, reference: SimpleMemory):
+        a_min = np.min(reference.memory)
+        a_max = np.max(reference.memory)
+        result = (items - a_min)/(a_max - a_min)
+        return result
+    
+    def norm_logs(self, items: np.ndarray, reference: SimpleMemory,
+                  normalization: MethodType):
+        # items: np.ndarray = db_to_power(items)
+        reference.push(items)
+        norm_items = normalization(items, reference)
+        return norm_items

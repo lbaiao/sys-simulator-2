@@ -41,7 +41,7 @@ p_max = p_max - 30
 noise_power = noise_power - 30
 # env parameters
 CHANNEL_RND = True
-C = 8  # C constant for the improved reward function
+C = 2  # C constant for the improved reward function
 ENVIRONMENT_MEMORY = 2
 MAX_NUMBER_OF_AGENTS = 3
 REWARD_PENALTY = 1.5
@@ -50,9 +50,9 @@ N_STATES_BINS = 100
 # training
 ALGO_NAME = 'ddpg'
 REWARD_FUNCTION = 'classic'
-# MAX_STEPS = 12000
-MAX_STEPS = 1000
-STEPS_PER_EPISODE = 100
+MAX_STEPS = 12000
+# MAX_STEPS = 1000
+STEPS_PER_EPISODE = 50
 REPLAY_INITIAL = int(1E3)
 EVAL_NUM_EPISODES = 10
 REPLAY_MEMORY_SIZE = int(1E4)
@@ -68,8 +68,8 @@ BETA = .4
 EXPLORATION = 'ou'
 REPLAY_MEMORY_TYPE = 'standard'
 PRIO_BETA_ITS = int(.8*(MAX_STEPS - REPLAY_INITIAL))
-# EVAL_EVERY = int(MAX_STEPS / 20)
-EVAL_EVERY = int(MAX_STEPS / 1)
+EVAL_EVERY = int(MAX_STEPS / 20)
+# EVAL_EVERY = int(MAX_STEPS / 1)
 OU_DECAY_PERIOD = 100000
 OU_MU = 0.0
 OU_THETA = .15
@@ -205,6 +205,12 @@ def train(start: int, writer: SummaryWriter, timestamp: str):
         'd2d_spectral_effs': d2d_spectral_eff_bag,
         'collected_states': collected_states
     }
+    # save stuff
+    filename = gen.path_leaf(__file__)
+    filename = filename.split('.')[0]
+    data_path = f'models/{ALGO_NAME}/{filename}/{timestamp}'
+    gen.make_dir(data_path)
+    torch.save(framework, f'{data_path}/framework.pt')
     return all_bags
 
 

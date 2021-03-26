@@ -1,4 +1,5 @@
 from copy import deepcopy
+from sys_simulator.general import power_to_db
 import matplotlib.pyplot as plt
 from math import ceil, sqrt
 import numpy as np
@@ -70,6 +71,7 @@ for episode in range(MAX_NUM_EPISODES):
     for step in range(STEPS_PER_EPISODE):
         print(f'episode: {episode}; step: {step}')
         actions = np.random.random(MAX_NUMBER_OF_AGENTS)
+        actions = power_to_db(actions)
         s_max_speffs = []
         for ag, ac in zip(surr_agents, actions):
             ag.set_action(ac)

@@ -301,11 +301,11 @@ class CompleteEnvironment11(RLEnvironment):
         log_interferences = np.array(log_interferences)
         # normalizations log quantities
         lin_powers = self.norm_logs(log_powers, self.powers_memory,
-                                    self.min_max_scaling)
+                                    self.whitening)
         lin_pathlosses = self.norm_logs(log_pathlosses, self.pathlosses_memory,
-                                        self.min_max_scaling)
+                                        self.whitening)
         lin_interferences = self.norm_logs(
-            log_interferences, self.interferences_memory, self.min_max_scaling)
+            log_interferences, self.interferences_memory, self.whitening)
         # end
         linear_qts = np.array(linear_qts)
         state = np.concatenate(

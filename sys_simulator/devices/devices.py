@@ -293,8 +293,8 @@ class mobile_user(node):
         self.id: str = f'MUE:{id}'
 
     def get_tx_power(
-            self, bs: base_station, snr: float,
-            noise_power: float, margin: float, p_max: float
+        self, bs: base_station, snr: float,
+        noise_power: float, margin: float, p_max: float
     ):
         tx_power = snr * noise_power * \
             pathloss_bs_users(self.distance_to_bs/1000) / (self.gain * bs.gain)
@@ -304,11 +304,11 @@ class mobile_user(node):
         return tx_power
 
     def get_tx_power_db(
-            self, bs: base_station, snr: float,
-            noise_power: float, margin: float, p_max: float,
+        self, bs: base_station, snr: float, channel_loss: float,
+        noise_power: float, margin: float, p_max: float,
     ):
         tx_power = snr + noise_power + \
-            self.pathloss_to_bs - \
+            channel_loss - \
             (self.gain + bs.gain)
         tx_power += margin
         if tx_power > p_max:

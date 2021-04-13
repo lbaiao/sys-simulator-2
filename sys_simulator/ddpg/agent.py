@@ -16,6 +16,7 @@ class Agent:
     exploration: str
     explore: MethodType
     device: torch.device
+    nn_output: torch.FloatTensor
 
     def __init__(
         self,
@@ -40,6 +41,7 @@ class Agent:
         action = framework.actor(obs)
         action = action.detach().cpu()
         action = action.squeeze(0)
+        self.nn_output = action
         if is_training:
             action = self.explore(action=action, **kwargs)
         # action = scale_tanh(action, self.a_min, self.a_max)
@@ -48,7 +50,7 @@ class Agent:
 
     def gauss_explore(self, **kwargs):
         action = kwargs['action']
-        action += normal(loc=0, scale=1)
+        action += normal(loc=0, scale=0.05)
         return action
 
     def ou_explore(self, **kwargs):
@@ -75,9 +77,16 @@ class SysSimAgentWriter(Agent):
             t_step: int, is_training=False, **kwargs):
         action = super(SysSimAgentWriter, self)\
             .act(obs, framework, is_training, **kwargs)
-        writer.add_scalar('Average Actor output',
-                          np.mean(action.detach().numpy()), t_step)
-        action = power_to_db(action)
+        writer.add_scalars(
+            '1. Training - Actor NN outputs',
+            {f'device {i}': a for i, a in enumerate(self.nn_output)},
+           t_step
+        )
+        writer.add_scalars(
+            '1. Training - Actor agent outputs',
+            {f'device {i}': a for i, a in enumerate(action)},
+           t_step
+        )
         return action
 
 
@@ -96,7 +105,7 @@ class SysSimAgent(Agent):
     def act(self, obs: ndarray, framework: Framework, is_training=False, **kwargs):
         action = super(SysSimAgent, self)\
             .act(obs, framework, is_training, **kwargs)
-        action = power_to_db(action)
+        # action = power_to_db(action)
         return action
 
 

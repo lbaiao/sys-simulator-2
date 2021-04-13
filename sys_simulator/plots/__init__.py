@@ -220,9 +220,6 @@ def plot_env_states(states: List[np.ndarray], num_bins: int, save_path: str):
         for j in i:
             if index < total_plots-1:
                 n, _, _ = j.hist(states[:, index], density=True, bins=num_bins)
-                a_min = np.min(n)
-                a_max = np.max(n)
-                j.set_yticks([a_min, np.mean([a_min, a_max]), a_max])
                 index += 1
             else:
                 break

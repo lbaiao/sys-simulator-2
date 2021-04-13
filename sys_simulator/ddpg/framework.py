@@ -6,7 +6,7 @@ from torch.optim.sgd import SGD
 from sys_simulator.dqn.replay_buffer \
     import PrioritizedReplayBuffer, ReplayBuffer
 from sys_simulator.ddpg import DDPGActor, DDPGCritic
-from torch.optim import Adam
+from torch.optim import Adam, AdamW
 from torch.nn import MSELoss
 # import random
 
@@ -82,9 +82,9 @@ class Framework:
         self.target_actor.load_state_dict(self.actor.state_dict())
         self.target_critic.load_state_dict(self.critic.state_dict())
         self.actor_optimizer = \
-            Adam(self.actor.parameters(), lr=actor_learning_rate)
+            AdamW(self.actor.parameters(), lr=actor_learning_rate)
         self.critic_optimizer = \
-            SGD(self.critic.parameters(), lr=critic_learning_rate)
+            AdamW(self.critic.parameters(), lr=critic_learning_rate)
         self.critic_criterion = MSELoss()
         self.batch_size = batch_size
         self.gamma = gamma
@@ -114,7 +114,7 @@ class Framework:
         # train actor
         actions_tp = self.actor(obses_t)
         q_tp_actor = self.critic(obses_t, actions_tp)
-        actor_loss = -q_tp_actor.mean()
+        actor_loss = -torch.mean(q_tp_actor)
         # targets
         actions_tp1 = self.target_actor(obses_tp1)
         q_tp1 = self.target_critic(obses_tp1, actions_tp1.detach())
@@ -122,14 +122,18 @@ class Framework:
         # train critic
         q_tp = self.critic(obses_t, actions)
         critic_losses = torch.pow((q_tp - targets.detach()), 2)
-        # critic_losses = self.critic_criterion(q_tp, targets.detach())
-        critic_loss = critic_losses.mean()
+        critic_loss = self.critic_criterion(q_tp, targets.detach())
+        # critic_loss = torch.clamp(critic_loss, -10, 10)
         # updates
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
+#         for param in self.actor.parameters():
+#             param.grad.data.clamp_(-1, 1)
         self.actor_optimizer.step()
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
+#         for param in self.critic.parameters():
+#             param.grad.data.clamp_(-1, 1)
         self.critic_optimizer.step()
         self.soft_tau_update(self.target_critic, self.critic)
         self.soft_tau_update(self.target_actor, self.actor)

@@ -315,6 +315,15 @@ def get_elapsed_time_minutes(start: int):
     return (time() - start) / 60
 
 
+def print_evaluating(
+    step: int, now: float, max_steps: int,
+):
+    out = 'Evaluating. ' + \
+        f'Step: {step}/{max_steps-1}. ' + \
+        f'Elapsed time: {now} minutes.'
+    print(out)
+
+
 def print_stuff_ddpg(
     step: int, now: float, max_steps: int,
     rm_type: str, prio_beta=0.0

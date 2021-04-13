@@ -5,7 +5,16 @@ from scipy import constants
 
 
 class Channel:
-    def __init__(self):
+    def __init__(self, *kwargs):
+        pass
+
+    def large_scale(self, *kwargs):
+        pass
+
+    def pathloss(self, *kwargs):
+        pass
+
+    def small_scale(self, *kwargs):
         pass
 
 
@@ -90,7 +99,7 @@ class BANChannel(Channel):
             loss = pathloss
         return loss
 
-    def pathloss(self, d: float) -> float:
+    def pathloss(self, d) -> float:
         L0 = self.L0
         n_pl = self.n_pl
         d0 = self.d0
@@ -226,12 +235,14 @@ class UrbanMacroLOSWinnerChannel(Channel):
 
 
 class UrbanMacroNLOSWinnerChannel(Channel):
-    def __init__(self, rnd=True, h_bs=25, h_ms=1.5, f_c=2.4):
+    def __init__(self, rnd=True, h_bs=25, h_ms=1.5, f_c=2.4, sigma=8.0,
+                 small_sigma=2.0):
         self.rnd = rnd
         self.h_bs = h_bs
         self.h_ms = h_ms
         self.f_c = f_c
-        self.sigma = 8
+        self.sigma = sigma
+        self.small_sigma = small_sigma
 
     def step(self, d: float) -> float:
         """Returns the no-line-of-sight urban macro-cell channel (C2)
@@ -273,17 +284,17 @@ class UrbanMacroNLOSWinnerChannel(Channel):
             loss = pathloss
         return loss
 
-    def pathloss(self, d: float) -> float:
+    def pathloss(self, d) -> float:
         loss = (44.9-6.55*np.log10(self.h_bs))*np.log10(d) + \
             34.46+5.83*np.log10(self.h_bs)+23*np.log10(self.f_c/5)
         return loss
 
-    def large_scale(self, d) -> float:
+    def large_scale(self, *kwargs) -> float:
         loss = np.random.normal(0, self.sigma)
         return loss
 
     def small_scale(self, *kwargs) -> float:
         """Rayleigh distribution for the NLOS fading.
         """
-        loss = rayleigh.rvs(scale=self.sigma, loc=0, size=1)[0]
+        loss = rayleigh.rvs(scale=self.small_sigma, loc=0, size=1)[0]
         return loss

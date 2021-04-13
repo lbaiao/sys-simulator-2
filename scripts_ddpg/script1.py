@@ -2,7 +2,7 @@ from shutil import copyfile
 from sys_simulator.plots import plot_env_states
 import sys_simulator.general as gen
 from time import time
-from sys_simulator.general import print_stuff_ddpg
+from sys_simulator.general import power_to_db, print_stuff_ddpg
 from sys_simulator.q_learning.environments.completeEnvironment11 \
     import CompleteEnvironment11
 from sys_simulator.ddpg.agent import SysSimAgent, SurrogateAgent, SysSimAgentWriter
@@ -56,8 +56,8 @@ STEPS_PER_EPISODE = 50
 REPLAY_INITIAL = int(1E3)
 EVAL_NUM_EPISODES = 10
 REPLAY_MEMORY_SIZE = int(1E4)
-ACTOR_LEARNING_RATE = 5E-5
-CRITIC_LEARNING_RATE = 5E-4
+ACTOR_LEARNING_RATE = 3E-5
+CRITIC_LEARNING_RATE = 3E-4
 HIDDEN_SIZE = 256
 N_HIDDEN_LAYERS = 5
 BATCH_SIZE = 128
@@ -84,7 +84,8 @@ env_params = EnvironmentParameters(
 )
 channel_to_devices = BANChannel(rnd=CHANNEL_RND)
 channel_to_bs = UrbanMacroNLOSWinnerChannel(
-    rnd=CHANNEL_RND, f_c=carrier_frequency, h_bs=bs_height, h_ms=device_height
+    rnd=CHANNEL_RND, f_c=carrier_frequency, h_bs=bs_height, h_ms=device_height,
+    small_sigma=2, sigma=8
 )
 ref_env = CompleteEnvironment11(
     env_params,
@@ -147,6 +148,7 @@ def train(start: int, writer: SummaryWriter, timestamp: str):
         env.build_scenario(surr_agents)
         obs_aux, _, _, _ = env.step(surr_agents)
         obs = np.concatenate(obs_aux, axis=1)
+        obs = obs.reshape(-1)
         now = (time() - start) / 60
         print_stuff_ddpg(step, now, MAX_STEPS, REPLAY_MEMORY_TYPE)
         total_reward = 0.0
@@ -155,12 +157,14 @@ def train(start: int, writer: SummaryWriter, timestamp: str):
         while not done and i < STEPS_PER_EPISODE:
             actions = central_agent.act(obs, framework,
                                         writer, step, True, step=i, ou=ou_noise)
+            db_actions = power_to_db(actions).cpu().numpy()
             for j, agent in enumerate(surr_agents):
-                agent.set_action(actions[0][j])
+                agent.set_action(db_actions[j])
             next_obs_aux, rewards, done, _ = env.step(surr_agents)
             collected_states += next_obs_aux
             total_reward = np.sum(rewards)
             next_obs = np.concatenate(next_obs_aux, axis=1)
+            next_obs = next_obs.reshape(-1)
             framework.replay_memory.push(obs, actions, total_reward, next_obs,
                                          done)
             actor_loss, critic_loss = framework.learn()
@@ -169,8 +173,7 @@ def train(start: int, writer: SummaryWriter, timestamp: str):
             step += 1
             writer.add_scalar('Actor Losses', actor_loss, step)
             writer.add_scalar('Critic Losses', critic_loss, step)
-            aux_actions = actions.cpu().numpy()
-            writer.add_scalar('Average Actions', aux_actions.mean(), step)
+            writer.add_scalar('Average Actions [dBW]', db_actions.mean(), step)
             # writer.add_scalar('Aggregated Actions', aux_actions.sum(), step)
             actor_losses_bag.append(actor_loss)
             critic_losses_bag.append(critic_loss)
@@ -226,7 +229,7 @@ def test(framework: Framework):
         env = deepcopy(ref_env)
         env.build_scenario(surr_agents)
         obs_aux, _, _, _ = env.step(surr_agents)
-        obs = np.concatenate(obs_aux, axis=1)
+        obs = np.concatenate(obs_aux, axis=1).reshape(-1)
         i = 0
         done = False
         ep_availability = []
@@ -235,10 +238,11 @@ def test(framework: Framework):
         ep_d2d_speffs = []
         while not done and i < STEPS_PER_EPISODE:
             actions = central_agent_test.act(obs, framework, False)
+            db_actions = power_to_db(actions).cpu().numpy()
             for j, agent in enumerate(surr_agents):
-                agent.set_action(actions[0][j])
+                agent.set_action(db_actions[j])
             next_obs_aux, rewards, done, _ = env.step(surr_agents)
-            next_obs = np.concatenate(next_obs_aux, axis=1)
+            next_obs = np.concatenate(next_obs_aux, axis=1).reshape(-1)
             obs = next_obs
             ep_availability.append(env.mue.sinr > env.params.sinr_threshold)
             ep_rewards.append(np.sum(rewards))

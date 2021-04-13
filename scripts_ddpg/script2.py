@@ -1,20 +1,24 @@
-from shutil import copyfile
-from sys_simulator.plots import plot_env_states
-import sys_simulator.general as gen
-from time import time
-from sys_simulator.general import print_stuff_ddpg
-from sys_simulator.q_learning.environments.completeEnvironment11 \
-    import CompleteEnvironment11
-from sys_simulator.ddpg.agent import SysSimAgent, SurrogateAgent, SysSimAgentWriter
-from sys_simulator.general.ou_noise import SysSimOUNoise
-from torch.utils.tensorboard import SummaryWriter
 from copy import deepcopy
+from shutil import copyfile
+from sys_simulator.q_learning.environments.completeEnvironment12 import CompleteEnvironment12
+from time import time
+
+import numpy as np
+import torch
+from torch.utils.tensorboard import SummaryWriter
+
+from sys_simulator.channels import BANChannel, UrbanMacroNLOSWinnerChannel
+from sys_simulator.ddpg.agent import SurrogateAgent, SysSimAgent, SysSimAgentWriter
 from sys_simulator.ddpg.framework import Framework
 from sys_simulator.devices.devices import db_to_power
-from sys_simulator.channels import BANChannel, UrbanMacroNLOSWinnerChannel
+import sys_simulator.general as gen
+from sys_simulator.general import power_to_db, print_evaluating, print_stuff_ddpg
+from sys_simulator.general.ou_noise import SysSimOUNoise
 from sys_simulator.parameters.parameters import EnvironmentParameters
-import torch
-import numpy as np
+from sys_simulator.plots import plot_env_states
+from sys_simulator.q_learning.environments.completeEnvironment11 import (
+    CompleteEnvironment11,
+)
 
 # Uses CompleteEnvironment11
 # Centralized Learning-Centralized Execution
@@ -252,6 +256,38 @@ def test(env: CompleteEnvironment11, framework: Framework):
     }
     return all_bags
 
+
+def evaluate(start: float, writer: SummaryWriter, env: CompleteEnvironment11):
+    step = 0
+    while step < MAX_STEPS:
+        obs, _, _, _ = env.step(surr_agents)
+        now = (time() - start) / 60
+        print_evaluating(step, now, MAX_STEPS)
+        done = False
+        i = 0
+        while not done and i < STEPS_PER_EPISODE:
+            actions = central_agent.act(obs, framework,
+                                        writer, step, False)
+            db_actions = power_to_db(actions.cpu().numpy())
+            for j, agent in enumerate(surr_agents):
+                agent.set_action(db_actions[j].item())
+            next_obs, reward, done, _ = env.step(surr_agents)
+            framework.replay_memory.push(obs, actions, reward, next_obs,
+                                         done)
+            obs = next_obs
+            i += 1
+            step += 1
+            writer.add_scalar('Rewards', reward, step)
+            sinrs = [a.d2d_tx.sinr for a in surr_agents]
+            sinrs = {f'device {i}': s for i, s in enumerate(sinrs)}
+            writer.add_scalars('SINRs', sinrs, step)
+            writer.add_scalars(
+                'Transmission powers',
+                {f'device {i}': a for i, a in enumerate(db_actions)},
+                step
+            )
+            mue_success = int(env.mue.sinr > env.params.sinr_threshold)
+            writer.add_scalar('MUE success', mue_success, step)
 
 def run():
     # make data dir

@@ -1,12 +1,14 @@
+from torch.autograd import Variable
+from copy import copy
 from torch.utils.tensorboard.writer import SummaryWriter
+from numpy.random import normal
 from sys_simulator.general import power_to_db, scale_tanh
 from sys_simulator.devices.devices import d2d_node_type, d2d_user
 from sys_simulator.general.ou_noise import OUNoise
 from types import MethodType
 import numpy as np
-from numpy.random import normal
 import torch
-from sys_simulator.ddpg.framework import Framework
+from sys_simulator.ddpg.framework import Framework, PerturberdFramework
 from numpy import ndarray
 
 
@@ -24,41 +26,75 @@ class Agent:
         a_max: float,
         exploration: str,
         device: torch.device,
+        a_offset=0.0
     ):
         self.a_min = a_min
         self.a_max = a_max
         self.device = device
+        self.a_offset = a_offset
         if exploration == 'gauss':
             self.explore = self.gauss_explore
         elif exploration == 'ou':
             self.explore = self.ou_explore
+        elif exploration == 'perturberd':
+            self.explore = self.parameters_noise_explore
         else:
             raise Exception('Invalid exploration.')
 
     def act(self, obs: ndarray, framework: Framework,
             is_training=False, **kwargs):
+        if is_training:
+            action = self.explore(obs, framework, **kwargs)
+        else:
+            action = self.call_framework(obs, framework)
+        # action = scale_tanh(action, self.a_min, self.a_max)
+        # action = action/200
+        action += self.a_offset
+        action = np.clip(action, self.a_min, self.a_max)
+        return action
+
+    def call_framework(self, obs: ndarray, framework: Framework):
         obs = torch.FloatTensor(obs).unsqueeze(0).to(self.device)
         action = framework.actor(obs)
         action = action.detach().cpu()
         action = action.squeeze(0)
-        self.nn_output = action
-        if is_training:
-            action = self.explore(action=action, **kwargs)
-        # action = scale_tanh(action, self.a_min, self.a_max)
-        action = np.clip(action, self.a_min, self.a_max)
+        self.nn_output = copy(action)
         return action
 
-    def gauss_explore(self, **kwargs):
-        action = kwargs['action']
-        action += normal(loc=0, scale=0.05)
+    def gauss_explore(self, obs: ndarray, framework: Framework, **kwargs):
+        action = self.call_framework(obs, framework)
+        noise = normal(loc=0, scale=0.05)
+        action += noise
         return action
 
-    def ou_explore(self, **kwargs):
+    def ou_explore(self, obs: ndarray, framework: Framework, **kwargs):
+        action = self.call_framework(obs, framework)
         ou: OUNoise = kwargs['ou']
-        action = kwargs['action']
         step = kwargs['step']
         mu = ou.get_action(action, step)
         return mu
+
+    def parameters_noise_explore(
+        self, obs: ndarray,
+        framework: Framework, **kwargs
+    ):
+        noise = kwargs.pop('noise', None)
+        param_noise = kwargs.pop('param_noise', None)
+        obs = torch.from_numpy(obs).unsqueeze(0).to(self.device)
+        obs = Variable(obs, requires_grad=False)\
+            .type(torch.FloatTensor).to(self.device)
+        framework.actor.eval()
+        framework.actor_perturberd.eval()
+        if param_noise is not None:
+            action = framework.actor_perturberd(obs)
+        else:
+            action = framework.actor(obs)
+        action = action.data[0].cpu().numpy()
+        self.nn_output = copy(action)
+        framework.actor.train()
+        if noise is not None:
+            action = action + noise
+        return action
 
 
 class SysSimAgentWriter(Agent):
@@ -68,8 +104,10 @@ class SysSimAgentWriter(Agent):
         a_max: float,
         exploration: str,
         device: torch.device,
+        a_offset=0.0
     ):
-        super(SysSimAgentWriter, self).__init__(a_min, a_max, exploration, device)
+        super(SysSimAgentWriter, self).__init__(
+            a_min, a_max, exploration, device, a_offset)
         self.d2d_tx = None
         self.d2d_txs = []
 
@@ -80,12 +118,12 @@ class SysSimAgentWriter(Agent):
         writer.add_scalars(
             '1. Training - Actor NN outputs',
             {f'device {i}': a for i, a in enumerate(self.nn_output)},
-           t_step
+            t_step
         )
         writer.add_scalars(
             '1. Training - Actor agent outputs',
             {f'device {i}': a for i, a in enumerate(action)},
-           t_step
+            t_step
         )
         return action
 
@@ -97,8 +135,12 @@ class SysSimAgent(Agent):
         a_max: float,
         exploration: str,
         device: torch.device,
+        a_offset=0.0
     ):
-        super(SysSimAgent, self).__init__(a_min, a_max, exploration, device)
+        super(SysSimAgent, self).__init__(
+            a_min, a_max, exploration,
+            device, a_offset
+        )
         self.d2d_tx = None
         self.d2d_txs = []
 
@@ -109,7 +151,6 @@ class SysSimAgent(Agent):
         return action
 
 
-
 class SurrogateAgent:
     """Agent that will just interface the environment with the `SysSimAgent`.
     """
@@ -117,6 +158,7 @@ class SurrogateAgent:
     def __init__(self):
         self.action = 1e-9
         self.d2d_tx = d2d_user(0, d2d_node_type.TX)
+        self.nn_output = 1e-9
 
     def set_d2d_tx(self, d2d_tx: d2d_user):
         self.d2d_tx = d2d_tx
@@ -128,3 +170,6 @@ class SurrogateAgent:
         """Receives `action`. Action must be in dB.
         """
         self.action = action
+
+    def set_nn_output(self, nn_output: float):
+        self.nn_output = nn_output

@@ -217,7 +217,7 @@ class CompleteEnvironment12(RLEnvironment):
 
     def get_state(self):
         positions = []
-        sinrs = []        
+        sinrs = []
         for tx, rx in self.d2d_pairs:
             positions += tx.position[:2]
             positions += rx.position[:2]
@@ -286,8 +286,8 @@ class CompleteEnvironment12(RLEnvironment):
         # get the states
         states = self.get_state()
         # rewards
+        # rewards = self.gabriel_reward(agents)
         rewards = self.calculate_continuous_reward()
-        # rewards = self.calculate_speffs_reward()
         # normalize rewards
         # rewards = self.normalize(rewards, self.rewards_memory,
         #                          self.min_max_scaling)
@@ -603,6 +603,23 @@ class CompleteEnvironment12(RLEnvironment):
         rewards = d2ds_speffs - beta * d2d_interferences
         return rewards
 
+    def gabriel_reward(self, agents: SurrogateAgent) -> float:
+        g1 = .2
+        g2 = .01
+        g3 = 6
+        g4 = .005
+        r1 = g1 * np.mean([p[0].sinr for p in self.d2d_pairs])
+        r2 = g2 * np.sum([p[0].tx_power for p in self.d2d_pairs])
+        sinr_m = self.mue.sinr
+        sinr_min = self.params.sinr_threshold
+        if sinr_m >= sinr_min:
+            r3 = g3*(2-2**(-sinr_m+sinr_min+1))
+        else:
+            r3 = -2*g3+g3**(sinr_m/5)
+        r4 = g4 * np.sum([a.nn_output for a in agents])
+        reward = r1 + r2 + r3 + r4
+        return reward
+
     def calculate_reward(self, agent: ExternalDQNAgent) -> float:
         flag = self.mue.sinr < self.params.sinr_threshold
         pct = agent.d2d_tx.interference_contrib_pct
@@ -667,9 +684,9 @@ class CompleteEnvironment12(RLEnvironment):
         # m_s = db_to_power(self.mue.sinr)
         # s0 = db_to_power(self.params.sinr_threshold
         # if self.mue.sinr < self.params.sinr_threshold:
-            # reward = db_to_power(m_s) - db_to_power(s0)
-          #   reward = 
-          #   return reward
+        # reward = db_to_power(m_s) - db_to_power(s0)
+        #   reward =
+        #   return reward
         sinrs = []
         for tx, _ in self.d2d_pairs:
             sinrs.append(tx.sinr)
@@ -685,11 +702,17 @@ class CompleteEnvironment12(RLEnvironment):
         if self.mue.sinr <= self.params.sinr_threshold:
             reward = db_to_power(self.mue.sinr) - \
                 db_to_power(self.params.sinr_threshold)
-            return reward
+            # reward = 1e-9 if reward == 0 else reward
+            # reward = power_to_db(reward)
+            # reward *= reward ** 3
         else:
             sinrs = np.array([p[0].sinr for p in self.d2d_pairs])
-            reward = np.mean(db_to_power(sinrs))
-            return reward
+            reward = np.sum(db_to_power(sinrs))
+            reward = 1e-9 if reward == 0 else reward
+            reward = 0.2 * power_to_db(reward)
+        # if np.isnan(reward):
+        #     print('bug')
+        return reward
 
     def calculate_speffs_reward(
         self, **kwargs
@@ -801,7 +824,7 @@ class CompleteEnvironment12(RLEnvironment):
         a_max = np.max(reference.memory)
         result = (items - a_min)/(a_max - a_min)
         return result
-    
+
     def normalize(self, items: np.ndarray, reference: SimpleMemory,
                   normalization: MethodType):
         # items: np.ndarray = db_to_power(items)

@@ -290,11 +290,17 @@ class UrbanMacroNLOSWinnerChannel(Channel):
         return loss
 
     def large_scale(self, *kwargs) -> float:
-        loss = np.random.normal(0, self.sigma)
+        if self.rnd:
+            loss = np.random.normal(0, self.sigma)
+        else:
+            loss = 0
         return loss
 
     def small_scale(self, *kwargs) -> float:
         """Rayleigh distribution for the NLOS fading.
         """
-        loss = rayleigh.rvs(scale=self.small_sigma, loc=0, size=1)[0]
+        if self.rnd:
+            loss = rayleigh.rvs(scale=self.small_sigma, loc=0, size=1)[0]
+        else:
+            loss = 0
         return loss

@@ -1,3 +1,4 @@
+from sys_simulator.ddpg.parameters_noise import hard_update
 from types import MethodType
 import numpy as np
 import torch
@@ -76,6 +77,9 @@ class Framework:
         self.target_critic = DDPGCritic(
             state_size, action_size,
             hidden_size, n_hidden_layers).to(device)
+        self.actor_perturberd = DDPGActor(
+            state_size, action_size,
+            hidden_size, n_hidden_layers).to(device)
         self.target_actor.eval()
         self.target_critic.eval()
         # clone ddpg NNs to the target
@@ -101,7 +105,7 @@ class Framework:
         ).view(obses_t.shape[0], -1)
         actions = torch.tensor(
             actions, dtype=torch.float, device=self.device
-        ).view(-1, self.action_size)
+        )
         rewards = torch.tensor(
             rewards, dtype=torch.float, device=self.device
         ).view(-1, 1)
@@ -111,18 +115,21 @@ class Framework:
         dones = torch.tensor(
             dones, dtype=torch.float, device=self.device
         ).view(obses_tp1.shape[0], -1)
+        self.actor.train()
+        self.critic.train()
         # train actor
-        actions_tp = self.actor(obses_t)
-        q_tp_actor = self.critic(obses_t, actions_tp)
-        actor_loss = -torch.mean(q_tp_actor)
+        actions_t = self.actor(obses_t)
+        q_t_actor = self.critic(obses_t, actions_t)
+        actor_loss = -torch.mean(q_t_actor)
         # targets
         actions_tp1 = self.target_actor(obses_tp1)
         q_tp1 = self.target_critic(obses_tp1, actions_tp1.detach())
         targets = rewards + (1.0 - dones) * self.gamma * q_tp1
         # train critic
-        q_tp = self.critic(obses_t, actions)
-        critic_losses = torch.pow((q_tp - targets.detach()), 2)
-        critic_loss = self.critic_criterion(q_tp, targets.detach())
+        q_t = self.critic(obses_t, actions)
+        critic_losses = torch.pow((q_t - targets.detach()), 2)
+        critic_loss = critic_losses.mean()
+        # critic_loss = self.critic_criterion(q_t, targets.detach())
         # critic_loss = torch.clamp(critic_loss, -10, 10)
         # updates
         self.actor_optimizer.zero_grad()
@@ -179,3 +186,60 @@ class Framework:
             self.replay_memory.sample(self.batch_size)
         kwargs = {'weights': weights, 'batch_idxes': batch_idxes}
         return obses_t, actions, rewards, obses_tp1, dones, kwargs
+
+    def perturb_actor_parameters(self, param_noise):
+        """Apply parameter noise to actor model, for exploration"""
+        hard_update(self.actor_perturberd, self.actor)
+        params = self.actor_perturberd.state_dict()
+        for name in params:
+            param = params[name]
+            random = torch.randn(param.shape).to(self.device)
+            param += random * param_noise.current_stddev
+
+
+class PerturberdFramework(Framework):
+    def __init__(
+        self,
+        replay_memory_type: str,
+        replay_memory_size: int,
+        replay_initial: int,
+        state_size: int,
+        action_size: int,
+        hidden_size: int,
+        n_hidden_layers: int,
+        actor_learning_rate: float,
+        critic_learning_rate: float,
+        batch_size: int,
+        gamma: float,
+        soft_tau: float,
+        device: torch.device,
+        **kwargs
+    ):
+        super(PerturberdFramework, self).__init__(
+            replay_memory_type,
+            replay_memory_size,
+            replay_initial,
+            state_size,
+            action_size,
+            hidden_size,
+            n_hidden_layers,
+            actor_learning_rate,
+            critic_learning_rate,
+            batch_size,
+            gamma,
+            soft_tau,
+            device,
+            **kwargs
+        )
+        self.actor_perturberd = DDPGActor(
+            state_size, action_size,
+            hidden_size, n_hidden_layers).to(device)
+
+    def perturb_actor_parameters(self, param_noise):
+        """Apply parameter noise to actor model, for exploration"""
+        hard_update(self.actor_perturberd, self.actor)
+        params = self.actor_perturberd.state_dict()
+        for name in params:
+            param = params[name]
+            random = torch.randn(param.shape).to(self.device)
+            param += random * param_noise.current_stddev

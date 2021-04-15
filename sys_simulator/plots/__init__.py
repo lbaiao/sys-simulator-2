@@ -8,7 +8,9 @@ import seaborn as sns
 
 
 def plot_positions(bs: base_station, mues: List[mobile_user],
-                   d2d_txs: List[d2d_user], d2d_rxs: List[d2d_user]):
+                   d2d_txs: List[d2d_user], d2d_rxs: List[d2d_user],
+                   plot=True,
+                   **kwargs):
     bs_x = bs.position[0]
     bs_y = bs.position[1]
     mues_x = [i.position[0] for i in mues]
@@ -18,7 +20,7 @@ def plot_positions(bs: base_station, mues: List[mobile_user],
     d2d_rxs_x = [i.position[0] for i in d2d_rxs]
     d2d_rxs_y = [i.position[1] for i in d2d_rxs]
 
-    plt.figure()
+    fig = plt.figure()
 
     _ = plt.plot(bs_x, bs_y, '*', label='BS')
     _ = plt.plot(mues_x, mues_y, '*', label='MUEs')
@@ -41,7 +43,10 @@ def plot_positions(bs: base_station, mues: List[mobile_user],
     plt.ylim(top=bs.radius+50)
     plt.title('Nodes')
     plt.legend()
-    plt.show()
+    if plot:
+        plt.show()
+    else:
+        return fig
 
 
 def plot_spectral_effs(env: RLEnvironment):

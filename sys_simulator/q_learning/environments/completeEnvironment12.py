@@ -7,7 +7,7 @@ from scipy.spatial.distance import euclidean
 
 from sys_simulator import general as gen
 from sys_simulator.channels import Channel
-from sys_simulator.ddpg.agent import SurrogateAgent
+from sys_simulator.ddpg.agent import Agent, SurrogateAgent
 from sys_simulator.devices.devices import (
     base_station,
     d2d_node_type,
@@ -16,7 +16,7 @@ from sys_simulator.devices.devices import (
     node,
 )
 from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
-from sys_simulator.general import db_to_power, power_to_db
+from sys_simulator.general import db_to_power, jain_index, power_to_db
 from sys_simulator.parameters.parameters import EnvironmentParameters
 from sys_simulator.q_learning.agents.distanceAgent import DistanceAgent
 from sys_simulator.q_learning.environments.environment import RLEnvironment
@@ -31,10 +31,11 @@ class CompleteEnvironment12(RLEnvironment):
     just before the transmission.
 
     Parameters
-    ---------
+    ----
     reward_function: str
-        May be 'classic', for the classic reward. 'lucas' for the lucas reward.
-        'individual' for the individual reward.
+        options: 'continuous', 'sinrs', 'jain'. 
+    states_options: List[str]
+        options: 'sinrs', 'positions', 'channels'.
     """
     d2d_pairs: List[Tuple[d2d_user, d2d_user]]
 
@@ -47,7 +48,8 @@ class CompleteEnvironment12(RLEnvironment):
         n_closest_devices=1,
         reward_penalty=1,
         bs_height=25,
-        reward_function='classic',
+        states_options = ['sinrs', 'positions'],
+        reward_function='continuous',
         memories_capacity=int(1e3),
         **kwargs
     ):
@@ -56,6 +58,7 @@ class CompleteEnvironment12(RLEnvironment):
                                                     reward_function,
                                                     **kwargs)
         self.states = [0, 0, 1]
+        self.states_options = states_options
         self.mue: mobile_user = None
         self.sinr_d2ds: float = []
         self.d2d_pairs: List[Tuple[d2d_user, d2d_user]] = []
@@ -69,7 +72,8 @@ class CompleteEnvironment12(RLEnvironment):
         # memories
         self.powers_memory = SimpleMemory(memories_capacity)
         self.interferences_memory = SimpleMemory(memories_capacity)
-        self.pathlosses_memory = SimpleMemory(memories_capacity)
+        self.losses_to_bs_memory = SimpleMemory(memories_capacity)
+        self.losses_to_d2d_memory = SimpleMemory(memories_capacity)
         self.rewards_memory = SimpleMemory(memories_capacity)
         self.sinrs_memory = SimpleMemory(memories_capacity)
         # losses
@@ -83,17 +87,22 @@ class CompleteEnvironment12(RLEnvironment):
         self.small_scale_fadings_are_set = False
         self.total_losses_are_set = False
         self.pathlosses_are_calculated = False
+        # reward_function
+        self.manage_reward_function(reward_function)
+
+    def manage_reward_function(self, reward_function: str):
         # reward function
-        if reward_function == 'classic':
-            self.reward_function = self.calculate_old_reward
-        elif reward_function == 'lucas':
-            self.reward_function = self.calculate_lucas_reward
-        elif reward_function == 'individual':
-            self.reward_function = self.calculate_individual_reward
+        if reward_function == 'sinr':
+            self.reward_function = self.calculate_sinr_reward
+        elif reward_function == 'continuous':
+            self.reward_function = self.calculate_continuous_reward
+        elif reward_function == 'jain':
+            self.reward_function = self.calculate_jain_reward
         else:
             raise Exception('Invalid reward function.')
 
-    def build_scenario(self, agents: List[SurrogateAgent]):
+
+    def build_scenario(self, agents: List[SurrogateAgent], d2d_limited_power=True):
         # declaring the bs, mues and d2d pairs
         self.reset_before_build_set()
         self.sinr_d2ds = []
@@ -104,9 +113,9 @@ class CompleteEnvironment12(RLEnvironment):
         self.mue.set_gain(self.params.user_gain)
         self.d2d_pairs = [
             (d2d_user(x, d2d_node_type.TX, self.params.p_max,
-                      memory_size=self.memory),
+                      memory_size=self.memory, limited_power=d2d_limited_power),
              d2d_user(x, d2d_node_type.RX, self.params.p_max,
-                      memory_size=self.memory))
+                      memory_size=self.memory, limited_power=d2d_limited_power))
             for x in range(len(agents))
         ]
         # set diff
@@ -216,23 +225,47 @@ class CompleteEnvironment12(RLEnvironment):
         self.reset_sets()
 
     def get_state(self):
+        # get states
         positions = []
         sinrs = []
+        losses_to_bs = []
+        losses_to_d2d = []
         for tx, rx in self.d2d_pairs:
             positions += tx.position[:2]
             positions += rx.position[:2]
             sinrs.append(tx.sinr)
+            loss_bs = self.total_losses[tx.id][self.bs.id]
+            loss_d2d = self.total_losses[tx.id][rx.id]
+            losses_to_bs.append(loss_bs)
+            losses_to_d2d.append(loss_d2d)
         sinrs.append(self.mue.sinr)
         positions += self.mue.position[:2]
-        # normalize positions
-        positions = np.array(positions)
-        positions = self.norm_position(positions)
-        # linearize sinrs
-        sinrs = np.array(sinrs)
-        sinrs += 1e-9
-        # sinrs = db_to_power(sinrs)
-        sinrs = self.normalize(sinrs, self.sinrs_memory, self.min_max_scaling)
-        states = np.concatenate((positions, sinrs))
+        losses_to_bs.append(self.total_losses[self.mue.id][self.bs.id])
+        # states
+        states = []
+        # normalize and add positions
+        if 'positions' in self.states_options:
+            positions = np.array(positions)
+            positions = self.norm_position(positions)
+            states.append(positions)
+        # normalize and add sinrs
+        if 'sinrs' in self.states_options:
+            sinrs = np.array(sinrs)
+            sinrs = self.normalize(
+                sinrs, self.sinrs_memory, self.min_max_scaling)
+            states.append(sinrs)
+        # normalize and add channel losses
+        if 'channels' in self.states_options:
+            losses_to_bs = np.array(losses_to_bs)
+            losses_to_d2d = np.array(losses_to_d2d)
+            losses_to_bs = self.normalize(
+                losses_to_bs, self.losses_to_bs_memory, self.min_max_scaling)
+            losses_to_d2d = self.normalize(
+                losses_to_d2d, self.losses_to_d2d_memory, self.min_max_scaling)
+            states.append(losses_to_bs)
+            states.append(losses_to_d2d)
+        # finish states
+        states = np.concatenate(states)
         self.reset_sets()
         return states
 
@@ -285,9 +318,7 @@ class CompleteEnvironment12(RLEnvironment):
         self.step_losses()
         # get the states
         states = self.get_state()
-        # rewards
-        # rewards = self.gabriel_reward(agents)
-        rewards = self.calculate_continuous_reward()
+        rewards = self.reward_function(agents)
         # normalize rewards
         # rewards = self.normalize(rewards, self.rewards_memory,
         #                          self.min_max_scaling)
@@ -647,18 +678,19 @@ class CompleteEnvironment12(RLEnvironment):
         return reward
 
     def calculate_old_reward(
-        self, agent: ExternalDQNAgent, C: int
+        self, agent: SurrogateAgent
     ) -> float:
         d2d_tx = agent.d2d_tx
         d2d_speff = d2d_tx.speffs[0]
         reward = -self.reward_penalty
         if self.mue.sinr >= self.params.sinr_threshold:
-            reward = 1/C * d2d_speff
+            reward = 1/self.params.c_param * d2d_speff
         return reward
 
     def calculate_lucas_reward(
-        self, agent: ExternalDQNAgent, C: int
+        self, agent: ExternalDQNAgent
     ) -> float:
+        C = self.params.c_param
         d2d_tx = agent.d2d_tx
         d2d_speff = d2d_tx.speffs[0]
         reward = -self.reward_penalty
@@ -669,13 +701,13 @@ class CompleteEnvironment12(RLEnvironment):
         return reward
 
     def calculate_individual_reward(
-        self, agent: ExternalDQNAgent, C: int
+        self, agent: ExternalDQNAgent
     ) -> float:
         d2d_tx = agent.d2d_tx
         d2d_speff = d2d_tx.speffs[0]
         reward = -self.reward_penalty * d2d_tx.interference_contrib_pct
         if self.mue.sinr >= self.params.sinr_threshold:
-            reward = 1/C * d2d_speff
+            reward = 1/self.params.c_param * d2d_speff
         return reward
 
     def calculate_sinr_reward(
@@ -696,20 +728,51 @@ class CompleteEnvironment12(RLEnvironment):
         else:
             return sinrs
 
-    def calculate_continuous_reward(
-        self, *kwargs
-    ):
-        if self.mue.sinr <= self.params.sinr_threshold:
-            reward = db_to_power(self.mue.sinr) - \
-                db_to_power(self.params.sinr_threshold)
+#     def calculate_continuous_reward(
+        # self, *kwargs
+    # ):
+        # if self.mue.sinr <= self.params.sinr_threshold:
+            # reward = db_to_power(self.mue.sinr) - \
+                # db_to_power(self.params.sinr_threshold)
+            # # reward = 1e-9 if reward == 0 else reward
+            # # reward = power_to_db(reward)
+            # # reward *= reward ** 3
+        # else:
+            # sinrs = np.array([p[0].sinr for p in self.d2d_pairs])
+            # reward = np.sum(db_to_power(sinrs))
             # reward = 1e-9 if reward == 0 else reward
-            # reward = power_to_db(reward)
-            # reward *= reward ** 3
+            # reward = 0.2 * power_to_db(reward)
+        # # if np.isnan(reward):
+        # #     print('bug')
+#         return reward
+
+    def calculate_continuous_reward(self, *kargs, **kwargs):
+        gamma1 = 2.0
+        # gamma2 = 1.0
+        # coeff2 = gamma2 * 10
+        if self.mue.sinr <= self.params.sinr_threshold:
+            reward = gamma1 * (self.mue.sinr - self.params.sinr_threshold)
         else:
             sinrs = np.array([p[0].sinr for p in self.d2d_pairs])
             reward = np.sum(db_to_power(sinrs))
-            reward = 1e-9 if reward == 0 else reward
-            reward = 0.2 * power_to_db(reward)
+            if reward > 10:
+                reward = power_to_db(reward)
+        # if np.isnan(reward):
+        #     print('bug')
+        return reward
+
+    def calculate_jain_reward(self, *kargs, **kwargs):
+        gamma1 = 2.0
+        gamma2 = 1
+        if self.mue.sinr <= self.params.sinr_threshold:
+            reward = gamma1 * (self.mue.sinr - self.params.sinr_threshold)
+        else:
+            sinrs = np.array([p[0].sinr for p in self.d2d_pairs])
+            reward = np.sum(db_to_power(sinrs))
+            if reward > 10:
+                reward = power_to_db(reward)
+            jain = jain_index(sinrs)
+            reward *= jain ** gamma2
         # if np.isnan(reward):
         #     print('bug')
         return reward
@@ -805,8 +868,20 @@ class CompleteEnvironment12(RLEnvironment):
 
     def state_size(self):
         # 5*n + 3
-        state_size = 5*self.params.n_d2d+3
-        return state_size
+        size = 0
+        n = self.params.n_d2d
+        if 'positions' in self.states_options:
+            # d2d devices positions and mue position
+            size += 4*n + 2
+        if 'sinrs' in self.states_options:
+            # d2d devices sinrs and mue sinr
+            size += n + 1
+        if 'channels' in self.states_options:
+            # channels from d2d tx to rx
+            # channels from d2d tx to bs
+            # channel from mue to bs
+            size += 2*n + 1
+        return size
 
     def norm_position(self, pos: float):
         r = self.params.bs_radius

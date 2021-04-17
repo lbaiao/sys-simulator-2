@@ -1,3 +1,4 @@
+from copy import copy
 from enum import Enum
 from typing import Dict, List, Tuple
 from sys_simulator.pathloss import pathloss_bs_users
@@ -20,9 +21,12 @@ class node:
         max_power=-7,
         memory_size=2,
         beta=.8,
+        limited_power=True,
         **kwargs
     ):
         self.tx_power = -100
+        self.input_power = -100
+        self.limited_power = limited_power
         self.sinr = -100
         self.snr = -100
         self.pathloss_to_bs = 100
@@ -98,8 +102,12 @@ class node:
             raise Exception(
                 'Trying to set TX power more than once in the same timestep.'
             )
-        self.tx_power = \
-            tx_power if tx_power < self.max_power else self.max_power
+        self.input_power = copy(tx_power)
+        if self.limited_power:
+            self.tx_power = \
+                tx_power if tx_power < self.max_power else self.max_power
+        else:
+            self.tx_power = tx_power
         aux = np.roll(self.past_actions, 1)
         aux[0] = self.tx_power
         self.past_actions = aux
@@ -330,8 +338,9 @@ class d2d_user(node):
 
     def __init__(self, id: int, d2d_type: d2d_node_type,
                  max_power=-7,
-                 memory_size=2, **kwargs):
-        super(d2d_user, self).__init__(max_power, memory_size)
+                 memory_size=2, limited_power=True, **kwargs):
+        super(d2d_user, self).__init__(
+            max_power, memory_size, limited_power=limited_power)
         self.type = d2d_type
         self.id: str = f'DUE.{self.type.value}:{id}'
         self.pathloss_d2d = -1000

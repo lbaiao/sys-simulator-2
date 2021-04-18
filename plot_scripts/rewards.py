@@ -21,20 +21,57 @@ def reward(mue_sinr, d2d_sinrs, min_mue_sinr):
         reward = 1e-9 if reward == 0 else reward
         reward = 0.2 * power_to_db(reward)
     else:
-        reward = (mue_sinr - min_mue_sinr)**3
+        reward = db_to_power(mue_sinr) - \
+            db_to_power(min_mue_sinr)
+    return reward
+
+
+def calculate_continuous_reward(
+    mue_sinr, d2d_sinrs, min_mue_sinr, gamma1=2.0, gamma2=1.0
+):    
+    if mue_sinr <= min_mue_sinr:
+        reward = gamma1 * (mue_sinr - min_mue_sinr)
+    else:
+        coef2 = gamma2 * 10
+        if d2d_sinrs < coef2:
+            reward = coef2 ** (d2d_sinrs/10)
+            # reward = db_to_power(d2d_sinrs)
+            # reward = 1e-9 if reward == 0 else reward
+        else:
+            reward = d2d_sinrs
     return reward
 
 
 plt.figure()
 rewards1 = []
 rewards2 = []
-for m, d in zip(mue_sinr1, d2d_sinrs):
-    rewards1.append(reward(m, d, min_mue_sinr))
-plt.plot(mue_sinr1, rewards1, label=r'mue sinr $< \tau_0$')
-for m, d in zip(mue_sinr2, d2d_sinrs):
-    rewards2.append(reward(m, d, min_mue_sinr))
-plt.plot(mue_sinr2, rewards2, label=r'mue sinr $\geq \tau_0$')
-plt.xlabel('MUE SINR')
+rewards3 = []
+# continuous reward
+for m, d in zip(mue_sinr1, d2d_sinrs1):
+    rewards1.append(calculate_continuous_reward(m, d, min_mue_sinr))
+plt.plot(mue_sinr1, rewards1, label=r'$S_M < \tau_0$, $R=(S_M-\tau_0)_{dB}$')
+for m, d in zip(mue_sinr2, d2d_sinrs2):
+    rewards2.append(calculate_continuous_reward(m, d, min_mue_sinr))
+plt.plot(mue_sinr2, rewards2,
+         label=r'$S_M \geq \tau_0$, $S_D \leq 10$dB, $R=S_D$')
+for m, d in zip(mue_sinr3, d2d_sinrs3):
+    rewards3.append(calculate_continuous_reward(m, d, min_mue_sinr))
+plt.plot(mue_sinr3, rewards3,
+         label=r'$S_M \geq \tau_0$, $S_D > 10$dB, $R=S_{D_{dB}}$')
+# other reward
+# for m, d in zip(mue_sinr1, d2d_sinrs1):
+    # rewards1.append(reward(m, d, min_mue_sinr))
+# plt.plot(mue_sinr1, rewards1, label=r'$S_M < \tau_0$, $R=S_M-\tau_0$')
+# for m, d in zip(mue_sinr2, d2d_sinrs2):
+    # rewards2.append(reward(m, d, min_mue_sinr))
+# plt.plot(mue_sinr2, rewards2,
+         # label=r'$S_M \geq \tau_0$, $R=S_{D_{dB}}$')
+# for m, d in zip(mue_sinr3, d2d_sinrs3):
+    # rewards3.append(reward(m, d, min_mue_sinr))
+# plt.plot(mue_sinr3, rewards3,
+#          label=r'$S_M \geq \tau_0$, $R=S_{D_{dB}}$')
+# plot
+plt.xlabel('MUE SINR [dB]')
 plt.ylabel('reward')
 plt.legend()
 plt.show()

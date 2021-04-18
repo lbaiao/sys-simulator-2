@@ -1,15 +1,17 @@
-from torch.autograd import Variable
 from copy import copy
-from torch.utils.tensorboard.writer import SummaryWriter
-from numpy.random import normal
-from sys_simulator.general import power_to_db, scale_tanh
-from sys_simulator.devices.devices import d2d_node_type, d2d_user
-from sys_simulator.general.ou_noise import OUNoise
 from types import MethodType
+
 import numpy as np
-import torch
-from sys_simulator.ddpg.framework import Framework, PerturberdFramework
 from numpy import ndarray
+from numpy.random import normal
+import torch
+from torch.autograd import Variable
+from torch.utils.tensorboard.writer import SummaryWriter
+
+from sys_simulator.ddpg.framework import Framework, PerturberdFramework
+from sys_simulator.devices.devices import d2d_node_type, d2d_user
+from sys_simulator.general import power_to_db, scale_tanh
+from sys_simulator.noises.ou_noise import OUNoise
 
 
 class Agent:
@@ -50,7 +52,7 @@ class Agent:
         # action = scale_tanh(action, self.a_min, self.a_max)
         # action = action/200
         action += self.a_offset
-        action = np.clip(action, self.a_min, self.a_max)
+        # action = np.clip(action, self.a_min, self.a_max)
         return action
 
     def call_framework(self, obs: ndarray, framework: Framework):

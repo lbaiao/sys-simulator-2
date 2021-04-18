@@ -13,7 +13,7 @@ from sys_simulator.ddpg.agent import SurrogateAgent, SysSimAgent, SysSimAgentWri
 from sys_simulator.ddpg.framework import Framework, PerturberdFramework
 from sys_simulator.devices.devices import db_to_power
 import sys_simulator.general as gen
-from sys_simulator.general import power_to_db, print_evaluating, print_stuff_ddpg
+from sys_simulator.general import power_to_db, print_evaluating, print_stuff_ddpg, random_seed
 from sys_simulator.general.ou_noise import SysSimOUNoise, OUNoise2
 from sys_simulator.parameters.parameters import EnvironmentParameters
 from sys_simulator.plots import plot_env_states, plot_positions
@@ -46,6 +46,8 @@ mue_margin = 20  # mue margin in dB
 p_max = p_max - 30
 noise_power = noise_power - 30
 # env parameters
+RND_SEED = True
+SEED = 42
 CHANNEL_RND = True
 C = 8  # C constant for the improved reward function
 ENVIRONMENT_MEMORY = 2
@@ -93,7 +95,12 @@ INITIAL_STDDEV = 0.1
 DESIRED_ACTION_STDDEV = 0.3
 ADAPTATION_COEFFICIENT = 1.01
 UPDATE_PERTURBERD_EVERY = 5
+# normal actions noise
+NORMAL_LOC = 0
+NORMAL_SCALE = 1
 
+if RND_SEED:
+    random_seed(SEED)
 torch_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 env_params = EnvironmentParameters(
     rb_bandwidth, d2d_pair_distance, p_max, noise_power,
@@ -104,7 +111,7 @@ env_params = EnvironmentParameters(
 channel_to_devices = BANChannel(rnd=CHANNEL_RND)
 channel_to_bs = UrbanMacroNLOSWinnerChannel(
     rnd=CHANNEL_RND, f_c=carrier_frequency, h_bs=bs_height, h_ms=device_height,
-    small_sigma=8.0, sigma=2.0
+    small_sigma=8.0, sigma=8.0
 )
 ref_env = CompleteEnvironment12(
     env_params,
@@ -118,7 +125,7 @@ ref_env = CompleteEnvironment12(
 )
 a_min = -60
 a_max = 60
-a_offset = -20
+a_offset = -10
 # a_min = 0 + 1e-9
 # a_max = db_to_power(p_max - 10)
 action_size = MAX_NUMBER_OF_AGENTS
@@ -197,7 +204,7 @@ def train(env: CompleteEnvironment12, start: float, writer: SummaryWriter):
                 actions = central_agent.act(
                     obs, framework,
                     writer, step, True,
-                    noise=np.random.normal(loc=0, scale=.05),
+                    noise=np.random.normal(loc=NORMAL_LOC, scale=NORMAL_SCALE),
                     param_noise=param_noise
                 )
             # db_actions = power_to_db(actions)

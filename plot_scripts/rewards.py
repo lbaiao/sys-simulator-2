@@ -1,11 +1,11 @@
-from sys_simulator.devices.devices import db_to_power
+from sys_simulator.general import db_to_power, power_to_db
 import numpy as np
-import matplotlib
-matplotlib.rcParams['text.usetex'] = True
+# import matplotlib
+# matplotlib.rcParams['text.usetex'] = True
 import matplotlib.pyplot as plt
 
-# sinr linear
-min_mue_sinr = db_to_power(6)
+# sinr dB
+min_mue_sinr = 6
 n_samples = 1000
 mue_sinr1 = np.linspace(-10, min_mue_sinr, n_samples)
 mue_sinr2 = np.linspace(min_mue_sinr, 10, n_samples)

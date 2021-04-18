@@ -10,3 +10,5 @@ models/
 .ycm_extra_conf.py
 .vimspector.json
 figs/
+.session
+.vim

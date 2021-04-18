@@ -1,5 +1,6 @@
 from copy import copy
 from enum import Enum
+from sys_simulator.devices.motion_models import MotionModel
 from typing import Dict, List, Tuple
 from sys_simulator.pathloss import pathloss_bs_users
 import numpy as np
@@ -22,8 +23,10 @@ class node:
         memory_size=2,
         beta=.8,
         limited_power=True,
+        motion_model='no_movement',
         **kwargs
     ):
+        self.position = (0, 0, 0)
         self.tx_power = -100
         self.input_power = -100
         self.limited_power = limited_power
@@ -60,6 +63,10 @@ class node:
         self.power_at_receiver_is_set = False
         self.pathlosses_to_interfering = {}
         self.pathlosses_to_interfering_is_set = False
+        self.motion_model = MotionModel(motion_model)
+        self.speed = self.motion_model.speed
+        self.direction = self.motion_model.direction
+        self.has_moved = False
 
     def set_pathlosses_to_interfering(self, pathlosses: Dict):
         if self.pathlosses_to_interfering_is_set:
@@ -155,6 +162,7 @@ class node:
         self.interference_is_set = False
         self.power_at_receiver_is_set = False
         self.pathlosses_to_interfering_is_set = False
+        self.has_moved = False
 
     def set_interference_contrib_pct(self, contrib: float):
         if self.past_interference_contrib_pct_is_set:
@@ -264,6 +272,14 @@ class node:
         norm = np.array(self.speffs) / np.array(self.max_speffs)
         return norm
 
+    def move(self, dt: float):
+        if self.has_moved:
+            raise Exception('Device has already moved.')
+        pos, dirc = self.motion_model.step(self.position, self.direction, dt)
+        self.position = pos
+        self.direction = dirc
+        self.has_moved = True
+
 
 class base_station(node):
     """class representing the base station
@@ -277,8 +293,8 @@ class base_station(node):
         BS coverage radius in meters
     """
 
-    def __init__(self, position, radius=500):
-        super(base_station, self).__init__()
+    def __init__(self, position, radius=500, motion_model='no_movement'):
+        super(base_station, self).__init__(motion_model=motion_model)
         self.set_position(position)
         self.radius = radius
         self.id: str = 'BS:0'
@@ -296,8 +312,8 @@ class mobile_user(node):
     position: x,y tuple representing the device position coordinates
     """
 
-    def __init__(self, id, p_max=-7, memory_size=2):
-        super(mobile_user, self).__init__(p_max, memory_size)
+    def __init__(self, id, p_max=-7, memory_size=2, motion_model='no_movement'):
+        super(mobile_user, self).__init__(p_max, memory_size, motion_model=motion_model)
         self.id: str = f'MUE:{id}'
 
     def get_tx_power(
@@ -338,9 +354,12 @@ class d2d_user(node):
 
     def __init__(self, id: int, d2d_type: d2d_node_type,
                  max_power=-7,
-                 memory_size=2, limited_power=True, **kwargs):
+                 memory_size=2, limited_power=True, 
+                 motion_model='no_movement', **kwargs):
         super(d2d_user, self).__init__(
-            max_power, memory_size, limited_power=limited_power)
+            max_power, memory_size, limited_power=limited_power,
+            motion_model=motion_model
+        )
         self.type = d2d_type
         self.id: str = f'DUE.{self.type.value}:{id}'
         self.pathloss_d2d = -1000

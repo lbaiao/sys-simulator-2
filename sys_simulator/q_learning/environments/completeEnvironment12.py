@@ -32,10 +32,33 @@ class CompleteEnvironment12(RLEnvironment):
 
     Parameters
     ----
+    params: EnvironmentParameters
+        Some general environment parameters.
+    channel_to_bs: Channel
+        Channel model to the BS
+    channel_to_devices: Channel
+        Channel model to the D2D devices
+    memory: int
+        Devices memory size for storing past values.
+    n_closest_devices: int
+        Number of closest of devices to be taken into account for
+        making the individual states of each device.
+    reward_penalty: float
+        Penalty for the old reward.
+    bs_height: float
+        BS antenna height.
     reward_function: str
-        options: 'continuous', 'sinrs', 'jain'. 
+        options: 'continuous', 'sinrs', 'jain', 'multi_agent_continuous'.
     states_options: List[str]
         options: 'sinrs', 'positions', 'channels'.
+    dt: float
+        time step size in seconds.
+    memories_capacity: int
+        Size of the buffers used for storing states values and
+        calculate the running averages for states normalization
+    states_function: str
+        Determines the function used for returning the states.
+        options: 'single_agent', 'multi_agent'.
     """
     d2d_pairs: List[Tuple[d2d_user, d2d_user]]
 
@@ -48,15 +71,18 @@ class CompleteEnvironment12(RLEnvironment):
         n_closest_devices=1,
         reward_penalty=1,
         bs_height=25,
-        states_options = ['sinrs', 'positions'],
+        dt=1e-3,
+        states_options=['sinrs', 'positions'],
         reward_function='continuous',
         memories_capacity=int(1e3),
+        states_function='single_agent',
         **kwargs
     ):
         self.params = params
         super(CompleteEnvironment12, self).__init__(params,
                                                     reward_function,
                                                     **kwargs)
+        self.dt = dt
         self.states = [0, 0, 1]
         self.states_options = states_options
         self.mue: mobile_user = None
@@ -69,6 +95,8 @@ class CompleteEnvironment12(RLEnvironment):
         self.diff = 0
         self.reward_penalty = reward_penalty
         self.bs_height = bs_height
+        self.devices_original_positions = {}
+        self.states_function = states_function
         # memories
         self.powers_memory = SimpleMemory(memories_capacity)
         self.interferences_memory = SimpleMemory(memories_capacity)
@@ -89,6 +117,8 @@ class CompleteEnvironment12(RLEnvironment):
         self.pathlosses_are_calculated = False
         # reward_function
         self.manage_reward_function(reward_function)
+        # states function
+        self.manage_states_function(states_function)
 
     def manage_reward_function(self, reward_function: str):
         # reward function
@@ -98,24 +128,41 @@ class CompleteEnvironment12(RLEnvironment):
             self.reward_function = self.calculate_continuous_reward
         elif reward_function == 'jain':
             self.reward_function = self.calculate_jain_reward
+        elif reward_function == 'multi_agent_continuous':
+            self.reward_function = self.multi_agent_continuous_reward
         else:
             raise Exception('Invalid reward function.')
 
+    def manage_states_function(self, states_function: str):
+        if states_function == 'single_agent':
+            self.get_state = self.get_state_single_agent
+            self.state_size = self.single_agent_state_size
+        elif states_function == 'multi_agent':
+            self.get_state = self.get_state_multi_agent
+            self.state_size = self.multi_agent_state_size
+        else:
+            return Exception('Invalid states function option.')
 
-    def build_scenario(self, agents: List[SurrogateAgent], d2d_limited_power=True):
+    def build_scenario(
+        self, agents: List[SurrogateAgent], d2d_limited_power=True,
+        motion_model='no_movement'
+    ):
         # declaring the bs, mues and d2d pairs
         self.reset_before_build_set()
         self.sinr_d2ds = []
         self.bs = base_station((0, 0, self.bs_height),
                                radius=self.params.bs_radius)
         self.bs.set_gain(self.params.bs_gain)
-        self.mue = mobile_user(0, self.params.p_max)
+        self.mue = mobile_user(0, self.params.p_max, motion_model=motion_model)
         self.mue.set_gain(self.params.user_gain)
         self.d2d_pairs = [
             (d2d_user(x, d2d_node_type.TX, self.params.p_max,
-                      memory_size=self.memory, limited_power=d2d_limited_power),
+                      memory_size=self.memory, limited_power=d2d_limited_power,
+                      motion_model=motion_model),
              d2d_user(x, d2d_node_type.RX, self.params.p_max,
-                      memory_size=self.memory, limited_power=d2d_limited_power))
+                      memory_size=self.memory, limited_power=d2d_limited_power,
+                      motion_model=motion_model)
+             )
             for x in range(len(agents))
         ]
         # set diff
@@ -125,18 +172,22 @@ class CompleteEnvironment12(RLEnvironment):
         for _ in range(self.diff):
             self.d2d_pairs.append(self.make_dummy_d2d_pair())
         self.rb = 1
-        # distributing nodes in the bs radius
+        # distributing mue in the bs radius
         gen.distribute_nodes([self.mue], self.bs)
+        # distributing d2d devices in the bs radius
         for p in self.d2d_pairs:
-            gen.distribute_pair_fixed_distance(
-                p, self.bs, self.params.d2d_pair_distance
+            gen.distribute_pair_random_distance(
+                p, self.bs, self.params.min_d2d_pair_distance,
+                self.params.max_d2d_pair_distance
             )
             for d in p:
-                d.set_distance_d2d(self.params.d2d_pair_distance)
+                d2d_pair_distance = euclidean(p[0].position, p[1].position)
+                d.set_distance_d2d(d2d_pair_distance)
                 d.set_gain(self.params.user_gain)
-
+                self.devices_original_positions[d.id] = d.position
+            self.devices_original_positions[self.mue.id] = self.mue.position
+        # set rbs
         self.mue.set_rb(self.rb)
-
         for p in self.d2d_pairs:
             p[0].set_rb(self.rb)
             p[1].set_rb(self.rb)
@@ -202,7 +253,9 @@ class CompleteEnvironment12(RLEnvironment):
                 pair[1].set_position(positions[1])
                 # set tx distances
                 for d in pair:
-                    d.set_distance_d2d(self.params.d2d_pair_distance)
+                    d2d_pair_distance = \
+                        euclidean(pair[0].position, pair[1].position)
+                    d.set_distance_d2d(d2d_pair_distance)
                     d.set_distance_to_bs(euclidean(d.position,
                                                    self.bs.position))
                     d.set_gain(self.params.user_gain)
@@ -224,7 +277,7 @@ class CompleteEnvironment12(RLEnvironment):
         # reset sets
         self.reset_sets()
 
-    def get_state(self):
+    def get_state_single_agent(self, *kargs, **kwargs):
         # get states
         positions = []
         sinrs = []
@@ -267,6 +320,84 @@ class CompleteEnvironment12(RLEnvironment):
         # finish states
         states = np.concatenate(states)
         self.reset_sets()
+        return states
+
+    def agent_state(self, agent: ExternalDQNAgent):
+        # get states
+        positions = []
+        sinrs = []
+        losses_to_bs = []
+        losses_to_d2d = []
+        powers = []
+        # get agent pair
+        pair = []
+        other_pairs = []
+        for p in self.d2d_pairs:
+            if p[0].id == agent.d2d_tx.id:
+                pair.append(p)
+            else:
+                other_pairs.append(p)
+        pair = pair[0]
+        # positions
+        positions += pair[0].position[:2]
+        positions += pair[1].position[:2]
+        positions += self.mue.position[:2]
+        for p in other_pairs:
+            positions += p[0].position[:2]
+            positions += p[1].position[:2]
+        # sinrs
+        sinrs.append(pair[0].sinr)
+        sinrs.append(self.mue.sinr)
+        for p in other_pairs:
+            sinrs.append(p[0].sinr)
+        # channel losses
+        loss_bs = self.total_losses[pair[0].id][self.bs.id]
+        loss_d2d = self.total_losses[pair[0].id][pair[1].id]
+        losses_to_bs.append(loss_bs)
+        losses_to_d2d.append(loss_d2d)
+        for p in other_pairs:
+            loss_p_bs = self.total_losses[p[0].id][self.bs.id]
+            losses_to_bs.append(loss_p_bs)
+        states = []
+        # d2d_powers
+        powers.append(pair[0].tx_power)
+        powers.append(self.mue.tx_power)
+        for p in other_pairs:
+            powers.append(p[0].tx_power)
+        # normalize and add positions
+        if 'positions' in self.states_options:
+            positions = np.array(positions)
+            positions = self.norm_position(positions)
+            states.append(positions)
+        # normalize and add sinrs
+        if 'sinrs' in self.states_options:
+            sinrs = np.array(sinrs)
+            sinrs = self.normalize(
+                sinrs, self.sinrs_memory, self.min_max_scaling)
+            states.append(sinrs)
+        # normalize and add channel losses
+        if 'channels' in self.states_options:
+            losses_to_bs = np.array(losses_to_bs)
+            losses_to_d2d = np.array(losses_to_d2d)
+            losses_to_bs = self.normalize(
+                losses_to_bs, self.losses_to_bs_memory, self.min_max_scaling)
+            losses_to_d2d = self.normalize(
+                losses_to_d2d, self.losses_to_d2d_memory, self.min_max_scaling)
+            states.append(losses_to_bs)
+            states.append(losses_to_d2d)
+        # normalized and powers
+        if 'powers' in self.states_options:
+            powers = np.array(powers)
+            powers = self.normalize(
+                powers, self.powers_memory, self.min_max_scaling)
+            states.append(powers)
+        # finish states
+        states = np.concatenate(states)
+        self.reset_sets()
+        return states
+
+    def get_state_multi_agent(self, agents: List[ExternalDQNAgent]):
+        states = [self.agent_state(a) for a in agents]
         return states
 
     def get_other_devices_mean_positions(self, tx: d2d_user):
@@ -315,9 +446,10 @@ class CompleteEnvironment12(RLEnvironment):
                 p[0].calc_set_max_speff()
                 p[0].calc_set_avg_speff_set_link_price()
         # calculate small scale fadings and set new losses
+        self.move_devices()
         self.step_losses()
         # get the states
-        states = self.get_state()
+        states = self.get_state(agents)
         rewards = self.reward_function(agents)
         # normalize rewards
         # rewards = self.normalize(rewards, self.rewards_memory,
@@ -573,6 +705,9 @@ class CompleteEnvironment12(RLEnvironment):
         # assert not np.isnan(sinr)
         return sinr
 
+    def reset(self):
+        self.reset_all_sets()
+
     def reset_sets(self):
         self.small_scale_fadings_are_set = False
         self.total_losses_are_set = False
@@ -580,6 +715,7 @@ class CompleteEnvironment12(RLEnvironment):
             self.mue.reset_set_flags()
         for d in self.d2d_pairs:
             d[0].reset_set_flags()
+            d[1].reset_set_flags()
 
     def reset_pathloss_set(self):
         self.pathlosses_are_set = False
@@ -587,6 +723,7 @@ class CompleteEnvironment12(RLEnvironment):
 
     def reset_all_sets(self):
         self.reset_sets()
+        self.large_scale_fadings_are_set = False
         self.pathlosses_are_set = False
         self.pathlosses_are_calculated = False
 
@@ -733,7 +870,7 @@ class CompleteEnvironment12(RLEnvironment):
     # ):
         # if self.mue.sinr <= self.params.sinr_threshold:
             # reward = db_to_power(self.mue.sinr) - \
-                # db_to_power(self.params.sinr_threshold)
+            # db_to_power(self.params.sinr_threshold)
             # # reward = 1e-9 if reward == 0 else reward
             # # reward = power_to_db(reward)
             # # reward *= reward ** 3
@@ -760,6 +897,24 @@ class CompleteEnvironment12(RLEnvironment):
         # if np.isnan(reward):
         #     print('bug')
         return reward
+
+    def multi_agent_continuous_reward(self, agents: List[ExternalDQNAgent],
+                                      *kargs, **kwargs):
+        gamma1 = 2.0
+        gamma2 = .1
+        if self.mue.sinr <= self.params.sinr_threshold:
+            r = gamma1 * (self.mue.sinr - self.params.sinr_threshold)
+            rewards = r * np.ones(len(agents))
+        else:
+            rewards = []
+            for a in agents:
+                r = a.d2d_tx.sinr
+                if r < 10:
+                    r = db_to_power(r)
+                else:
+                    r = 10 + gamma2 * r
+                rewards.append(r)
+        return rewards
 
     def calculate_jain_reward(self, *kargs, **kwargs):
         gamma1 = 2.0
@@ -842,7 +997,7 @@ class CompleteEnvironment12(RLEnvironment):
         device.past_d2d_losses = np.ones(memory_size)
         device.set_tx_power(-1000)
         # device.set_pathloss_to_bs(1000)
-        device.set_distance_d2d(self.params.d2d_pair_distance)
+        device.set_distance_d2d(15)
         device.speffs = 30 * np.ones(memory_size)
         device.avg_speffs = 30 * np.ones(memory_size)
         device.link_prices = 1/30 * np.ones(memory_size)
@@ -850,7 +1005,7 @@ class CompleteEnvironment12(RLEnvironment):
         device_rx = d2d_user(len(self.d2d_pairs), d2d_node_type.RX,
                              self.params.p_max)
         device_rx.set_position(
-            (3 * self.bs.radius + self.params.d2d_pair_distance, 0, device_height)
+            (3 * self.bs.radius + 15, 0, device_height)
         )
         device_rx.set_rb(1)
         device_rx.is_dummy = True
@@ -866,7 +1021,7 @@ class CompleteEnvironment12(RLEnvironment):
     def get_mue_position(self):
         return self.mue.position
 
-    def state_size(self):
+    def single_agent_state_size(self):
         # 5*n + 3
         size = 0
         n = self.params.n_d2d
@@ -881,6 +1036,26 @@ class CompleteEnvironment12(RLEnvironment):
             # channels from d2d tx to bs
             # channel from mue to bs
             size += 2*n + 1
+        return size
+
+    def multi_agent_state_size(self):
+        size = 0
+        n = self.params.n_d2d
+        if 'positions' in self.states_options:
+            # d2d devices positions and mue position
+            size += 4*n + 2
+        if 'sinrs' in self.states_options:
+            # d2d devices sinrs and mue sinr
+            size += n + 1
+        if 'channels' in self.states_options:
+            # channels from d2d tx to rx
+            # channels from d2d tx to bs
+            # channel from mue to bs
+            # other devices channel to bs
+            size += 2 + 1 + (n-1)
+        if 'powers' in self.states_options:
+            # d2d_powers and mue power
+            size += n + 1
         return size
 
     def norm_position(self, pos: float):
@@ -906,3 +1081,23 @@ class CompleteEnvironment12(RLEnvironment):
         reference.push(items)
         norm_items = normalization(items, reference)
         return norm_items
+
+    def move_devices(self):
+        self.mue.move(self.dt)
+        for p in self.d2d_pairs:
+            p[0].move(self.dt)
+            p[1].move(self.dt)
+
+    def reset_devices_positions(self):
+        self.mue.set_position(self.devices_original_positions[self.mue.id])
+        for d1, d2 in self.d2d_pairs:
+            d1.set_position(self.devices_original_positions[d1.id])
+            d2.set_position(self.devices_original_positions[d2.id])
+
+    def get_devices(self) -> List[node]:
+        devices = []
+        for d1, d2 in self.d2d_pairs:
+            devices.append(d1)
+            devices.append(d2)
+        devices.append(self.mue)
+        return devices

@@ -24,7 +24,7 @@ from sys_simulator.general import (
 from sys_simulator.noises.decaying_gauss_noise import DecayingGaussNoise
 from sys_simulator.noises.ou_noise import OUNoise2, SysSimOUNoise
 from sys_simulator.parameters.parameters import EnvironmentParameters
-from sys_simulator.plots import plot_env_states, plot_positions
+from sys_simulator.plots import plot_env_states, plot_positions, plot_trajectories
 from sys_simulator.q_learning.environments.completeEnvironment12 import (
     CompleteEnvironment12,
 )
@@ -35,8 +35,8 @@ from sys_simulator.q_learning.environments.completeEnvironment12 import (
 # Similar to script5.
 # Trains a central agent for a fixed amount of devices.
 # There are different channels to the BS and to the devices.
-# The script generates a single scenario and tries to find
-# the optimal solution for it.
+# There are multiple episodes, where the devices are distributed
+# in different positions, and there are different motion models.
 # Single episodes convergence. The states are in linear scale.
 n_mues = 1  # number of mues
 n_d2d = 2  # number of d2d pairs
@@ -52,7 +52,9 @@ noise_power = -116  # noise power per RB in dBm
 bs_gain = 17    # macro bs antenna gain in dBi
 user_gain = 4   # user antenna gain in dBi
 sinr_threshold_train = 6  # mue sinr threshold in dB for training
-mue_margin = 20  # mue margin in dB
+mue_margin = 6
+MIN_D2D_PAIR_DISTANCE = 1.5
+MAX_D2D_PAIR_DISTANCE = 15
 # conversions from dBm to dB
 p_max = p_max - 30
 noise_power = noise_power - 30
@@ -62,22 +64,24 @@ SEED = 42
 CHANNEL_RND = True
 C = 8  # C constant for the improved reward function
 ENVIRONMENT_MEMORY = 2
-MAX_NUMBER_OF_AGENTS = 2
+MAX_NUMBER_OF_AGENTS = 3
 REWARD_PENALTY = 1.5
 N_STATES_BINS = 100
+DELTA_T = 1e-3
 # q-learning parameters
 # training
 ALGO_NAME = 'ddpg'
 REWARD_FUNCTION = 'jain'
 STATES_OPTIONS = ['sinrs', 'positions', 'channels']
+MOTION_MODEL = 'random'
 # MAX_STEPS = 1000
-MAX_STEPS = 30000
-EVAL_STEPS = 200
+MAX_STEPS = 20000
+EVAL_STEPS = 2000
 # MAX_STEPS = 1000
-STEPS_PER_EPISODE = 100
+STEPS_PER_EPISODE = 50
 EVAL_STEPS_PER_EPISODE = 50
 REPLAY_INITIAL = 0
-TEST_NUM_EPISODES = 5
+TEST_NUM_EPISODES = 10
 REPLAY_MEMORY_SIZE = int(2E4)
 ACTOR_LEARNING_RATE = 2E-4
 CRITIC_LEARNING_RATE = 2E-3
@@ -92,7 +96,7 @@ EXPLORATION = 'perturberd'
 REPLAY_MEMORY_TYPE = 'standard'
 PRIO_BETA_ITS = int(.8*(MAX_STEPS - REPLAY_INITIAL))
 PRINT_EVERY = int(MAX_STEPS/100)
-EVAL_EVERY = int(MAX_STEPS / 10)
+EVAL_EVERY = int(MAX_STEPS/20)
 # EVAL_EVERY = int(MAX_STEPS / 1)
 OU_DECAY_PERIOD = 100000
 # OU_DECAY_PERIOD = STEPS_PER_EPISODE
@@ -111,17 +115,19 @@ UPDATE_PERTURBERD_EVERY = 5
 NORMAL_LOC = 0
 NORMAL_SCALE = 4
 NORMAL_T = MAX_STEPS
-NORMAL_MIN_SCALE = .01
+NORMAL_MIN_SCALE = .001
 
 
 if RND_SEED:
     random_seed(SEED)
 torch_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 env_params = EnvironmentParameters(
-    rb_bandwidth, d2d_pair_distance, p_max, noise_power,
+    rb_bandwidth, None, p_max, noise_power,
     bs_gain, user_gain, sinr_threshold_train,
     n_mues, MAX_NUMBER_OF_AGENTS, n_rb, bs_radius,
-    c_param=C, mue_margin=mue_margin
+    c_param=C, mue_margin=mue_margin,
+    min_d2d_pair_distance=MIN_D2D_PAIR_DISTANCE,
+    max_d2d_pair_distance=MAX_D2D_PAIR_DISTANCE
 )
 channel_to_devices = BANChannel(rnd=CHANNEL_RND)
 channel_to_bs = UrbanMacroNLOSWinnerChannel(
@@ -137,7 +143,8 @@ ref_env = CompleteEnvironment12(
     bs_height=bs_height,
     reward_function=REWARD_FUNCTION,
     states_options=STATES_OPTIONS,
-    memories_capacity=int(1e3)
+    memories_capacity=int(1e3),
+    dt=DELTA_T
 )
 a_min = -60
 a_max = 60
@@ -205,7 +212,8 @@ def train(start: float, writer: SummaryWriter):
     collected_states = list()
     while step < MAX_STEPS:
         env = deepcopy(ref_env)
-        env.build_scenario(surr_agents, d2d_limited_power=False)
+        env.build_scenario(surr_agents, d2d_limited_power=False, 
+                           motion_model=MOTION_MODEL)
         obs, _, _, _ = env.step(surr_agents)
         total_reward = 0.0
         done = False
@@ -218,7 +226,6 @@ def train(start: float, writer: SummaryWriter):
                 if np.sum(actions == 0) > 0:
                     actions += 1e-9
             else:
-                ou_noise2.reset()
                 actions = central_agent.act(
                     obs, framework,
                     writer, step, True,
@@ -347,7 +354,7 @@ def test(framework: Framework):
     rewards_bag = []
     for _ in range(TEST_NUM_EPISODES):
         env = deepcopy(ref_env)
-        env.build_scenario(surr_agents)
+        env.build_scenario(surr_agents, motion_model=MOTION_MODEL)
         obs, _, _, _ = env.step(surr_agents)
         i = 0
         done = False
@@ -386,14 +393,17 @@ def evaluate(start: float, writer: SummaryWriter):
     step = 0
     mue_availability = []
     env = deepcopy(ref_env)
-    env.build_scenario(surr_agents)
+    env.build_scenario(surr_agents, motion_model=MOTION_MODEL)
     positions_fig = plot_positions(
         env.bs, [env.mue],
         [p[0] for p in env.d2d_pairs],
         [p[1] for p in env.d2d_pairs],
         False
     )
+    devices = env.get_devices()
+    trajectories = {d.id: [d.position] for d in devices}
     writer.add_figure('Devices positions', positions_fig)
+    d2d_sinrs = []
     while step < EVAL_STEPS:
         obs, _, _, _ = env.step(surr_agents)
         now = (time() - start) / 60
@@ -413,6 +423,7 @@ def evaluate(start: float, writer: SummaryWriter):
         step += 1
         writer.add_scalar('3. Eval - Rewards', reward, step)
         sinrs = [a.d2d_tx.sinr for a in surr_agents]
+        d2d_sinrs.append(sinrs)
         sinrs = {f'device {i}': s for i, s in enumerate(sinrs)}
         writer.add_scalars('3. Eval - SINRs [dB]', sinrs, step)
         writer.add_scalars(
@@ -423,9 +434,16 @@ def evaluate(start: float, writer: SummaryWriter):
         mue_success = int(env.mue.sinr > env.params.sinr_threshold)
         mue_availability.append(mue_success)
         writer.add_scalar('3. Eval - MUE success', mue_success, step)
+        for d in env.get_devices():
+            trajectories[d.id].append(d.position)
     mue_availability = np.mean(mue_availability)
+    d2d_sinrs = np.mean(d2d_sinrs, axis=0)
     writer.add_text('3. Eval - Average MUE availability',
                     str(mue_availability), step)
+    for i, s in enumerate(d2d_sinrs):
+        writer.add_text(f'3. Eval - Average D2D {i} SINR', str(s), step)
+    writer.add_figure('3. Eval - Trajectories',
+                      plot_trajectories(env, trajectories), step)
 
 
 def run():

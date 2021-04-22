@@ -1,7 +1,6 @@
 from copy import deepcopy
 from shutil import copyfile
-from sys_simulator.ddpg.parameters_noise import AdaptiveParamNoiseSpec, ddpg_distance_metric
-from sys_simulator.q_learning.environments.completeEnvironment12 import CompleteEnvironment12
+from sys_simulator.noises.decaying_gauss_noise import DecayingGaussNoise
 from time import time
 
 import numpy as np
@@ -11,12 +10,24 @@ from torch.utils.tensorboard import SummaryWriter
 from sys_simulator.channels import BANChannel, UrbanMacroNLOSWinnerChannel
 from sys_simulator.ddpg.agent import SurrogateAgent, SysSimAgent, SysSimAgentWriter
 from sys_simulator.ddpg.framework import Framework, PerturberdFramework
+from sys_simulator.ddpg.parameters_noise import (
+    AdaptiveParamNoiseSpec,
+    ddpg_distance_metric,
+)
 from sys_simulator.devices.devices import db_to_power
 import sys_simulator.general as gen
-from sys_simulator.general import power_to_db, print_evaluating, print_stuff_ddpg, random_seed
-from sys_simulator.general.ou_noise import SysSimOUNoise, OUNoise2
+from sys_simulator.general import (
+    power_to_db,
+    print_evaluating,
+    print_stuff_ddpg,
+    random_seed,
+)
+from sys_simulator.noises.ou_noise import OUNoise2, SysSimOUNoise
 from sys_simulator.parameters.parameters import EnvironmentParameters
-from sys_simulator.plots import plot_env_states, plot_positions
+from sys_simulator.plots import plot_env_states, plot_positions, plot_trajectories
+from sys_simulator.q_learning.environments.completeEnvironment12 import (
+    CompleteEnvironment12,
+)
 
 # Uses CompleteEnvironment12
 # Centralized Learning-Centralized Execution
@@ -33,7 +44,6 @@ n_rb = n_mues   # number of RBs
 carrier_frequency = 2.4  # carrier frequency in GHz
 bs_radius = 1000  # bs radius in m
 rb_bandwidth = 180*1e3  # rb bandwidth in Hz
-d2d_pair_distance = 5  # d2d pair distance in m
 device_height = 1.5  # mobile devices height in m
 bs_height = 25  # BS antenna height in m
 p_max = 40  # max tx power in dBm
@@ -42,6 +52,8 @@ bs_gain = 17    # macro bs antenna gain in dBi
 user_gain = 4   # user antenna gain in dBi
 sinr_threshold_train = 6  # mue sinr threshold in dB for training
 mue_margin = 20  # mue margin in dB
+MIN_D2D_PAIR_DISTANCE = 1.5
+MAX_D2D_PAIR_DISTANCE = 15
 # conversions from dBm to dB
 p_max = p_max - 30
 noise_power = noise_power - 30
@@ -54,13 +66,16 @@ ENVIRONMENT_MEMORY = 2
 MAX_NUMBER_OF_AGENTS = 2
 REWARD_PENALTY = 1.5
 N_STATES_BINS = 100
+DELTA_T = 1e-3
 # q-learning parameters
 # training
 ALGO_NAME = 'ddpg'
-REWARD_FUNCTION = 'classic'
+REWARD_FUNCTION = 'jain'
+STATES_OPTIONS = ['sinrs', 'positions', 'channels']
+MOTION_MODEL = 'random'
 # MAX_STEPS = 1000
 MAX_STEPS = 6000
-EVAL_STEPS = 200
+EVAL_STEPS = 2000
 # MAX_STEPS = 1000
 STEPS_PER_EPISODE = 100
 EVAL_STEPS_PER_EPISODE = 50
@@ -97,16 +112,20 @@ ADAPTATION_COEFFICIENT = 1.01
 UPDATE_PERTURBERD_EVERY = 5
 # normal actions noise
 NORMAL_LOC = 0
-NORMAL_SCALE = 1
+NORMAL_SCALE = 4
+NORMAL_T = MAX_STEPS
+NORMAL_MIN_SCALE = .01
 
 if RND_SEED:
     random_seed(SEED)
 torch_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 env_params = EnvironmentParameters(
-    rb_bandwidth, d2d_pair_distance, p_max, noise_power,
+    rb_bandwidth, None, p_max, noise_power,
     bs_gain, user_gain, sinr_threshold_train,
     n_mues, MAX_NUMBER_OF_AGENTS, n_rb, bs_radius,
-    c_param=C, mue_margin=mue_margin
+    c_param=C, mue_margin=mue_margin,
+    min_d2d_pair_distance=MIN_D2D_PAIR_DISTANCE,
+    max_d2d_pair_distance=MAX_D2D_PAIR_DISTANCE
 )
 channel_to_devices = BANChannel(rnd=CHANNEL_RND)
 channel_to_bs = UrbanMacroNLOSWinnerChannel(
@@ -121,7 +140,8 @@ ref_env = CompleteEnvironment12(
     memory=ENVIRONMENT_MEMORY,
     bs_height=bs_height,
     reward_function=REWARD_FUNCTION,
-    memories_capacity=int(5e2)
+    memories_capacity=int(5e2),
+    dt=DELTA_T
 )
 a_min = -60
 a_max = 60
@@ -169,6 +189,9 @@ ou_noise2 = OUNoise2(
     OU_THETA,
     OU_DIM
 )
+decaying_noise = DecayingGaussNoise(
+    NORMAL_LOC, NORMAL_SCALE, NORMAL_T, NORMAL_MIN_SCALE, action_size
+)
 
 
 central_agent = SysSimAgentWriter(a_min, a_max, EXPLORATION,
@@ -188,6 +211,7 @@ def train(env: CompleteEnvironment12, start: float, writer: SummaryWriter):
     step = 0
     collected_states = list()
     while step < MAX_STEPS:
+        env.reset_devices_positions()
         obs, _, _, _ = env.step(surr_agents)
         total_reward = 0.0
         done = False
@@ -320,6 +344,7 @@ def test(env: CompleteEnvironment12, framework: Framework):
     d2d_sinrs = []
     rewards_bag = []
     for _ in range(TEST_NUM_EPISODES):
+        env.reset_devices_positions()
         obs, _, _, _ = env.step(surr_agents)
         i = 0
         done = False
@@ -357,6 +382,9 @@ def test(env: CompleteEnvironment12, framework: Framework):
 def evaluate(start: float, writer: SummaryWriter, env: CompleteEnvironment12):
     step = 0
     mue_availability = []
+    env.reset_devices_positions()
+    devices = env.get_devices()
+    trajectories = {d.id: [d.position] for d in devices}
     while step < EVAL_STEPS:
         obs, _, _, _ = env.step(surr_agents)
         now = (time() - start) / 60
@@ -386,9 +414,13 @@ def evaluate(start: float, writer: SummaryWriter, env: CompleteEnvironment12):
         mue_success = int(env.mue.sinr > env.params.sinr_threshold)
         mue_availability.append(mue_success)
         writer.add_scalar('3. Eval - MUE success', mue_success, step)
+        for d in env.get_devices():
+            trajectories[d.id].append(d.position)
     mue_availability = np.mean(mue_availability)
     writer.add_text('3. Eval - Average MUE availability',
                     str(mue_availability), step)
+    writer.add_figure('3. Eval - Trajectories',
+                      plot_trajectories(env, trajectories), step)
 
 
 def run():
@@ -401,7 +433,8 @@ def run():
     start = time()
     # set environment up
     env = deepcopy(ref_env)
-    env.build_scenario(surr_agents)
+    env.build_scenario(surr_agents, d2d_limited_power=False, 
+                       motion_model=MOTION_MODEL)
     positions_fig = plot_positions(
         env.bs, [env.mue],
         [p[0] for p in env.d2d_pairs],

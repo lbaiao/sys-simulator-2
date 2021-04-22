@@ -74,6 +74,7 @@ class Agent:
         ou: OUNoise = kwargs['ou']
         step = kwargs['step']
         mu = ou.get_action(action, step)
+        ou.reset()
         return mu
 
     def parameters_noise_explore(

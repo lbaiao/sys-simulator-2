@@ -1,3 +1,4 @@
+from numpy import ndarray
 from sys_simulator.devices.devices import d2d_user
 import numpy as np
 from sys_simulator.dqn.dqn import DQN
@@ -117,7 +118,7 @@ class ExternalDQNAgent(Agent):
     def set_distance_to_bs(self, distance: float):
         self.distance_to_bs = distance
 
-    def get_action(self, policy: ExternalDQNFramework, obs):
+    def get_action(self, policy: ExternalDQNFramework, obs: ndarray):
         if self.epsilon > self.epsilon_min:
             self.epsilon -= self.epsilon_decay
         if np.random.random() > self.epsilon:

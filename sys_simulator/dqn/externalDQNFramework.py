@@ -51,26 +51,26 @@ class ExternalDQNFramework:
 
     def learn(self):
         if len(self.replay_memory) < self.batchsize:
-            return
+            return float('nan')
         obses_t, actions, rewards, obses_tp1, dones, extra_args = \
             self.unpack_batch()
         obses_t = torch.tensor(
             obses_t, dtype=torch.float, device=self.device
-        ).view(obses_t.shape[0], -1)
+        )
         actions = torch.tensor(
             actions, dtype=torch.float, device=self.device
-        ).view(-1, 1)
+        )
         rewards = torch.tensor(
             rewards, dtype=torch.float, device=self.device
-        ).view(-1, 1)
+        )
         obses_tp1 = torch.tensor(
             obses_tp1, dtype=torch.float, device=self.device
-        ).view(obses_tp1.shape[0], -1)
+        )
         dones = torch.tensor(
             dones, dtype=torch.float, device=self.device
-        ).view(obses_tp1.shape[0], -1)
+        )
         q_tp = \
-            self.policy_net(obses_t).gather(1, actions.long())
+            self.policy_net(obses_t).gather(1, actions.view(-1, 1).long())
         # metrics, q values average
         # self.bag.append(torch.mean(q_tp).item())
         q_tp1 = \
@@ -97,6 +97,7 @@ class ExternalDQNFramework:
             prios += 1e-5
             self.replay_memory.update_priorities(batch_idxes, prios)
             self.replay_memory.update_beta()
+        return loss.item()
 
     def unpack_std(self):
         obses_t, actions, rewards, obses_tp1, dones = \

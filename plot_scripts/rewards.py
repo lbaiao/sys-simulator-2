@@ -1,7 +1,6 @@
 from sys_simulator.general import db_to_power, power_to_db
 import numpy as np
 # import matplotlib
-# matplotlib.rcParams['text.usetex'] = True
 import matplotlib.pyplot as plt
 
 # sinr dB

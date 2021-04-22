@@ -1,6 +1,11 @@
 class EnvironmentParameters:
-    def __init__(self, rb_bandwidth: float, d2d_pair_distance: float, p_max: float, noise_power: float, bs_gain: float, user_gain: float, sinr_threshold: float,
-                 n_mues: int, n_d2d: int, n_rb: int, bs_radius: float, **kwargs):
+    def __init__(
+        self, rb_bandwidth: float, d2d_pair_distance: float,
+        p_max: float, noise_power: float, bs_gain: float, user_gain: float,
+        sinr_threshold: float, n_mues: int, n_d2d: int, n_rb: int,
+        bs_radius: float, min_d2d_pair_distance=1.5,
+        max_d2d_pair_distance=15, **kwargs
+    ):
         self.rb_bandwidth = rb_bandwidth
         self.d2d_pair_distance = d2d_pair_distance
         self.p_max = p_max
@@ -12,6 +17,8 @@ class EnvironmentParameters:
         self.n_d2d = int(n_d2d)
         self.n_rb = int(n_rb)
         self.bs_radius = bs_radius
+        self.min_d2d_pair_distance = min_d2d_pair_distance
+        self.max_d2d_pair_distance = max_d2d_pair_distance
 
         if 'c_param' in kwargs:
             self.c_param = kwargs['c_param']

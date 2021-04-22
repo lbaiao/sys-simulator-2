@@ -152,6 +152,39 @@ def distribute_pair_fixed_distance(
             is_node2_in_circle = True
 
 
+def distribute_pair_random_distance(
+    nodes,
+    base_station,
+    min_distance,
+    max_distance,
+    device_height=1.5
+):
+    center = base_station.position
+    radius = base_station.radius
+    is_node2_in_circle = False
+    x1 = (np.random.rand()-0.5)*2*radius+center[0]
+    y1 = (np.random.rand()-0.5)*2*(1-np.sqrt(radius**2-x1**2))+center[1]
+    nodes[0].set_position((x1, y1, device_height))
+    nodes[0].set_distance_to_bs(
+        spatial.distance.euclidean(center, nodes[0].position))
+    pair_distance = random.uniform(min_distance, max_distance)
+    while not is_node2_in_circle:
+        angle = np.random.rand()*2*np.pi
+        x2 = pair_distance*np.cos(angle) + x1
+        y2 = pair_distance*np.sin(angle) + y1
+        nodes_bs_distance = spatial.distance.euclidean(
+            (x2, y2), base_station.position[0:2]
+        )
+        if nodes_bs_distance < radius:
+            nodes[1].set_position((x2, y2, device_height))
+            nodes[1].set_distance_to_bs(
+                spatial.distance.euclidean(
+                    (x2, y2, device_height), base_station.position
+                )
+            )
+            is_node2_in_circle = True
+
+
 def distribute_rx_fixed_distance(nodes: device, base_station: base_station,
                                  pair_distance: float):
     radius = base_station.radius

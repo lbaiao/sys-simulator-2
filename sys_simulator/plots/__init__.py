@@ -1,5 +1,6 @@
 from math import sqrt, ceil
-from typing import List
+from sys_simulator.q_learning.environments.completeEnvironment12 import CompleteEnvironment12
+from typing import Dict, List
 import matplotlib.pyplot as plt
 import numpy as np
 from sys_simulator.devices.devices import base_station, mobile_user, d2d_user
@@ -47,6 +48,34 @@ def plot_positions(bs: base_station, mues: List[mobile_user],
         plt.show()
     else:
         return fig
+
+
+def plot_trajectories(env: CompleteEnvironment12, 
+                      trajectories: Dict, plot=True, **kwargs):
+    bs = env.bs
+    bs_x = bs.position[0]
+    bs_y = bs.position[1]
+    # plot bs position
+    fig = plt.figure()
+    plt.plot(bs_x, bs_y, '*', label=bs.id)
+    # plot devices trajectories
+    for k in trajectories.keys():
+        traj = trajectories[k]
+        x, y, _ = zip(*traj)
+        plt.plot(x, y, 'd', label=k)
+    # plot circle
+    patch = plt.Circle(bs.position, bs.radius,
+                       edgecolor='red', facecolor='None',
+                       linewidth=1.0, zorder=10)
+    ax = plt.gca()
+    ax.add_patch(patch)
+    plt.xlim(left=-bs.radius-50)
+    plt.xlim(right=bs.radius+50)
+    plt.ylim(bottom=-bs.radius-50)
+    plt.ylim(top=bs.radius+50)
+    plt.title('Nodes')
+    plt.legend()
+    return fig
 
 
 def plot_spectral_effs(env: RLEnvironment):

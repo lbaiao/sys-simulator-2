@@ -13,7 +13,7 @@ class MotionModel:
         ----
         model: str
             options: 'no_movement', 'gauss_pedestrian', 'walking_pedestrian',
-            'normal_pedestrian', 'random'
+            'fast_vehicle', 'random'
 
         Attributes
         ----
@@ -40,13 +40,14 @@ class MotionModel:
         self.direction = uniform(-pi, pi)
         if self.model == 'random':
             self.model = choice([
-                'no_movement', 'uniform_pedestrian', 
+                'no_movement', 'gauss_pedestrian', 
                 'walking_pedestrian'
             ])
-        elif self.model == 'no_movement':
+        if self.model == 'no_movement':
             self.min_theta = 0
             self.max_theta = 1
             self.speed = 0
+            self.scale = 0
         elif self.model == 'gauss_pedestrian':
             self.min_theta = -pi/2
             self.max_theta = pi/2
@@ -57,12 +58,19 @@ class MotionModel:
             self.max_theta = pi/18
             self.speed = 1.37
             self.scale= .01
+        elif self.model == 'fast_vehicle':
+            self.min_theta = -pi/18
+            self.max_theta = pi/18
+            self.speed = 1000
+            self.scale= .01
         else:
             raise Exception('Invalid motion model option.')
 
     def step(self, position, direction, dt, *kargs, **kwargs):
         dp1 = gauss(mu=direction, sigma=self.scale)
-        pp1 = np.array(position) + dt * self.speed * np.array((cos(dp1), sin(dp1)))
+        pp1 = np.array(position)
+        aux = np.array(pp1[:2]) + dt * self.speed * np.array((cos(dp1), sin(dp1)))
+        pp1[:2] = aux
         pp1 = tuple(pp1.tolist())
         return pp1, dp1
 

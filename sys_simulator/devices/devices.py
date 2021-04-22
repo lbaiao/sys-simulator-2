@@ -26,6 +26,7 @@ class node:
         motion_model='no_movement',
         **kwargs
     ):
+        self.id = 'NODE:0'
         self.position = (0, 0, 0)
         self.tx_power = -100
         self.input_power = -100
@@ -275,7 +276,8 @@ class node:
     def move(self, dt: float):
         if self.has_moved:
             raise Exception('Device has already moved.')
-        pos, dirc = self.motion_model.step(self.position, self.direction, dt)
+        pos, dirc = self.motion_model.step(
+            self.position, self.direction, dt)
         self.position = pos
         self.direction = dirc
         self.has_moved = True

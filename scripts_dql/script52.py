@@ -3,7 +3,6 @@ from shutil import copyfile
 from sys_simulator.general.actions_discretizations import db_five, db_six, db_ten
 from sys_simulator.dqn.externalDQNFramework import ExternalDQNFramework
 from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
-from sys_simulator.noises.decaying_gauss_noise import DecayingGaussNoise
 from time import time
 
 import numpy as np
@@ -20,8 +19,8 @@ from sys_simulator.general import (
     print_evaluating,
     print_stuff_ddpg,
     random_seed,
+    save_with_pickle,
 )
-from sys_simulator.noises.ou_noise import OUNoise2, SysSimOUNoise
 from sys_simulator.parameters.parameters import DQNAgentParameters, EnvironmentParameters
 from sys_simulator.plots import plot_env_states, plot_positions, plot_trajectories
 from sys_simulator.q_learning.environments.completeEnvironment12 import (
@@ -63,7 +62,7 @@ SEED = 42
 CHANNEL_RND = True
 C = 8  # C constant for the improved reward function
 ENVIRONMENT_MEMORY = 2
-MAX_NUMBER_OF_AGENTS = 3
+MAX_NUMBER_OF_AGENTS = 2
 REWARD_PENALTY = 1.5
 N_STATES_BINS = 100
 DELTA_T = 1e-3
@@ -71,21 +70,21 @@ DELTA_T = 1e-3
 # training
 ALGO_NAME = 'dql'
 REWARD_FUNCTION = 'multi_agent_continuous'
-STATES_OPTIONS = ['sinrs', 'positions', 'channels', 'powers']
+STATES_OPTIONS = ['sinrs', 'positions', 'channels']
 MOTION_MODEL = 'random'
+# MOTION_MODEL = 'no_movement'
 STATES_FUNCTION = 'multi_agent'
+MAX_STEPS = 20000
+EVAL_STEPS = 100
 # MAX_STEPS = 1000
-MAX_STEPS = 30000
-EVAL_STEPS = 1000
-# MAX_STEPS = 1000
-STEPS_PER_EPISODE = 100
-EVAL_STEPS_PER_EPISODE = 50
+STEPS_PER_EPISODE = 5
+EVAL_STEPS_PER_EPISODE = 10
 REPLAY_INITIAL = 0
-TEST_NUM_EPISODES = 50
+TEST_NUM_EPISODES = 5
 REPLAY_MEMORY_SIZE = int(10E3)
 LEARNING_RATE = 8E-4
 HIDDEN_SIZE = 64
-N_HIDDEN_LAYERS = 2
+N_HIDDEN_LAYERS = 1
 BATCH_SIZE = 128
 GAMMA = .5
 EPSILON_INITIAL = 1
@@ -98,7 +97,7 @@ REPLAY_MEMORY_TYPE = 'standard'
 PRIO_BETA_ITS = int(.4*(MAX_STEPS - REPLAY_INITIAL))
 PRINT_EVERY = int(MAX_STEPS/100)
 EVAL_EVERY = int(MAX_STEPS / 20)
-TARGET_UPDATE = 100
+TARGET_UPDATE = 50
 # EVAL_EVERY = int(MAX_STEPS / 1)
 OU_DECAY_PERIOD = 100000
 # OU_DECAY_PERIOD = STEPS_PER_EPISODE
@@ -143,21 +142,20 @@ ref_env = CompleteEnvironment12(
     memory=ENVIRONMENT_MEMORY,
     bs_height=bs_height,
     reward_function=REWARD_FUNCTION,
-    memories_capacity=int(5e2),
+    states_options=STATES_OPTIONS,
+    memories_capacity=int(1e4),
     dt=DELTA_T,
     states_function=STATES_FUNCTION
 )
 env = deepcopy(ref_env)
 a_min = -60
-a_max = 60
 a_offset = -10
 # a_min = 0 + 1e-9
-# a_max = db_to_power(p_max - 10)
 action_size = MAX_NUMBER_OF_AGENTS
 env_state_size = ref_env.state_size()
 # actions = db_five(p_min, p_max)
-# actions = db_six(p_min, p_max)
-actions = db_ten(p_min, p_max)
+actions = db_six(p_min, p_max)
+# actions = db_ten(p_min, p_max)
 NUMBER_OF_ACTIONS = len(actions)
 agent_params = DQNAgentParameters(
     EPSILON_MIN, EPSILON_DECAY, EPSILON_INITIAL, REPLAY_MEMORY_SIZE,
@@ -172,28 +170,11 @@ framework = ExternalDQNFramework(
     N_HIDDEN_LAYERS,
     LEARNING_RATE
 )
+best_framework = deepcopy(framework)
 param_noise = AdaptiveParamNoiseSpec(
     initial_stddev=INITIAL_STDDEV,
     desired_action_stddev=DESIRED_ACTION_STDDEV,
     adaptation_coefficient=ADAPTATION_COEFFICIENT
-)
-ou_noise = SysSimOUNoise(
-    action_size,
-    a_min, a_max,
-    OU_MU, OU_THETA,
-    OU_MAX_SIGMA,
-    OU_MIN_SIGMA,
-    OU_DECAY_PERIOD
-)
-ou_noise2 = OUNoise2(
-    OU_MU,
-    action_size,
-    OU_MAX_SIGMA,
-    OU_THETA,
-    OU_DIM
-)
-decaying_noise = DecayingGaussNoise(
-    NORMAL_LOC, NORMAL_SCALE, NORMAL_T, NORMAL_MIN_SCALE, action_size
 )
 agent_params = DQNAgentParameters(
     EPSILON_MIN, EPSILON_DECAY, EPSILON_INITIAL, REPLAY_MEMORY_SIZE,
@@ -204,12 +185,13 @@ agents = [ExternalDQNAgent(agent_params, actions) for _ in range(MAX_NUMBER_OF_A
 
 def train(start: float, writer: SummaryWriter):
     losses_bag = list()
-    mue_spectral_eff_bag = list()
-    d2d_spectral_eff_bag = list()
+    mue_sinrs_bag = list()
+    d2d_sinrs_bag = list()
     rewards_bag = list()
     mue_avail_bag = list()
     step = 0
     collected_states = list()
+    best_avg_reward = float('-inf')
     epsilon = agent_params.start_epsilon
     for a in agents:
         a.set_epsilon(epsilon)
@@ -275,9 +257,9 @@ def train(start: float, writer: SummaryWriter):
             t_d2d_sinrs = t_bags['d2d_sinrs']
             t_availability = t_bags['mue_availability']
             # mue spectral eff
-            mue_spectral_eff_bag.append(t_mue_sinrs)
+            mue_sinrs_bag.append(t_mue_sinrs)
             # average d2d spectral eff
-            d2d_spectral_eff_bag.append(t_d2d_sinrs)
+            d2d_sinrs_bag.append(t_d2d_sinrs)
             rewards_bag.append(t_rewards)
             mue_avail_bag.append(t_availability)
             # write metrics
@@ -287,6 +269,9 @@ def train(start: float, writer: SummaryWriter):
             # t_d2d_sinrs = np.mean(t_d2d_sinrs)
             t_availability = np.mean(t_availability, axis=0)
             t_rewards = np.mean(t_rewards)
+            if t_rewards > best_avg_reward:
+                best_framework = deepcopy(framework)
+                best_avg_reward = t_rewards
             writer.add_scalar(
                 '2. Testing - Average MUE SINRs [dB]',
                 t_mue_sinrs,
@@ -304,9 +289,10 @@ def train(start: float, writer: SummaryWriter):
         # adaptive param noise
     all_bags = {
         'losses': losses_bag,
-        'mue_spectral_effs': mue_spectral_eff_bag,
-        'd2d_spectral_effs': d2d_spectral_eff_bag,
-        'collected_states': collected_states
+        'mue_sinrs': mue_sinrs_bag,
+        'd2d_sinrs': d2d_sinrs_bag,
+        'collected_states': collected_states,
+        'rewards': rewards_bag,
     }
     return all_bags
 
@@ -370,9 +356,9 @@ def evaluate(start: float, writer: SummaryWriter):
         past_actions = np.zeros(len(agents))
         with torch.no_grad():
             for j, agent in enumerate(agents):
-                agent.get_action(framework, obs[j])
+                agent.act(framework, obs[j])
                 past_actions[j] = agent.action_index
-        next_obs, reward, _, _ = env.step(agents)
+        next_obs, reward, done, _ = env.step(agents)
         obs = next_obs
         i += 1
         step += 1
@@ -425,9 +411,14 @@ def run():
         'test_bags': test_bags,
         'elapsed_time': now,
         'eval_every': EVAL_EVERY,
+        'mue_sinr_threshold': sinr_threshold_train,
     }
-    gen.save_with_pickle(data, data_file_path)
+    env.reset()
+    save_with_pickle(env, f'{data_path}/env.pickle')
+    save_with_pickle(data, data_file_path)
     copyfile(__file__, f'{data_path}/{filename}.py')
+    torch.save(framework, f'{data_path}/last_model.pt')
+    torch.save(best_framework, f'{data_path}/best_model.pt')
     print(f'done. Elapsed time: {now} minutes.')
 
 

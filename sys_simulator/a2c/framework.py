@@ -1,5 +1,5 @@
 import numpy as np
-from torch.optim import SGD, Adam
+from torch.optim import SGD, AdamW
 import torch
 import math
 from sys_simulator.a2c import \
@@ -238,8 +238,8 @@ class PPOFramework():
             n_hidden_layers,
         ).to(device)
         if optimizers == 'adam':
-            self.a_optim = Adam(self.a2c.actor.parameters(), lr=actor_lr)
-            self.c_optim = Adam(self.a2c.critic.parameters(), lr=critic_lr)
+            self.a_optim = AdamW(self.a2c.actor.parameters(), lr=actor_lr)
+            self.c_optim = AdamW(self.a2c.critic.parameters(), lr=critic_lr)
         elif optimizers == 'sgd':
             self.a_optim = SGD(self.a2c.actor.parameters(), lr=actor_lr)
             self.c_optim = SGD(self.a2c.critic.parameters(), lr=critic_lr)
@@ -372,7 +372,8 @@ class A2CFramework(PPOFramework):
         n_hidden_layers: int,
         steps_per_episode: int,
         n_envs: int,
-        learning_rate: float,
+        actor_learning_rate: float,
+        critic_learning_rate: float,
         beta=.001,
         gamma=.99,
         lbda=.95,
@@ -388,8 +389,8 @@ class A2CFramework(PPOFramework):
             n_hidden_layers,
             steps_per_episode,
             n_envs,
-            learning_rate,
-            learning_rate,
+            actor_learning_rate,
+            critic_learning_rate,
             beta,
             gamma,
             lbda,
@@ -398,11 +399,15 @@ class A2CFramework(PPOFramework):
             device
         )
         if optimizers == 'adam':
-            self.a_optim = Adam(self.a2c.actor.parameters(), lr=learning_rate)
-            self.c_optim = Adam(self.a2c.critic.parameters(), lr=learning_rate)
+            self.a_optim = \
+                AdamW(self.a2c.actor.parameters(), lr=actor_learning_rate)
+            self.c_optim = \
+                AdamW(self.a2c.critic.parameters(), lr=critic_learning_rate)
         elif optimizers == 'sgd':
-            self.a_optim = SGD(self.a2c.actor.parameters(), lr=learning_rate)
-            self.c_optim = SGD(self.a2c.critic.parameters(), lr=learning_rate)
+            self.a_optim = \
+                SGD(self.a2c.actor.parameters(), lr=actor_learning_rate)
+            self.c_optim = \
+                SGD(self.a2c.critic.parameters(), lr=critic_learning_rate)
         else:
             raise Exception('Invalid optimizer.')
 
@@ -439,7 +444,8 @@ class A2CDiscreteFramework(A2CFramework):
         n_hidden_layers: int,
         steps_per_episode: int,
         n_envs: int,
-        learning_rate: float,
+        actor_learning_rate: float,
+        critic_learning_rate: float,
         beta=.001,
         gamma=.99,
         lbda=.95,
@@ -455,7 +461,8 @@ class A2CDiscreteFramework(A2CFramework):
             n_hidden_layers,
             steps_per_episode,
             n_envs,
-            learning_rate,
+            actor_learning_rate,
+            critic_learning_rate,
             beta,
             gamma,
             lbda,
@@ -467,11 +474,15 @@ class A2CDiscreteFramework(A2CFramework):
             n_hidden_layers
         ).to(device)
         if optimizers == 'adam':
-            self.a_optim = Adam(self.a2c.actor.parameters(), lr=learning_rate)
-            self.c_optim = Adam(self.a2c.critic.parameters(), lr=learning_rate)
+            self.a_optim = \
+                AdamW(self.a2c.actor.parameters(), lr=actor_learning_rate)
+            self.c_optim = \
+                AdamW(self.a2c.critic.parameters(), lr=critic_learning_rate)
         elif optimizers == 'sgd':
-            self.a_optim = SGD(self.a2c.actor.parameters(), lr=learning_rate)
-            self.c_optim = SGD(self.a2c.critic.parameters(), lr=learning_rate)
+            self.a_optim = \
+                SGD(self.a2c.actor.parameters(), lr=actor_learning_rate)
+            self.c_optim = \
+                SGD(self.a2c.critic.parameters(), lr=critic_learning_rate)
         else:
             raise Exception('Invalid optimizer.')
 
@@ -488,7 +499,7 @@ class A2CDiscreteFramework(A2CFramework):
             torch.FloatTensor(state)
             .view(self.n_envs, -1).to(self.device))
         self.actions.append(
-            torch.LongTensor(action))
+            torch.LongTensor(action.cpu()))
 
     def learn(self):
         advantages, returns = \

@@ -1,5 +1,14 @@
 from copy import deepcopy
+from math import ceil
+from multiprocessing import Pool
 from shutil import copyfile
+from sys_simulator.a2c.parallel import env_step, env_step_test
+from sys_simulator.a2c.agent import A2CAgent, A2CCentralAgent
+from sys_simulator.a2c.framework import A2CDiscreteFramework
+from sys_simulator.general.actions_discretizations import db_five, db_six, db_ten
+from sys_simulator.dqn.externalDQNFramework import ExternalDQNFramework
+from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
+from sys_simulator.noises.decaying_gauss_noise import DecayingGaussNoise
 from time import time
 
 import numpy as np
@@ -7,30 +16,25 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 from sys_simulator.channels import BANChannel, UrbanMacroNLOSWinnerChannel
-from sys_simulator.ddpg.agent import SurrogateAgent, SysSimAgent, SysSimAgentWriter
-from sys_simulator.ddpg.framework import Framework
 from sys_simulator.ddpg.parameters_noise import (
     AdaptiveParamNoiseSpec,
-    ddpg_distance_metric,
 )
 import sys_simulator.general as gen
 from sys_simulator.general import (
-    db_to_power,
-    power_to_db,
     print_evaluating,
     print_stuff_ddpg,
     random_seed,
+    save_with_pickle,
 )
-from sys_simulator.noises.decaying_gauss_noise import DecayingGaussNoise
 from sys_simulator.noises.ou_noise import OUNoise2, SysSimOUNoise
-from sys_simulator.parameters.parameters import EnvironmentParameters
-from sys_simulator.plots import plot_env_states, plot_positions, plot_trajectories
+from sys_simulator.parameters.parameters import DQNAgentParameters, EnvironmentParameters
+from sys_simulator.plots import plot_env_states, plot_trajectories
 from sys_simulator.q_learning.environments.completeEnvironment12 import (
     CompleteEnvironment12,
 )
 
 # Uses CompleteEnvironment12
-# Centralized Learning-Centralized Execution
+# Centralized Learning-Distributed Execution
 # NN Parameters noise.
 # Similar to script5.
 # Trains a central agent for a fixed amount of devices.
@@ -39,11 +43,11 @@ from sys_simulator.q_learning.environments.completeEnvironment12 import (
 # in different positions, and there are different motion models.
 # Single episodes convergence. The states are in linear scale.
 n_mues = 1  # number of mues
+n_d2d = 2  # number of d2d pairs
 n_rb = n_mues   # number of RBs
 carrier_frequency = 2.4  # carrier frequency in GHz
 bs_radius = 1000  # bs radius in m
 rb_bandwidth = 180*1e3  # rb bandwidth in Hz
-d2d_pair_distance = 5  # d2d pair distance in m
 device_height = 1.5  # mobile devices height in m
 bs_height = 25  # BS antenna height in m
 p_max = 40  # max tx power in dBm
@@ -51,54 +55,48 @@ noise_power = -116  # noise power per RB in dBm
 bs_gain = 17    # macro bs antenna gain in dBi
 user_gain = 4   # user antenna gain in dBi
 sinr_threshold_train = 6  # mue sinr threshold in dB for training
-mue_margin = 6
+mue_margin = 6  # mue margin in dB
 MIN_D2D_PAIR_DISTANCE = 1.5
 MAX_D2D_PAIR_DISTANCE = 15
 # conversions from dBm to dB
 p_max = p_max - 30
 noise_power = noise_power - 30
+p_min = -90
 # env parameters
 RND_SEED = True
 SEED = 42
 CHANNEL_RND = True
 C = 8  # C constant for the improved reward function
 ENVIRONMENT_MEMORY = 2
-MAX_NUMBER_OF_AGENTS = 5
+MAX_NUMBER_OF_AGENTS = 2
 REWARD_PENALTY = 1.5
 N_STATES_BINS = 100
 DELTA_T = 1e-3
-EVAL_DELTA_T = 5e-2
 # q-learning parameters
 # training
-ALGO_NAME = 'ddpg'
-REWARD_FUNCTION = 'jain'
-STATES_OPTIONS = ['sinrs', 'positions', 'channels']
+ALGO_NAME = 'a2c'
+OPTIMIZERS = 'adam'
+NUM_ENVS = 4
+NUM_POOLS = 4
+REWARD_FUNCTION = 'multi_agent_continuous'
+STATES_OPTIONS = ['sinrs', 'positions', 'channels', 'powers']
 MOTION_MODEL = 'random'
-JAIN_REWARD_PARAMETERS = {
-    'gamma1': 2.0,
-    'gamma2': 0.0,
-    'gamma3': 1.0
-}
+STATES_FUNCTION = 'multi_agent'
 # MAX_STEPS = 1000
-MAX_STEPS = 60000
-EVAL_STEPS = 100
-STEPS_PER_EPISODE = 10
+MAX_STEPS = 20000
+EVAL_STEPS = 1000
+# MAX_STEPS = 1000
+STEPS_PER_EPISODE = 5
 EVAL_STEPS_PER_EPISODE = 10
-REPLAY_INITIAL = 0
-TEST_NUM_EPISODES = 5
-REPLAY_MEMORY_SIZE = int(2E4)
+TEST_NUM_EPISODES = ceil(1000 / NUM_POOLS)
+REPLAY_MEMORY_SIZE = int(10E3)
 ACTOR_LEARNING_RATE = 2E-4
 CRITIC_LEARNING_RATE = 2E-3
 HIDDEN_SIZE = 64
-N_HIDDEN_LAYERS = 3
-BATCH_SIZE = 128
-GAMMA = .90
-SOFT_TAU = .05
-ALPHA = .6
-BETA = .4
-EXPLORATION = 'perturberd'
-REPLAY_MEMORY_TYPE = 'standard'
-PRIO_BETA_ITS = int(.8*(MAX_STEPS - REPLAY_INITIAL))
+N_HIDDEN_LAYERS = 1
+GAMMA = .5
+LBDA = .95
+BETA = 1e-2
 PRINT_EVERY = int(MAX_STEPS/100)
 EVAL_EVERY = int(MAX_STEPS/20)
 # EVAL_EVERY = int(MAX_STEPS / 1)
@@ -119,8 +117,7 @@ UPDATE_PERTURBERD_EVERY = 5
 NORMAL_LOC = 0
 NORMAL_SCALE = 4
 NORMAL_T = MAX_STEPS
-NORMAL_MIN_SCALE = .001
-
+NORMAL_MIN_SCALE = .01
 
 if RND_SEED:
     random_seed(SEED)
@@ -136,7 +133,7 @@ env_params = EnvironmentParameters(
 channel_to_devices = BANChannel(rnd=CHANNEL_RND)
 channel_to_bs = UrbanMacroNLOSWinnerChannel(
     rnd=CHANNEL_RND, f_c=carrier_frequency, h_bs=bs_height, h_ms=device_height,
-    small_sigma=4.0, sigma=8.0
+    small_sigma=8.0, sigma=8.0
 )
 ref_env = CompleteEnvironment12(
     env_params,
@@ -147,34 +144,36 @@ ref_env = CompleteEnvironment12(
     bs_height=bs_height,
     reward_function=REWARD_FUNCTION,
     states_options=STATES_OPTIONS,
-    memories_capacity=int(1e3),
+    memories_capacity=int(5e2),
     dt=DELTA_T,
-    rewards_params=JAIN_REWARD_PARAMETERS,
+    states_function=STATES_FUNCTION
 )
-a_min = -90
+envs = [deepcopy(ref_env) for _ in range(NUM_ENVS)]
+a_min = -60
 a_max = 60
 a_offset = -10
 # a_min = 0 + 1e-9
 # a_max = db_to_power(p_max - 10)
 action_size = MAX_NUMBER_OF_AGENTS
 env_state_size = ref_env.state_size()
-framework = Framework(
-    REPLAY_MEMORY_TYPE,
-    REPLAY_MEMORY_SIZE,
-    REPLAY_INITIAL,
+# actions = db_five(p_min, p_max)
+actions = db_six(p_min, p_max)
+# actions = db_ten(p_min, p_max)
+NUMBER_OF_ACTIONS = len(actions)
+framework = A2CDiscreteFramework(
     env_state_size,
-    action_size,
+    len(actions),
     HIDDEN_SIZE,
     N_HIDDEN_LAYERS,
+    STEPS_PER_EPISODE,
+    NUM_ENVS*MAX_NUMBER_OF_AGENTS,
     ACTOR_LEARNING_RATE,
     CRITIC_LEARNING_RATE,
-    BATCH_SIZE,
+    BETA,
     GAMMA,
-    SOFT_TAU,
-    torch_device,
-    alpha=ALPHA,
-    beta=BETA,
-    beta_its=PRIO_BETA_ITS
+    LBDA,
+    OPTIMIZERS,
+    torch_device
 )
 best_framework = deepcopy(framework)
 param_noise = AdaptiveParamNoiseSpec(
@@ -200,16 +199,16 @@ ou_noise2 = OUNoise2(
 decaying_noise = DecayingGaussNoise(
     NORMAL_LOC, NORMAL_SCALE, NORMAL_T, NORMAL_MIN_SCALE, action_size
 )
-central_agent = SysSimAgentWriter(a_min, a_max, EXPLORATION,
-                                  torch_device, a_offset=a_offset)
-central_agent_test = SysSimAgent(a_min, a_max, EXPLORATION,
-                                 torch_device, a_offset=a_offset)
-surr_agents = [SurrogateAgent() for _ in range(MAX_NUMBER_OF_AGENTS)]
+agents = [[
+    A2CAgent(torch_device, actions)
+    for _ in range(MAX_NUMBER_OF_AGENTS)
+] for _ in range(NUM_ENVS)]
+central_agent = A2CCentralAgent(torch_device)
 
 
-def train(start: float, writer: SummaryWriter):
-    actor_losses_bag = list()
-    critic_losses_bag = list()
+def train(start: float, writer: SummaryWriter, pool):
+    global envs
+    global agents
     mue_sinrs_bag = list()
     d2d_sinrs_bag = list()
     rewards_bag = list()
@@ -218,79 +217,36 @@ def train(start: float, writer: SummaryWriter):
     collected_states = list()
     best_avg_reward = float('-inf')
     while step < MAX_STEPS:
-        env = deepcopy(ref_env)
-        env.build_scenario(surr_agents, d2d_limited_power=False, 
-                           motion_model=MOTION_MODEL)
-        obs, _, _, _ = env.step(surr_agents)
-        total_reward = 0.0
-        done = False
+        for e, a in zip(envs, agents):
+            e.reset()
+            e.build_scenario(a, d2d_limited_power=False,
+                             motion_model=MOTION_MODEL)
+        obs, _, _, envs, agents = env_step(pool, envs, agents)
         i = 0
-        framework.perturb_actor_parameters(param_noise)
-        while not done and i < STEPS_PER_EPISODE:
-            if step < REPLAY_INITIAL:
-                actions = 2 * \
-                    (np.random.random(MAX_NUMBER_OF_AGENTS) + 1e-9 - .5)
-                if np.sum(actions == 0) > 0:
-                    actions += 1e-9
-            else:
-                actions = central_agent.act(
-                    obs, framework,
-                    writer, step, True,
-                    noise=decaying_noise.step(step),
-                    param_noise=param_noise
-                )
-            # db_actions = power_to_db(actions)
-            db_actions = actions
-            for j, agent in enumerate(surr_agents):
-                agent.set_action(db_actions[j].item())
-            next_obs, rewards, done, _ = env.step(surr_agents)
-            collected_states.append(next_obs)
-            total_reward = np.sum(rewards)
-            framework.replay_memory.push(
-                obs, actions,
-                total_reward, next_obs, done
-            )
-            actor_loss, critic_loss = framework.learn()
+        total_entropy = 0
+        while i < STEPS_PER_EPISODE:
+            action, log_prob, entropy, value = \
+                central_agent.act(obs, framework)
+            a_index = 0
+            for ag in agents:
+                for a in ag:
+                    a.action_index = action[a_index].item()
+                    a.action = actions[a.action_index]
+                    a_index += 1
+            next_obs, reward, done, envs, agents = env_step(pool, envs, agents)
+            total_entropy += entropy
+            framework.push_experience(log_prob, value,
+                                      reward, done, obs, action)
             obs = next_obs
             i += 1
             step += 1
-            d2d_powers = [p[0].tx_power for p in env.d2d_pairs]
-            writer.add_scalar('1. Training - Actor Losses', actor_loss, step)
-            writer.add_scalar('1. Training - Critic Losses', critic_loss, step)
-            writer.add_scalar('1. Training - Reward', env.reward, step)
-            writer.add_scalars(
-                '1. Training - D2D powers [dBW]',
-                {f'device {i}': a for i, a in enumerate(d2d_powers)},
-                step
-            )
-            writer.add_scalar(
-                '1. Training - MUE SINR [dB]', env.mue.sinr, step)
-            writer.add_scalar('1. Training - MUE Tx Power [dB]',
-                              env.mue.tx_power, step)
-            mue_bs_loss = env.total_losses[env.mue.id][env.bs.id]
-            writer.add_scalar('1. Training - Channel loss MUE to BS [dB]',
-                              mue_bs_loss, step)
-            t_d2d_sinrs = [p[0].sinr for p in env.d2d_pairs]
-            t_d2d_sinrs = {f'device {i}': a for i, a in enumerate(t_d2d_sinrs)}
-            writer.add_scalars(
-                '1. Training - D2D SINRs [dB]',
-                t_d2d_sinrs,
-                step
-            )
-            # writer.add_scalar('Aggregated Actions', aux_actions.sum(), step)
-            actor_losses_bag.append(actor_loss)
-            critic_losses_bag.append(critic_loss)
-            framework.actor.train()
-            framework.critic.train()
             if step % PRINT_EVERY == 0:
                 now = (time() - start) / 60
-                print_stuff_ddpg(step, now, MAX_STEPS, REPLAY_MEMORY_TYPE)
-            if step % UPDATE_PERTURBERD_EVERY == 0:
-                framework.perturb_actor_parameters(param_noise)
+                print_stuff_ddpg(step, now, MAX_STEPS, 'standard')
             # testing
             if step % EVAL_EVERY != 0:
                 continue
-            t_bags = test(framework)
+            t_bags = test(framework, pool)
             t_rewards = t_bags['rewards']
             t_mue_sinrs = t_bags['mue_sinrs']
             t_d2d_sinrs = t_bags['d2d_sinrs']
@@ -309,7 +265,8 @@ def train(start: float, writer: SummaryWriter):
             t_availability = np.mean(t_availability, axis=0)
             t_rewards = np.mean(t_rewards)
             if t_rewards > best_avg_reward:
-                best_framework = deepcopy(framework)
+                best_framework.a2c.actor.load_state_dict(
+                    framework.a2c.actor.state_dict())
                 best_avg_reward = t_rewards
             writer.add_scalar(
                 '2. Testing - Average MUE SINRs [dB]',
@@ -325,29 +282,13 @@ def train(start: float, writer: SummaryWriter):
                 '2. Testing - Aggregated Rewards', t_rewards, step)
             writer.add_scalar('2. Testing - Average MUE Availability',
                               np.mean(t_availability), step)
+        _, _, _, next_value = central_agent.act(next_obs, framework)
+        framework.push_next(next_obs, next_value, total_entropy)
+        a_loss, c_loss = framework.learn()
+        writer.add_scalar('1. Training - Actor Losses', a_loss, step)
+        writer.add_scalar('1. Training - Critic Losses', c_loss, step)
         # adaptive param noise
-        memory = deepcopy(framework.replay_memory)
-        if memory._next_idx - i > 0:
-            noise_data = \
-                memory._storage[memory._next_idx - i: memory._next_idx]
-        else:
-            noise_data = \
-                memory._storage[
-                    memory._next_idx - i +
-                    REPLAY_MEMORY_SIZE: REPLAY_MEMORY_SIZE
-                ] + memory._storage[0: memory._next_idx]
-        noise_data = np.array(noise_data)
-        noise_s, perturbed_actions, _, _, _ = zip(*noise_data)
-        noise_s = np.array(noise_s)
-        noise_s = torch.FloatTensor(noise_s).to(torch_device)
-        unperturbed_actions = framework.actor(noise_s)
-        unperturbed_actions = unperturbed_actions.detach().cpu().numpy()
-        ddpg_dist = ddpg_distance_metric(
-            perturbed_actions, unperturbed_actions)
-        param_noise.adapt(ddpg_dist)
     all_bags = {
-        'actor_losses': actor_losses_bag,
-        'critic_losses': critic_losses_bag,
         'mue_sinrs': mue_sinrs_bag,
         'd2d_sinrs': d2d_sinrs_bag,
         'collected_states': collected_states,
@@ -356,36 +297,48 @@ def train(start: float, writer: SummaryWriter):
     return all_bags
 
 
-def test(framework: Framework):
-    framework.actor.eval()
-    framework.critic.eval()
+def test(framework: A2CDiscreteFramework, pool):
+    global envs
+    global agents
     mue_availability = []
     mue_sinrs = []
     d2d_sinrs = []
     rewards_bag = []
     for _ in range(TEST_NUM_EPISODES):
-        env = deepcopy(ref_env)
-        env.build_scenario(surr_agents, motion_model=MOTION_MODEL)
-        obs, _, _, _ = env.step(surr_agents)
+        for e, a in zip(envs, agents):
+            e.reset()
+            e.build_scenario(a, d2d_limited_power=False,
+                             motion_model=MOTION_MODEL)
+        obs, _, _, envs, agents = env_step(pool, envs, agents)
         i = 0
         done = False
         ep_availability = []
         ep_rewards = []
         ep_mue_sinrs = []
         ep_d2d_sinrs = []
-        while not done and i < EVAL_STEPS_PER_EPISODE:
-            actions = central_agent_test.act(obs, framework, False)
-            # actions = np.zeros(MAX_NUMBER_OF_AGENTS) + 1e-9
-            # db_actions = power_to_db(actions)
-            db_actions = actions
-            for j, agent in enumerate(surr_agents):
-                agent.set_action(db_actions[j].item())
-            next_obs, reward, done, _ = env.step(surr_agents)
+        while i < EVAL_STEPS_PER_EPISODE:
+            action, log_prob, entropy, value = \
+                central_agent.act(obs, framework)
+            a_index = 0
+            for ag in agents:
+                for a in ag:
+                    a.action_index = action[a_index].item()
+                    a.action = actions[a.action_index]
+                    a_index += 1
+            next_obs, reward, done, envs, agents = \
+                env_step_test(pool, envs, agents)
             obs = next_obs
-            ep_availability.append(env.mue.sinr > env.params.sinr_threshold)
-            ep_rewards.append(reward)
-            ep_mue_sinrs.append(env.mue.sinr)
-            ep_d2d_sinrs.append([p[0].sinr for p in env.d2d_pairs])
+            st_mue_sinrs = np.array([e.mue.sinr for e in envs])
+            avails = st_mue_sinrs > envs[0].params.sinr_threshold
+            env_pairs = [p for p in [e.d2d_pairs for e in envs]]
+            st_d2d_sinrs = []
+            for ep in env_pairs:
+                sinrs = [p[0].sinr for p in ep]
+                st_d2d_sinrs.append(sinrs)
+            ep_availability += avails.tolist()
+            ep_rewards += reward.tolist()
+            ep_mue_sinrs += [*st_mue_sinrs]
+            ep_d2d_sinrs += st_d2d_sinrs
             i += 1
         rewards_bag += ep_rewards
         mue_sinrs += ep_mue_sinrs
@@ -403,44 +356,36 @@ def test(framework: Framework):
 def evaluate(start: float, writer: SummaryWriter):
     step = 0
     mue_availability = []
-    env = deepcopy(ref_env)
-    env.dt = EVAL_DELTA_T  # set dt to 1s for evaluation
-    env.build_scenario(surr_agents, motion_model=MOTION_MODEL)
-    positions_fig = plot_positions(
-        env.bs, [env.mue],
-        [p[0] for p in env.d2d_pairs],
-        [p[1] for p in env.d2d_pairs],
-        False
-    )
+    env.reset()
+    env.build_scenario(agents, motion_model=MOTION_MODEL)
+    env.reset_devices_positions()
     devices = env.get_devices()
     trajectories = {d.id: [d.position] for d in devices}
-    writer.add_figure('Devices positions', positions_fig)
     d2d_sinrs = []
     while step < EVAL_STEPS:
-        obs, _, _, _ = env.step(surr_agents)
+        obs, _, _, _ = env.step(agents)
         now = (time() - start) / 60
         print_evaluating(step, now, EVAL_STEPS)
         done = False
         i = 0
-        actions = central_agent_test.act(obs, framework, False)
-        # db_actions = power_to_db(actions)
-        db_actions = actions
-        for j, agent in enumerate(surr_agents):
-            agent.set_action(db_actions[j].item())
-        next_obs, reward, done, _ = env.step(surr_agents)
-        framework.replay_memory.push(obs, actions, reward, next_obs,
-                                     done)
+        past_actions = np.zeros(len(agents))
+        with torch.no_grad():
+            for j, agent in enumerate(agents):
+                agent.get_action(framework, obs[j])
+                past_actions[j] = agent.action_index
+        next_obs, reward, _, _ = env.step(agents)
         obs = next_obs
         i += 1
         step += 1
-        writer.add_scalar('3. Eval - Rewards', reward, step)
-        sinrs = [a.d2d_tx.sinr for a in surr_agents]
+        rewards = {f'device {i}': r for i, r in enumerate(reward)}
+        writer.add_scalars('3. Eval - Rewards', rewards, step)
+        sinrs = [a.d2d_tx.sinr for a in agents]
         d2d_sinrs.append(sinrs)
         sinrs = {f'device {i}': s for i, s in enumerate(sinrs)}
         writer.add_scalars('3. Eval - SINRs [dB]', sinrs, step)
         writer.add_scalars(
             '3. Eval - Transmission powers [dBW]',
-            {f'device {i}': a for i, a in enumerate(db_actions)},
+            {f'device {i}': a for i, a in enumerate(past_actions)},
             step
         )
         mue_success = int(env.mue.sinr > env.params.sinr_threshold)
@@ -459,6 +404,8 @@ def evaluate(start: float, writer: SummaryWriter):
 
 
 def run():
+    # multiprocessing pool
+    pool = Pool(NUM_POOLS)
     # make data dir
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
@@ -467,11 +414,11 @@ def run():
     writer = SummaryWriter(f'{data_path}/tensorboard')
     start = time()
     # set environment up
-    train_bags = train(start, writer)
-    states = train_bags['collected_states']
-    plot_env_states(states, N_STATES_BINS, f'{data_path}/env_states.png')
-    test_bags = test(framework)
-    evaluate(start, writer)
+    train_bags = train(start, writer, pool)
+    # states = train_bags['collected_states']
+    # plot_env_states(states, N_STATES_BINS, f'{data_path}/env_states.png')
+    test_bags = test(framework, pool)
+    # evaluate(start, writer)
     writer.close()
     # save stuff
     now = (time() - start) / 60
@@ -483,11 +430,13 @@ def run():
         'eval_every': EVAL_EVERY,
         'mue_sinr_threshold': sinr_threshold_train,
     }
-    gen.save_with_pickle(data, data_file_path)
+    save_with_pickle(envs[0], f'{data_path}/env.pickle')
+    save_with_pickle(data, data_file_path)
     copyfile(__file__, f'{data_path}/{filename}.py')
     torch.save(framework, f'{data_path}/last_model.pt')
     torch.save(best_framework, f'{data_path}/best_model.pt')
     print(f'done. Elapsed time: {now} minutes.')
+    pool.close()
 
 
 if __name__ == '__main__':

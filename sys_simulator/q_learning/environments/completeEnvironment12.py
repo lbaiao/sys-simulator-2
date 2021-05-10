@@ -76,6 +76,7 @@ class CompleteEnvironment12(RLEnvironment):
         reward_function='continuous',
         memories_capacity=int(1e3),
         states_function='single_agent',
+        rewards_params={'gamma1': 2, 'gamma2': 5, 'gamma3': 1},
         **kwargs
     ):
         self.params = params
@@ -92,7 +93,6 @@ class CompleteEnvironment12(RLEnvironment):
         self.channel_to_devices: Channel = channel_to_devices
         self.n_closest_devices = n_closest_devices
         self.memory = memory
-        self.diff = 0
         self.reward_penalty = reward_penalty
         self.bs_height = bs_height
         self.devices_original_positions = {}
@@ -117,6 +117,7 @@ class CompleteEnvironment12(RLEnvironment):
         self.pathlosses_are_calculated = False
         # reward_function
         self.manage_reward_function(reward_function)
+        self.rewards_params = rewards_params
         # states function
         self.manage_states_function(states_function)
 
@@ -165,12 +166,6 @@ class CompleteEnvironment12(RLEnvironment):
              )
             for x in range(len(agents))
         ]
-        # set diff
-        diff = self.n_closest_devices - len(self.d2d_pairs) + 1
-        self.diff = 0 if diff < 0 else diff
-        # dummy pairs
-        for _ in range(self.diff):
-            self.d2d_pairs.append(self.make_dummy_d2d_pair())
         self.rb = 1
         # distributing mue in the bs radius
         gen.distribute_nodes([self.mue], self.bs)
@@ -202,10 +197,13 @@ class CompleteEnvironment12(RLEnvironment):
         # reset sets
         self.reset_sets()
 
-    def set_scenario(self, pairs_positions: List[Tuple],
-                     mue_position: Tuple, agents: List[SurrogateAgent]):
+    def set_scenario(
+        self, pairs_positions: List[Tuple],
+        mue_position: Tuple, agents: List[SurrogateAgent],
+        motion_model='no_movement'
+    ):
         if len(pairs_positions) != len(agents):
-            raise Exception('Different `pair_positions` and `agents` lengths.')
+            raise Exception('Different `pair_positions` and `agents` lengths.')  # noqa
         self.reset_before_build_set()
         # declaring the bs, mues and d2d pairs
         self.sinr_d2ds = []
@@ -214,7 +212,7 @@ class CompleteEnvironment12(RLEnvironment):
                                radius=self.params.bs_radius)
         self.bs.set_gain(self.params.bs_gain)
         # mue stuff
-        self.mue = mobile_user(0, self.params.p_max)
+        self.mue = mobile_user(0, self.params.p_max, motion_model=motion_model)  # noqa
         self.mue.set_gain(self.params.user_gain)
         self.mue.set_position(mue_position)
         self.mue.set_rb(self.rb)
@@ -223,16 +221,10 @@ class CompleteEnvironment12(RLEnvironment):
         # instantiate d2d_pairs
         self.d2d_pairs = [(
             d2d_user(x, d2d_node_type.TX, self.params.p_max,
-                     memory_size=self.memory),
+                     memory_size=self.memory, motion_model=motion_model),
             d2d_user(x, d2d_node_type.RX, self.params.p_max,
-                     memory_size=self.memory)
+                     memory_size=self.memory, motion_model=motion_model)
         ) for x in range(len(agents))]
-        # set diff
-        diff = self.n_closest_devices - len(self.d2d_pairs) + 1
-        self.diff = 0 if diff < 0 else diff
-        # dummy pairs
-        for _ in range(self.diff):
-            self.d2d_pairs.append(self.make_dummy_d2d_pair())
         self.rb = 1
         self.distances = [1/10*i*self.bs.radius for i in range(11)]
         # distributing nodes in the bs radius
@@ -268,10 +260,6 @@ class CompleteEnvironment12(RLEnvironment):
             # register d2d device to a RL agent
             agents[i].set_d2d_tx_id(self.d2d_pairs[i][0].id)
             agents[i].set_d2d_tx(self.d2d_pairs[i][0])
-        # set diff: the amount of devices must be >= than
-        # `self.n_closest_devices` in order to build the environment states
-        diff = self.n_closest_devices - len(self.d2d_pairs) + 1
-        self.diff = 0 if diff < 0 else diff
         # pathlosses
         self.calc_set_all_losses()
         # reset sets
@@ -352,8 +340,10 @@ class CompleteEnvironment12(RLEnvironment):
             sinrs.append(p[0].sinr)
         # channel losses
         loss_bs = self.total_losses[pair[0].id][self.bs.id]
+        loss_mue_bs = self.total_losses[self.mue.id][self.bs.id]
         loss_d2d = self.total_losses[pair[0].id][pair[1].id]
         losses_to_bs.append(loss_bs)
+        losses_to_bs.append(loss_mue_bs)
         losses_to_d2d.append(loss_d2d)
         for p in other_pairs:
             loss_p_bs = self.total_losses[p[0].id][self.bs.id]
@@ -584,6 +574,7 @@ class CompleteEnvironment12(RLEnvironment):
         self.set_all_losses()
 
     def step_losses(self):
+        self.calculate_pathlosses()
         self.calculate_small_scale_fadings()
         self.calculate_total_losses()
         self.set_all_losses()
@@ -682,15 +673,12 @@ class CompleteEnvironment12(RLEnvironment):
                 )
             d2d_interferences.append((d.id,  interference))
         # set the interferences caused by the D2D devices
+        total_interference = 0.0
         if len(d2d_interferences) > 0:
             d2d_tx.set_interferences(d2d_interferences)
-        else:
-            raise Exception(
-                'It is not possible to not have interferers.'
-            )
-        # total interference
-        _, interferences = list(zip(*d2d_interferences))
-        total_interference = np.sum(interferences)
+            # total interference
+            _, interferences = list(zip(*d2d_interferences))
+            total_interference = np.sum(interferences)
         # d2d_tx sinr
         sinr = d2d_tx_contrib - \
             power_to_db(
@@ -709,6 +697,7 @@ class CompleteEnvironment12(RLEnvironment):
         self.reset_all_sets()
 
     def reset_sets(self):
+        self.pathlosses_are_calculated = False
         self.small_scale_fadings_are_set = False
         self.total_losses_are_set = False
         if self.mue is not None:
@@ -884,14 +873,18 @@ class CompleteEnvironment12(RLEnvironment):
 #         return reward
 
     def calculate_continuous_reward(self, *kargs, **kwargs):
-        gamma1 = 2.0
-        # gamma2 = 1.0
-        # coeff2 = gamma2 * 10
+        gamma1 = self.rewards_params['gamma1']
+        gamma3 = self.rewards_params['gamma3']
+        min_d2d_sinr = -20
         if self.mue.sinr <= self.params.sinr_threshold:
             reward = gamma1 * (self.mue.sinr - self.params.sinr_threshold)
         else:
             sinrs = np.array([p[0].sinr for p in self.d2d_pairs])
-            reward = np.sum(db_to_power(sinrs))
+            mask1 = sinrs < min_d2d_sinr
+            if np.sum(mask1) > 0:
+                reward = np.sum(min_d2d_sinr - sinrs[mask1])
+            else:
+                reward = np.sum(db_to_power(sinrs))
             if reward > 10:
                 reward = power_to_db(reward)
         # if np.isnan(reward):
@@ -902,6 +895,7 @@ class CompleteEnvironment12(RLEnvironment):
                                       *kargs, **kwargs):
         gamma1 = 2.0
         gamma2 = .1
+        min_d2d_sinr = -20
         if self.mue.sinr <= self.params.sinr_threshold:
             r = gamma1 * (self.mue.sinr - self.params.sinr_threshold)
             rewards = r * np.ones(len(agents))
@@ -909,25 +903,49 @@ class CompleteEnvironment12(RLEnvironment):
             rewards = []
             for a in agents:
                 r = a.d2d_tx.sinr
-                if r < 10:
+                if r < min_d2d_sinr:
+                    r -= min_d2d_sinr
+                elif r < 10:
                     r = db_to_power(r)
                 else:
                     r = 10 + gamma2 * r
                 rewards.append(r)
         return rewards
 
+    # def calculate_jain_reward(self, *kargs, **kwargs):
+    #     gamma1 = 2.0
+    #     gamma2 = 1
+    #     if self.mue.sinr <= self.params.sinr_threshold:
+    #         reward = gamma1 * (self.mue.sinr - self.params.sinr_threshold)
+    #     else:
+    #         sinrs = np.array([p[0].sinr for p in self.d2d_pairs])
+    #         reward = np.sum(db_to_power(sinrs))
+    #         if reward > 10:
+    #             reward = power_to_db(reward)
+    #         jain = jain_index(sinrs)
+    #         reward *= jain ** gamma2
+    #     # if np.isnan(reward):
+    #     #     print('bug')
+    #     return reward
+
     def calculate_jain_reward(self, *kargs, **kwargs):
-        gamma1 = 2.0
-        gamma2 = 1
+        gamma1 = self.rewards_params['gamma1']
+        gamma2 = self.rewards_params['gamma2']
+        gamma3 = self.rewards_params['gamma3']
+        min_d2d_sinr = -20
         if self.mue.sinr <= self.params.sinr_threshold:
             reward = gamma1 * (self.mue.sinr - self.params.sinr_threshold)
         else:
             sinrs = np.array([p[0].sinr for p in self.d2d_pairs])
-            reward = np.sum(db_to_power(sinrs))
+            mask = sinrs < min_d2d_sinr
+            if np.sum(mask) > 0:
+                reward = np.sum(sinrs[mask] - min_d2d_sinr)
+            else:
+                reward = gamma3 * np.sum(db_to_power(sinrs))
             if reward > 10:
                 reward = power_to_db(reward)
-            jain = jain_index(sinrs)
-            reward *= jain ** gamma2
+                jain = jain_index(sinrs)
+                reward *= jain ** gamma2
         # if np.isnan(reward):
         #     print('bug')
         return reward
@@ -1072,7 +1090,7 @@ class CompleteEnvironment12(RLEnvironment):
     def min_max_scaling(self, items: np.ndarray, reference: SimpleMemory):
         a_min = np.min(reference.memory)
         a_max = np.max(reference.memory)
-        result = (items - a_min)/(a_max - a_min)
+        result = (items - a_min)/(1.0001*a_max - a_min)
         return result
 
     def normalize(self, items: np.ndarray, reference: SimpleMemory,

@@ -13,7 +13,7 @@ class MotionModel:
         ----
         model: str
             options: 'no_movement', 'gauss_pedestrian', 'walking_pedestrian',
-            'fast_vehicle', 'random'
+            'fast_vehicle', 'random', 'forward'
 
         Attributes
         ----
@@ -63,6 +63,12 @@ class MotionModel:
             self.max_theta = pi/18
             self.speed = 1000
             self.scale= .01
+        elif self.model == 'forward':
+            self.min_theta = 0
+            self.max_theta = 0
+            self.speed = 1.37
+            self.scale = 0
+            self.step = self.forward
         else:
             raise Exception('Invalid motion model option.')
 
@@ -74,8 +80,10 @@ class MotionModel:
         pp1 = tuple(pp1.tolist())
         return pp1, dp1
 
-    # def step(self, position, direction, dt, *kargs, **kwargs):
-        # dp1 = direction + uniform(self.min_theta, self.max_theta)
-        # pp1 = np.array(position) + dt * self.speed * np.array((cos(dp1), sin(dp1)))
-        # pp1 = tuple(pp1.tolist())
-    #     return pp1, dp1
+    def forward(self, position, direction, dt, *kargs, **kwargs):
+        dp1 = self.direction
+        pp1 = np.array(position)
+        aux = np.array(pp1[:2]) + dt * self.speed * np.array((cos(dp1), sin(dp1)))
+        pp1[:2] = aux
+        pp1 = tuple(pp1.tolist())
+        return pp1, dp1

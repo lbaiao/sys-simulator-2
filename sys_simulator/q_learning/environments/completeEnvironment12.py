@@ -287,22 +287,22 @@ class CompleteEnvironment12(RLEnvironment):
         # normalize and add positions
         if 'positions' in self.states_options:
             positions = np.array(positions)
-            positions = self.norm_position(positions)
+            # positions = self.norm_position(positions)
             states.append(positions)
         # normalize and add sinrs
         if 'sinrs' in self.states_options:
             sinrs = np.array(sinrs)
-            sinrs = self.normalize(
-                sinrs, self.sinrs_memory, self.min_max_scaling)
+            # sinrs = self.normalize(
+            #     sinrs, self.sinrs_memory, self.min_max_scaling)
             states.append(sinrs)
         # normalize and add channel losses
         if 'channels' in self.states_options:
             losses_to_bs = np.array(losses_to_bs)
             losses_to_d2d = np.array(losses_to_d2d)
-            losses_to_bs = self.normalize(
-                losses_to_bs, self.losses_to_bs_memory, self.min_max_scaling)
-            losses_to_d2d = self.normalize(
-                losses_to_d2d, self.losses_to_d2d_memory, self.min_max_scaling)
+            # losses_to_bs = self.normalize(
+                # losses_to_bs, self.losses_to_bs_memory, self.min_max_scaling)
+            # losses_to_d2d = self.normalize(
+            #     losses_to_d2d, self.losses_to_d2d_memory, self.min_max_scaling)
             states.append(losses_to_bs)
             states.append(losses_to_d2d)
         # finish states

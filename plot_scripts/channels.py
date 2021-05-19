@@ -15,7 +15,7 @@ N_SAMPLES = int(1e3)
 N_BINS = int(1e2)
 d = np.linspace(1e-9, 500, N_SAMPLES)
 ban_channel = BANChannel()
-urban_channel = UrbanMacroNLOSWinnerChannel(sigma=2.0)
+urban_channel = UrbanMacroNLOSWinnerChannel(sigma=8.0, small_sigma=4)
 # get channel data
 ban_pathlosses = ban_channel.pathloss(d)
 ban_large_scale = [ban_channel.large_scale() for _ in range(N_SAMPLES)]

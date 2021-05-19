@@ -8,6 +8,29 @@ from sys_simulator.q_learning.environments.environment import RLEnvironment
 import seaborn as sns
 
 
+# Fonts configs
+x_font = {
+    'family': 'serif',
+    'color':  'black',
+    'weight': 'normal',
+    'size': 16,
+}
+y_font = {
+    'family': 'serif',
+    'color':  'black',
+    'weight': 'normal',
+    'size': 16,
+}
+ticks_font = {
+    'fontfamily': 'serif',
+    'fontsize': 13
+}
+legends_font = {
+    'size': 13,
+    'family': 'serif'
+}
+
+
 def plot_positions(bs: base_station, mues: List[mobile_user],
                    d2d_txs: List[d2d_user], d2d_rxs: List[d2d_user],
                    plot=True,
@@ -42,8 +65,10 @@ def plot_positions(bs: base_station, mues: List[mobile_user],
     plt.xlim(right=bs.radius+50)
     plt.ylim(bottom=-bs.radius-50)
     plt.ylim(top=bs.radius+50)
-    plt.title('Nodes')
-    plt.legend()
+    plt.xticks(**ticks_font)
+    plt.yticks(**ticks_font)
+    # plt.title('Nodes')
+    plt.legend(prop=legends_font)
     if plot:
         plt.show()
     else:
@@ -73,8 +98,10 @@ def plot_trajectories(env: CompleteEnvironment12,
     plt.xlim(right=bs.radius+50)
     plt.ylim(bottom=-bs.radius-50)
     plt.ylim(top=bs.radius+50)
-    plt.title('Nodes')
-    plt.legend()
+    plt.xticks(**ticks_font)
+    plt.yticks(**ticks_font)
+    # plt.title('Nodes')
+    plt.legend(prop=legends_font)
     return fig
 
 

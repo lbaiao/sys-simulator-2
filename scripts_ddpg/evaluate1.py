@@ -1,3 +1,6 @@
+from shutil import copyfile
+import matplotlib.pyplot as plt
+import os
 from math import pi
 import numpy as np
 from copy import deepcopy
@@ -8,7 +11,7 @@ from sys_simulator.parameters.parameters import EnvironmentParameters
 from sys_simulator.q_learning.environments.completeEnvironment12 import CompleteEnvironment12
 from sys_simulator.channels import BANChannel, UrbanMacroNLOSWinnerChannel
 import sys_simulator.general as gen
-from sys_simulator.general import print_evaluating, random_seed
+from sys_simulator.general import print_evaluating, random_seed, save_with_pickle
 from sys_simulator.ddpg.framework import Framework
 import torch
 from torch.utils.tensorboard.writer import SummaryWriter
@@ -16,7 +19,8 @@ from torch.utils.tensorboard.writer import SummaryWriter
 
 # parameters
 ALGO_NAME = 'ddpg'
-FRAMEWORK_PATH = 'D:\\Dev/sys-simulator-2/data/ddpg/script7/20210429-181155/last_model.pt'   # noqa
+FRAMEWORK_PATH = '/home/lucas/dev/sys-simulator-2/data/ddpg/script7/20210513-212829/last_model.pt'   # noqa
+# FRAMEWORK_PATH = 'D:\\Dev/sys-simulator-2/data/ddpg/script7/20210429-181155/last_model.pt'   # noqa
 n_mues = 1  # number of mues
 n_rb = n_mues   # number of RBs
 carrier_frequency = 2.4  # carrier frequency in GHz
@@ -48,7 +52,7 @@ DELTA_T = .5
 # q-learning parameters
 # training
 REWARD_FUNCTION = 'jain'
-STATES_OPTIONS = ['sinrs', 'positions', 'channels']
+STATES_OPTIONS = ['sinrs', 'positions']
 MOTION_MODEL = 'forward'
 EVAL_STEPS = 700
 
@@ -92,7 +96,7 @@ a_offset = -10
 # a_min = 0 + 1e-9
 # a_max = db_to_power(p_max - 10)
 action_size = MAX_NUMBER_OF_AGENTS
-framework: Framework = torch.load(FRAMEWORK_PATH)
+framework: Framework = torch.load(FRAMEWORK_PATH, map_location=torch_device)
 framework.actor.eval()
 central_agent_test = SysSimAgent(a_min, a_max, 'perturberd',
                                  torch_device, a_offset=a_offset)
@@ -112,7 +116,6 @@ n_agents = len(pairs_positions)
 
 def evaluate(start: float, writer: SummaryWriter):
     step = 0
-    mue_availability = []
     env = deepcopy(ref_env)
     env.set_scenario(pairs_positions, mue_position, surr_agents, motion_model=MOTION_MODEL)  # noqa
     # set directions
@@ -120,6 +123,7 @@ def evaluate(start: float, writer: SummaryWriter):
         tx.motion_model.direction = d_tx
         rx.motion_model.direction = d_rx
     env.mue.motion_model.direction = mue_direction
+    # positions fig
     positions_fig = plot_positions(
         env.bs, [env.mue],
         [p[0] for p in env.d2d_pairs],
@@ -129,7 +133,16 @@ def evaluate(start: float, writer: SummaryWriter):
     devices = env.get_devices()
     trajectories = {d.id: [d.position] for d in devices}
     writer.add_figure('Devices positions', positions_fig)
+    fig_name = 'original_positions'
+    svg_path = f'{data_path}/{fig_name}.svg'
+    eps_path = f'{data_path}/{fig_name}.eps'
+    plt.savefig(svg_path)
+    os.system(f'magick convert {svg_path} {eps_path}')
     d2d_sinrs = []
+    mue_sinrs = []
+    d2d_tx_powers = []
+    mue_availability = []
+    mue_tx_powers = []
     while step < EVAL_STEPS:
         obs, _, _, _ = env.step(surr_agents)
         now = (time() - start) / 60
@@ -139,6 +152,7 @@ def evaluate(start: float, writer: SummaryWriter):
         actions = central_agent_test.act(obs, framework, False)
         # db_actions = power_to_db(actions)
         db_actions = actions
+        d2d_tx_powers.append(db_actions.numpy())
         for j, agent in enumerate(surr_agents):
             agent.set_action(db_actions[j].item())
         next_obs, reward, done, _ = env.step(surr_agents)
@@ -159,23 +173,49 @@ def evaluate(start: float, writer: SummaryWriter):
         )
         writer.add_scalar('3. Eval - MUE Tx Power [dB]',
                           env.mue.tx_power, step)
+        mue_tx_powers.append(env.mue.tx_power)
         writer.add_scalar(
             '3. Eval - MUE SINR [dB]', env.mue.sinr, step)
+        mue_sinrs.append(env.mue.sinr)
         mue_success = int(env.mue.sinr > env.params.sinr_threshold)
         mue_availability.append(mue_success)
         writer.add_scalar('3. Eval - MUE success', mue_success, step)
         for d in env.get_devices():
             trajectories[d.id].append(d.position)
-    mue_availability = np.mean(mue_availability)
-    d2d_sinrs = np.mean(d2d_sinrs, axis=0)
+    avg_mue_availability = np.mean(mue_availability)
+    avg_d2d_sinrs = np.mean(d2d_sinrs, axis=0)
     writer.add_text('3. Eval - Average MUE availability',
-                    str(mue_availability), step)
-    for i, s in enumerate(d2d_sinrs):
+                    str(avg_mue_availability), step)
+    for i, s in enumerate(avg_d2d_sinrs):
         writer.add_text(f'3. Eval - Average D2D {i} SINR', str(s), step)
-    writer.add_figure('3. Eval - Trajectories',
-                      plot_trajectories(env, trajectories), step)
+    # trajectories fig
+    traj_figs = plot_trajectories(env, trajectories)
+    fig_name = 'trajectories'
+    svg_path = f'{data_path}/{fig_name}.svg'
+    eps_path = f'{data_path}/{fig_name}.eps'
+    writer.add_figure('3. Eval - Trajectories', traj_figs, step)
+    plt.savefig(svg_path)
+    os.system(f'magick convert {svg_path} {eps_path}')
+    return mue_availability, mue_sinrs, d2d_sinrs, d2d_tx_powers,\
+        trajectories, mue_tx_powers
 
 
 if __name__ == '__main__':
     start = time()
-    evaluate(start, writer)
+    mue_availability, mue_sinrs, d2d_sinrs, d2d_tx_powers,\
+        trajectories, mue_tx_powers = evaluate(start, writer)
+    # save stuff
+    data = {
+        'mue_availability': mue_availability,
+        'mue_sinrs': mue_sinrs,
+        'd2d_sinrs': d2d_sinrs,
+        'd2d_tx_powers': d2d_tx_powers,
+        'trajectories': trajectories,
+        'mue_tx_powers': mue_tx_powers,
+    }
+    now = (time() - start) / 60
+    data_file_path = f'{data_path}/log.pickle'
+    save_with_pickle(data, data_file_path)
+    copyfile(__file__, f'{data_path}/{filename}.py')
+    print(f'done. Elapsed time: {now} minutes.')
+

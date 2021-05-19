@@ -1,30 +1,30 @@
-from math import pi
 from copy import deepcopy
-from sys_simulator.general.actions_discretizations import db_five, db_six, db_ten
-from sys_simulator.dqn.externalDQNFramework import ExternalDQNFramework
-from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
-from sys_simulator.noises.decaying_gauss_noise import DecayingGaussNoise
+import os
+from math import pi
+from shutil import copyfile
 from time import time
+import matplotlib.pyplot as plt
 
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
 from sys_simulator.channels import BANChannel, UrbanMacroNLOSWinnerChannel
-from sys_simulator.ddpg.parameters_noise import (
-    AdaptiveParamNoiseSpec,
-)
+from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
+from sys_simulator.dqn.externalDQNFramework import ExternalDQNFramework
 import sys_simulator.general as gen
 from sys_simulator.general import (
     load_with_pickle,
-    power_to_db,
     print_evaluating,
-    print_stuff_ddpg,
     random_seed,
+    save_with_pickle,
 )
-from sys_simulator.noises.ou_noise import OUNoise2, SysSimOUNoise
-from sys_simulator.parameters.parameters import DQNAgentParameters, EnvironmentParameters
-from sys_simulator.plots import plot_env_states, plot_positions, plot_trajectories
+from sys_simulator.general.actions_discretizations import db_six
+from sys_simulator.parameters.parameters import (
+    DQNAgentParameters,
+    EnvironmentParameters,
+)
+from sys_simulator.plots import plot_positions, plot_trajectories
 from sys_simulator.q_learning.environments.completeEnvironment12 import (
     CompleteEnvironment12,
 )
@@ -71,7 +71,7 @@ DELTA_T = .5
 # q-learning parameters
 # training
 ALGO_NAME = 'dql'
-DATA_PATH = 'D:\\Dev/sys-simulator-2/data\\dql\\script52\\20210427-141357'  # noqa
+DATA_PATH = '/home/lucas/dev/sys-simulator-2/data/dql/script52/20210427-141357'  # noqa
 FRAMEWORK_PATH = f'{DATA_PATH}/last_model.pt'
 ENV_PATH = f'{DATA_PATH}/env.pickle'
 REWARD_FUNCTION = 'multi_agent_continuous'
@@ -92,11 +92,12 @@ filename = filename.split('.')[0]
 dir_path = f'data/{ALGO_NAME}/{filename}'
 data_path, _ = gen.make_dir_timestamp(dir_path)
 writer = SummaryWriter(f'{data_path}/tensorboard')
-framework: ExternalDQNFramework = torch.load(FRAMEWORK_PATH)
+torch_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+framework: ExternalDQNFramework = \
+    torch.load(FRAMEWORK_PATH, map_location=torch_device)
 framework.policy_net.eval()
 if RND_SEED:
     random_seed(SEED)
-torch_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 env_params = EnvironmentParameters(
     rb_bandwidth, None, p_max, noise_power,
     bs_gain, user_gain, sinr_threshold_train,
@@ -139,7 +140,6 @@ n_agents = len(pairs_positions)
 
 def evaluate(start: float, writer: SummaryWriter):
     step = 0
-    mue_availability = []
     env.reset()
     env.set_scenario(pairs_positions, mue_position, agents, motion_model=MOTION_MODEL)  # noqa
     for (tx, rx), (d_tx, d_rx) in zip(env.d2d_pairs, pairs_directions):
@@ -156,9 +156,18 @@ def evaluate(start: float, writer: SummaryWriter):
     )
     writer.add_figure('3. Eval - Initial position',
                       positions_fig, step)
+    fig_name = 'original_positions'
+    svg_path = f'{data_path}/{fig_name}.svg'
+    eps_path = f'{data_path}/{fig_name}.eps'
+    plt.savefig(svg_path)
+    os.system(f'magick convert {svg_path} {eps_path}')
     devices = env.get_devices()
     trajectories = {d.id: [d.position] for d in devices}
     d2d_sinrs = []
+    mue_sinrs = []
+    d2d_tx_powers = []
+    mue_availability = []
+    mue_tx_powers = []
     while step < EVAL_STEPS:
         obs, _, _, _ = env.step(agents)
         now = (time() - start) / 60
@@ -182,28 +191,55 @@ def evaluate(start: float, writer: SummaryWriter):
         writer.add_scalars('3. Eval - SINRs [dB]', sinrs, step)
         writer.add_scalar('3. Eval - MUE Tx Power [dB]',
                           env.mue.tx_power, step)
+        mue_tx_powers.append(env.mue.tx_power)
         writer.add_scalars(
             '3. Eval - Transmission powers [dBW]',
             {f'device {i}': a.action for i, a in enumerate(agents)},
             step
         )
+        d2d_tx_powers.append([a.action for a in agents])
         writer.add_scalar(
             '3. Eval - MUE SINR [dB]', env.mue.sinr, step)
+        mue_sinrs.append(env.mue.sinr)
         mue_success = int(env.mue.sinr > env.params.sinr_threshold)
         mue_availability.append(mue_success)
         writer.add_scalar('3. Eval - MUE success', mue_success, step)
         for d in env.get_devices():
             trajectories[d.id].append(d.position)
-    mue_availability = np.mean(mue_availability)
-    d2d_sinrs = np.mean(d2d_sinrs, axis=0)
+    avg_mue_availability = np.mean(mue_availability)
+    avg_d2d_sinrs = np.mean(d2d_sinrs, axis=0)
     writer.add_text('3. Eval - Average MUE availability',
-                    str(mue_availability), step)
-    for i, s in enumerate(d2d_sinrs):
+                    str(avg_mue_availability), step)
+    for i, s in enumerate(avg_d2d_sinrs):
         writer.add_text(f'3. Eval - Average D2D {i} SINR', str(s), step)
-    writer.add_figure('3. Eval - Trajectories',
-                      plot_trajectories(env, trajectories), step)
+    traj_figs = plot_trajectories(env, trajectories)
+    fig_name = 'trajectories'
+    svg_path = f'{data_path}/{fig_name}.svg'
+    eps_path = f'{data_path}/{fig_name}.eps'
+    writer.add_figure('3. Eval - Trajectories', traj_figs, step)
+    plt.savefig(svg_path)
+    os.system(f'magick convert {svg_path} {eps_path}')
+                      
+    return mue_availability, mue_sinrs, d2d_sinrs, d2d_tx_powers,\
+        trajectories, mue_tx_powers
 
 
 if __name__ == '__main__':
     start = time()
-    evaluate(start, writer)
+    mue_availability, mue_sinrs, d2d_sinrs, d2d_tx_powers,\
+        trajectories, mue_tx_powers = evaluate(start, writer)
+    # save stuff
+    data = {
+        'mue_availability': mue_availability,
+        'mue_sinrs': mue_sinrs,
+        'd2d_sinrs': d2d_sinrs,
+        'd2d_tx_powers': d2d_tx_powers,
+        'trajectories': trajectories,
+        'mue_tx_powers': mue_tx_powers,
+    }
+    now = (time() - start) / 60
+    data_file_path = f'{data_path}/log.pickle'
+    save_with_pickle(data, data_file_path)
+    copyfile(__file__, f'{data_path}/{filename}.py')
+    print(f'done. Elapsed time: {now} minutes.')
+

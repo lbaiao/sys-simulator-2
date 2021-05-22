@@ -373,6 +373,15 @@ def print_stuff_ddpg(
     print(out)
 
 
+def print_evaluate3(
+    episode: int, max_episodes: int, now: float,
+    n_agents: int
+):
+    out = f'Pairs: {n_agents}. Episode: {episode}/{max_episodes}. '+ \
+          f'Elapsed time: {now} minutes.'
+    print(out)
+
+
 def scale_tanh(qty: float, a_min: float, a_max: float):
     diff = a_max - a_min
     res = (qty / 2 + .5) * diff + a_min

@@ -108,9 +108,12 @@ class ExternalDQNAgent(Agent):
     Same as DQNAgent, but the agent does not have its own DQN.
     """
 
-    def __init__(self, params: DQNAgentParameters, actions):
+    def __init__(
+        self, params: DQNAgentParameters, actions,
+        device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    ):
         super(ExternalDQNAgent, self).__init__(params, actions)
-        self.device = torch.device("cuda")
+        self.device = device
         self.action = 0
         self.action_index = 0
         self.d2d_tx = None

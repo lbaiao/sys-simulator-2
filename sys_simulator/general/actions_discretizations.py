@@ -22,3 +22,18 @@ def db_ten(min_value: float, max_value: float):
     a_min = min_value if min_value < max_value-40 else -90
     actions = [a_min, *aux2, *aux]
     return actions
+
+
+def db_20():
+    a1 = np.linspace(-60, -20, 10)
+    a2 = np.linspace(-14, 0, 9)
+    actions = [-90, *a1, *a2]
+    return actions
+
+def db_30():
+    a0 = np.linspace(-90, -64, 10)
+    a1 = np.linspace(-60, -20, 10)
+    a2 = np.linspace(-14, 0, 10)
+    actions = [*a0, *a1, *a2]
+    return actions
+

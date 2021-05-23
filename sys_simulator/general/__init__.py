@@ -26,6 +26,11 @@ def power_to_db(x):
     return 10*np.log10(x)
 
 
+def scaling(x, a_min, a_max):
+    x = np.clip(x, a_min, a_max)
+    return (x - a_min)/(a_max - a_min)
+
+
 def upsample(input, factor):
     z_mat = np.zeros([factor-1, len(input[0])])
     aux = np.concatenate((input, z_mat), axis=0)
@@ -157,13 +162,23 @@ def distribute_pair_random_distance(
     base_station,
     min_distance,
     max_distance,
-    device_height=1.5
+    device_height=1.5,
+    distribution='uniform',
 ):
     center = base_station.position
     radius = base_station.radius
     is_node2_in_circle = False
-    x1 = (np.random.rand()-0.5)*2*radius+center[0]
-    y1 = (np.random.rand()-0.5)*2*(1-np.sqrt(radius**2-x1**2))+center[1]
+    if distribution == 'uniform':
+        x1 = (np.random.rand()-0.5)*2*radius+center[0]
+        y1 = (np.random.rand()-0.5)*2*(1-np.sqrt(radius**2-x1**2))+center[1]
+    elif distribution == 'normal':
+        r = random.gauss(mu=center[0], sigma=450)
+        r = np.clip(r, -radius, radius)
+        ang = random.uniform(0, 2*math.pi)
+        x1 = r * math.cos(ang)
+        y1 = r * math.sin(ang)
+    else:
+        raise Exception('Invalid pairs distribution option.')
     nodes[0].set_position((x1, y1, device_height))
     nodes[0].set_distance_to_bs(
         spatial.distance.euclidean(center, nodes[0].position))
@@ -370,6 +385,15 @@ def print_stuff_ddpg(
         out = 'Training. ' + \
             f'Step: {step}/{max_steps-1}. ' + \
             f'Elapsed time: {now} minutes.'
+    print(out)
+
+
+def print_evaluate3(
+    episode: int, max_episodes: int, now: float,
+    n_agents: int
+):
+    out = f'Pairs: {n_agents}. Episode: {episode}/{max_episodes}. '+ \
+          f'Elapsed time: {now} minutes.'
     print(out)
 
 

@@ -19,7 +19,7 @@ from torch.utils.tensorboard.writer import SummaryWriter
 
 # parameters
 ALGO_NAME = 'ddpg'
-FRAMEWORK_PATH = '/home/lucas/dev/sys-simulator-2/data/ddpg/script7/20210513-212829/last_model.pt'   # noqa
+FRAMEWORK_PATH = '/home/lucas/dev/sys-simulator-2/data/ddpg/script8/20210522-200418/last_model.pt'  # noqa
 # FRAMEWORK_PATH = 'D:\\Dev/sys-simulator-2/data/ddpg/script7/20210429-181155/last_model.pt'   # noqa
 n_mues = 1  # number of mues
 n_rb = n_mues   # number of RBs
@@ -48,12 +48,12 @@ C = 8  # C constant for the improved reward function
 ENVIRONMENT_MEMORY = 2
 MAX_NUMBER_OF_AGENTS = 2
 REWARD_PENALTY = 1.5
-DELTA_T = .5
+DELTA_T = .1
 # q-learning parameters
 # training
 REWARD_FUNCTION = 'jain'
-STATES_OPTIONS = ['sinrs', 'positions']
-MOTION_MODEL = 'forward'
+STATES_OPTIONS = ['sinrs', 'positions', 'channels']
+MOTION_MODEL = 'random'
 EVAL_STEPS = 700
 
 # writer
@@ -101,15 +101,30 @@ framework.actor.eval()
 central_agent_test = SysSimAgent(a_min, a_max, 'perturberd',
                                  torch_device, a_offset=a_offset)
 surr_agents = [SurrogateAgent() for _ in range(MAX_NUMBER_OF_AGENTS)]
+# pairs_positions = [
+    # ((-900, 0, device_height), (-900, 5, device_height)),
+    # ((900, 0, device_height), (900, -5, device_height)),
+# ]
+# mue_position = (200, 0, device_height)
+# pairs_positions = [
+    # ((-900, 0, device_height), (-900, 5, device_height)),
+    # ((900, 0, device_height), (900, -5, device_height)),
+# ]
+# mue_position = (0, -900, device_height)
+# pairs_positions = [
+    # ((-900, 0, device_height), (-900, 5, device_height)),
+    # ((200, 0, device_height), (200, -5, device_height)),
+# ]
+# mue_position = (0, -200, device_height)
 pairs_positions = [
-    ((-1, 0, device_height), (-1, 5, device_height)),
-    ((-1, 0, device_height), (-1, -5, device_height)),
+    ((-900, 0, device_height), (-900, 5, device_height)),
+    ((200, 0, device_height), (200, -5, device_height)),
 ]
+mue_position = (0, -900, device_height)
 pairs_directions = [
     (2*pi/3, 2*pi/3),
     (4*pi/3, 4*pi/3),
 ]
-mue_position = (900, 0, device_height)
 mue_direction = pi
 n_agents = len(pairs_positions)
 
@@ -132,12 +147,12 @@ def evaluate(start: float, writer: SummaryWriter):
     )
     devices = env.get_devices()
     trajectories = {d.id: [d.position] for d in devices}
-    writer.add_figure('Devices positions', positions_fig)
     fig_name = 'original_positions'
     svg_path = f'{data_path}/{fig_name}.svg'
     eps_path = f'{data_path}/{fig_name}.eps'
     plt.savefig(svg_path)
     os.system(f'magick convert {svg_path} {eps_path}')
+    writer.add_figure('Devices positions', positions_fig)
     d2d_sinrs = []
     mue_sinrs = []
     d2d_tx_powers = []
@@ -193,8 +208,8 @@ def evaluate(start: float, writer: SummaryWriter):
     fig_name = 'trajectories'
     svg_path = f'{data_path}/{fig_name}.svg'
     eps_path = f'{data_path}/{fig_name}.eps'
-    writer.add_figure('3. Eval - Trajectories', traj_figs, step)
     plt.savefig(svg_path)
+    writer.add_figure('3. Eval - Trajectories', traj_figs, step)
     os.system(f'magick convert {svg_path} {eps_path}')
     return mue_availability, mue_sinrs, d2d_sinrs, d2d_tx_powers,\
         trajectories, mue_tx_powers

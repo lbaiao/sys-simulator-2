@@ -115,6 +115,8 @@ def evaluate(start: float, writer: SummaryWriter):
     for (tx, rx), (d_tx, d_rx) in zip(env.d2d_pairs, pairs_directions):
         tx.motion_model.direction = d_tx
         rx.motion_model.direction = d_rx
+    env.d2d_pairs[0][0].motion_model.speed = 0
+    env.d2d_pairs[0][1].motion_model.speed = 0
     env.mue.motion_model.direction = mue_direction
     positions_fig = plot_positions(
         env.bs, [env.mue],

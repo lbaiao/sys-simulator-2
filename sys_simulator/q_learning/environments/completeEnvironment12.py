@@ -16,7 +16,7 @@ from sys_simulator.devices.devices import (
     node,
 )
 from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
-from sys_simulator.general import db_to_power, jain_index, power_to_db
+from sys_simulator.general import db_to_power, jain_index, power_to_db, scaling
 from sys_simulator.parameters.parameters import EnvironmentParameters
 from sys_simulator.q_learning.agents.distanceAgent import DistanceAgent
 from sys_simulator.q_learning.environments.environment import RLEnvironment
@@ -131,6 +131,12 @@ class CompleteEnvironment12(RLEnvironment):
             self.reward_function = self.calculate_jain_reward
         elif reward_function == 'multi_agent_continuous':
             self.reward_function = self.multi_agent_continuous_reward
+        elif reward_function == 'continuous2':
+            self.reward_function = self.continuous_reward2
+        elif reward_function == 'simple':
+            self.reward_function = self.simple_reward
+        elif reward_function == 'multi_agent_simple':
+            self.reward_function = self.multi_agent_simple_reward
         else:
             raise Exception('Invalid reward function.')
 
@@ -146,7 +152,7 @@ class CompleteEnvironment12(RLEnvironment):
 
     def build_scenario(
         self, agents: List[SurrogateAgent], d2d_limited_power=True,
-        motion_model='no_movement'
+        motion_model='no_movement', pairs_distribution='uniform'
     ):
         # declaring the bs, mues and d2d pairs
         self.reset_before_build_set()
@@ -173,7 +179,8 @@ class CompleteEnvironment12(RLEnvironment):
         for p in self.d2d_pairs:
             gen.distribute_pair_random_distance(
                 p, self.bs, self.params.min_d2d_pair_distance,
-                self.params.max_d2d_pair_distance
+                self.params.max_d2d_pair_distance,
+                distribution=pairs_distribution
             )
             for d in p:
                 d2d_pair_distance = euclidean(p[0].position, p[1].position)
@@ -357,29 +364,29 @@ class CompleteEnvironment12(RLEnvironment):
         # normalize and add positions
         if 'positions' in self.states_options:
             positions = np.array(positions)
-            positions = self.norm_position(positions)
+            # positions = self.norm_position(positions)
             states.append(positions)
         # normalize and add sinrs
         if 'sinrs' in self.states_options:
             sinrs = np.array(sinrs)
-            sinrs = self.normalize(
-                sinrs, self.sinrs_memory, self.min_max_scaling)
+            # sinrs = self.normalize(
+            #     sinrs, self.sinrs_memory, self.min_max_scaling)
             states.append(sinrs)
         # normalize and add channel losses
         if 'channels' in self.states_options:
             losses_to_bs = np.array(losses_to_bs)
             losses_to_d2d = np.array(losses_to_d2d)
-            losses_to_bs = self.normalize(
-                losses_to_bs, self.losses_to_bs_memory, self.min_max_scaling)
-            losses_to_d2d = self.normalize(
-                losses_to_d2d, self.losses_to_d2d_memory, self.min_max_scaling)
+            # losses_to_bs = self.normalize(
+                # losses_to_bs, self.losses_to_bs_memory, self.min_max_scaling)
+            # losses_to_d2d = self.normalize(
+            #     losses_to_d2d, self.losses_to_d2d_memory, self.min_max_scaling)
             states.append(losses_to_bs)
             states.append(losses_to_d2d)
         # normalized and powers
         if 'powers' in self.states_options:
             powers = np.array(powers)
-            powers = self.normalize(
-                powers, self.powers_memory, self.min_max_scaling)
+            # powers = self.normalize(
+            #     powers, self.powers_memory, self.min_max_scaling)
             states.append(powers)
         # finish states
         states = np.concatenate(states)
@@ -949,6 +956,43 @@ class CompleteEnvironment12(RLEnvironment):
         # if np.isnan(reward):
         #     print('bug')
         return reward
+
+    def continuous_reward2(self, *kargs, **kwargs):
+        gamma1 = self.rewards_params['gamma1']
+        # gamma2 = self.rewards_params['gamma2']
+        # gamma2 = 0
+        # gamma3 = self.rewards_params['gamma3']
+        min_d2d_sinr = 2
+        pen1 = 100
+        bon1 = 2
+        if self.mue.sinr <= self.params.sinr_threshold:
+            return gamma1 * (self.mue.sinr - self.params.sinr_threshold - pen1)
+        sinrs = np.array([p[0].sinr for p in self.d2d_pairs])
+        mask = sinrs < min_d2d_sinr
+        if mask.sum() > 0:
+            return scaling(sinrs[mask].mean(), -90, min_d2d_sinr) * pen1 - pen1
+        r = np.sum(db_to_power(sinrs))
+        if r <= bon1 * 10:
+            return bon1 * r
+        return power_to_db(r)
+
+    def simple_reward(self, *kargs, **kwargs):
+        gamma1 = self.rewards_params['gamma1']
+        gamma2 = self.rewards_params['gamma2']
+        sinrs = np.array([p[0].sinr for p in self.d2d_pairs])
+        r1 = gamma1 * np.min([self.mue.sinr, self.params.sinr_threshold])
+        r2 = gamma2 * sinrs.mean()
+        return r1 + r2
+
+    def multi_agent_simple_reward(self, agents, *kargs, **kwargs):
+        gamma1 = self.rewards_params['gamma1']
+        gamma2 = self.rewards_params['gamma2']
+        rewards = []
+        r1 = gamma1 * np.min([self.mue.sinr, self.params.sinr_threshold])
+        for a in agents:
+            r2 = gamma2 * a.d2d_tx.sinr
+            rewards.append(r1 + r2)
+        return rewards
 
     def calculate_speffs_reward(
         self, **kwargs

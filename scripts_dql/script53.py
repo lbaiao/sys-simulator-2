@@ -49,7 +49,7 @@ noise_power = -116  # noise power per RB in dBm
 bs_gain = 17    # macro bs antenna gain in dBi
 user_gain = 4   # user antenna gain in dBi
 sinr_threshold_train = 6  # mue sinr threshold in dB for training
-mue_margin = 6  # mue margin in dB
+mue_margin = 2  # mue margin in dB
 MIN_D2D_PAIR_DISTANCE = 1.5
 MAX_D2D_PAIR_DISTANCE = 15
 # conversions from dBm to dB
@@ -65,17 +65,18 @@ ENVIRONMENT_MEMORY = 2
 MAX_NUMBER_OF_AGENTS = 2
 REWARD_PENALTY = 1.5
 N_STATES_BINS = 100
-DELTA_T = 1e-3
+DELTA_T = 1
 # q-learning parameters
 # training
 ALGO_NAME = 'dql'
-REWARD_FUNCTION = 'multi_agent_continuous'
+REWARD_FUNCTION = 'multi_agent_simple'
 STATES_OPTIONS = ['sinrs', 'positions', 'channels']
 MOTION_MODEL = 'random'
+PAIRS_DISTRIBUTION = 'normal'
 # MOTION_MODEL = 'no_movement'
 STATES_FUNCTION = 'multi_agent'
 JAIN_REWARD_PARAMETERS = {
-    'gamma1': 3.5,
+    'gamma1': 10.0,
     'gamma2': 1.0,
     'gamma3': 0.0
 }
@@ -85,11 +86,11 @@ EVAL_STEPS = 100
 STEPS_PER_EPISODE = 5
 EVAL_STEPS_PER_EPISODE = 10
 REPLAY_INITIAL = 0
-TEST_NUM_EPISODES = 5
+TEST_NUM_EPISODES = 50
 REPLAY_MEMORY_SIZE = int(10E3)
 LEARNING_RATE = 8E-4
 HIDDEN_SIZE = 64
-N_HIDDEN_LAYERS = 1
+N_HIDDEN_LAYERS = 4
 BATCH_SIZE = 128
 GAMMA = .5
 EPSILON_INITIAL = 1
@@ -137,7 +138,7 @@ env_params = EnvironmentParameters(
 channel_to_devices = BANChannel(rnd=CHANNEL_RND)
 channel_to_bs = UrbanMacroNLOSWinnerChannel(
     rnd=CHANNEL_RND, f_c=carrier_frequency, h_bs=bs_height, h_ms=device_height,
-    small_sigma=8.0, sigma=8.0
+    small_sigma=4.0, sigma=8.0
 )
 ref_env = CompleteEnvironment12(
     env_params,
@@ -204,7 +205,8 @@ def train(start: float, writer: SummaryWriter):
     while step < MAX_STEPS:
         env.reset()
         env.build_scenario(agents, d2d_limited_power=False, 
-                           motion_model=MOTION_MODEL)
+                           motion_model=MOTION_MODEL,
+                           pairs_distribution=PAIRS_DISTRIBUTION)
         obs, _, _, _ = env.step(agents)
         done = False
         i = 0

@@ -1,8 +1,8 @@
 import random
+import numpy as np
 
 
 class SimpleMemory(object):
-
     def __init__(self, capacity):
         self.capacity = int(capacity)
         self.memory = []
@@ -20,3 +20,13 @@ class SimpleMemory(object):
 
     def __len__(self):
         return len(self.memory)
+
+
+class MinMaxMemory:
+    def __init__(self):
+        self.a_min = float('inf')
+        self.a_max = float('-inf')
+
+    def push(self, val: float):
+        self.a_min = np.min([self.a_min, *val])
+        self.a_max = np.max([self.a_max, *val])

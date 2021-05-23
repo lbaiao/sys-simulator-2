@@ -1,6 +1,6 @@
 from types import MethodType
 from typing import List, Tuple
-from sys_simulator.general.simple_memory import SimpleMemory
+from sys_simulator.general.simple_memory import MinMaxMemory, SimpleMemory
 
 import numpy as np
 from scipy.spatial.distance import euclidean
@@ -98,12 +98,12 @@ class CompleteEnvironment12(RLEnvironment):
         self.devices_original_positions = {}
         self.states_function = states_function
         # memories
-        self.powers_memory = SimpleMemory(memories_capacity)
-        self.interferences_memory = SimpleMemory(memories_capacity)
-        self.losses_to_bs_memory = SimpleMemory(memories_capacity)
-        self.losses_to_d2d_memory = SimpleMemory(memories_capacity)
-        self.rewards_memory = SimpleMemory(memories_capacity)
-        self.sinrs_memory = SimpleMemory(memories_capacity)
+        self.powers_memory = MinMaxMemory()
+        self.interferences_memory = MinMaxMemory()
+        self.losses_to_bs_memory = MinMaxMemory()
+        self.losses_to_d2d_memory = MinMaxMemory()
+        self.rewards_memory = MinMaxMemory()
+        self.sinrs_memory = MinMaxMemory()
         # losses
         self.pathlosses = {}
         self.small_scale_fadings = {}
@@ -364,29 +364,29 @@ class CompleteEnvironment12(RLEnvironment):
         # normalize and add positions
         if 'positions' in self.states_options:
             positions = np.array(positions)
-            # positions = self.norm_position(positions)
+            positions = self.norm_position(positions)
             states.append(positions)
         # normalize and add sinrs
         if 'sinrs' in self.states_options:
             sinrs = np.array(sinrs)
-            # sinrs = self.normalize(
-            #     sinrs, self.sinrs_memory, self.min_max_scaling)
+            sinrs = self.normalize(
+                sinrs, self.sinrs_memory, self.min_max_scaling)
             states.append(sinrs)
         # normalize and add channel losses
         if 'channels' in self.states_options:
             losses_to_bs = np.array(losses_to_bs)
             losses_to_d2d = np.array(losses_to_d2d)
-            # losses_to_bs = self.normalize(
-                # losses_to_bs, self.losses_to_bs_memory, self.min_max_scaling)
-            # losses_to_d2d = self.normalize(
-            #     losses_to_d2d, self.losses_to_d2d_memory, self.min_max_scaling)
+            losses_to_bs = self.normalize(
+                losses_to_bs, self.losses_to_bs_memory, self.min_max_scaling)
+            losses_to_d2d = self.normalize(
+                losses_to_d2d, self.losses_to_d2d_memory, self.min_max_scaling)
             states.append(losses_to_bs)
             states.append(losses_to_d2d)
         # normalized and powers
         if 'powers' in self.states_options:
             powers = np.array(powers)
-            # powers = self.normalize(
-            #     powers, self.powers_memory, self.min_max_scaling)
+            powers = self.normalize(
+                powers, self.powers_memory, self.min_max_scaling)
             states.append(powers)
         # finish states
         states = np.concatenate(states)
@@ -1131,9 +1131,9 @@ class CompleteEnvironment12(RLEnvironment):
         result = (items - mu)/var
         return result
 
-    def min_max_scaling(self, items: np.ndarray, reference: SimpleMemory):
-        a_min = np.min(reference.memory)
-        a_max = np.max(reference.memory)
+    def min_max_scaling(self, items: np.ndarray, reference: MinMaxMemory):
+        a_min = reference.a_min
+        a_max = reference.a_max
         result = (items - a_min)/(1.0001*a_max - a_min)
         return result
 

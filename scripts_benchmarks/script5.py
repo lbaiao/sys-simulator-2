@@ -6,16 +6,14 @@
 # There are multiple episodes, where the devices are distributed
 # in different positions, and there are different motion models.
 from copy import deepcopy
-from random import random
+from random import choice
 from shutil import copyfile
-from sys_simulator.general.actions_discretizations import db_five, db_six, db_ten
-from sys_simulator.dqn.externalDQNFramework import ExternalDQNFramework
+from typing import List
+from sys_simulator.general.actions_discretizations import db_six
 from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
 from time import time
 
-import numpy as np
 import torch
-from torch.utils.tensorboard import SummaryWriter
 
 from sys_simulator.channels import BANChannel, UrbanMacroNLOSWinnerChannel
 from sys_simulator.ddpg.parameters_noise import (
@@ -23,18 +21,26 @@ from sys_simulator.ddpg.parameters_noise import (
 )
 import sys_simulator.general as gen
 from sys_simulator.general import (
-    power_to_db,
-    print_evaluating,
-    print_stuff_ddpg,
+    print_evaluate3,
     random_seed,
     save_with_pickle,
 )
 from sys_simulator.parameters.parameters import DQNAgentParameters, EnvironmentParameters
-from sys_simulator.plots import plot_env_states, plot_positions, plot_trajectories
 from sys_simulator.q_learning.environments.completeEnvironment12 import (
     CompleteEnvironment12,
 )
 
+# training
+ALGO_NAME = 'benchmark'
+EVAL_STEPS_PER_EPISODE = 10
+TEST_NUM_EPISODES = 1000
+PRINT_EVERY = 100
+AGENTS_RANGE = range(6)[1:]
+# env params
+REWARD_FUNCTION = 'multi_agent_continuous'
+STATES_OPTIONS = ['sinrs', 'positions']
+MOTION_MODEL = 'random'
+STATES_FUNCTION = 'multi_agent'
 n_mues = 1  # number of mues
 n_d2d = 2  # number of d2d pairs
 n_rb = n_mues   # number of RBs
@@ -66,56 +72,7 @@ REWARD_PENALTY = 1.5
 N_STATES_BINS = 100
 DELTA_T = 1e-3
 # q-learning parameters
-# training
-ALGO_NAME = 'benchmark'
-REWARD_FUNCTION = 'multi_agent_continuous'
-STATES_OPTIONS = ['sinrs', 'positions', 'channels', 'powers']
-MOTION_MODEL = 'random'
-# MOTION_MODEL = 'no_movement'
-STATES_FUNCTION = 'multi_agent'
-MAX_STEPS = 40000
-EVAL_STEPS = 1000
-# MAX_STEPS = 1000
-STEPS_PER_EPISODE = 5
-EVAL_STEPS_PER_EPISODE = 10
-REPLAY_INITIAL = 0
-TEST_NUM_EPISODES = 10000
-REPLAY_MEMORY_SIZE = int(10E3)
-LEARNING_RATE = 8E-4
-HIDDEN_SIZE = 64
-N_HIDDEN_LAYERS = 1
-BATCH_SIZE = 128
-GAMMA = .5
-EPSILON_INITIAL = 1
-EPSILON_MIN = .01
-EPSILON_DECAY = 1 / (.1 * MAX_STEPS)
-SOFT_TAU = .05
-ALPHA = .6
-BETA = .4
-REPLAY_MEMORY_TYPE = 'standard'
-PRIO_BETA_ITS = int(.4*(MAX_STEPS - REPLAY_INITIAL))
-PRINT_EVERY = int(MAX_STEPS/100)
-EVAL_EVERY = int(MAX_STEPS / 20)
-TARGET_UPDATE = 50
-# EVAL_EVERY = int(MAX_STEPS / 1)
-OU_DECAY_PERIOD = 100000
-# OU_DECAY_PERIOD = STEPS_PER_EPISODE
-# ou noise params
-OU_MU = 0.2
-OU_THETA = .25
-OU_MAX_SIGMA = .5
-OU_MIN_SIGMA = .05
-OU_DIM = 1e-2
-# adaptive noise params
-INITIAL_STDDEV = 0.1
-DESIRED_ACTION_STDDEV = 0.3
-ADAPTATION_COEFFICIENT = 1.01
-UPDATE_PERTURBERD_EVERY = 5
-# normal actions noise
-NORMAL_LOC = 0
-NORMAL_SCALE = 4
-NORMAL_T = MAX_STEPS
-NORMAL_MIN_SCALE = .01
+
 
 if RND_SEED:
     random_seed(SEED)
@@ -131,7 +88,7 @@ env_params = EnvironmentParameters(
 channel_to_devices = BANChannel(rnd=CHANNEL_RND)
 channel_to_bs = UrbanMacroNLOSWinnerChannel(
     rnd=CHANNEL_RND, f_c=carrier_frequency, h_bs=bs_height, h_ms=device_height,
-    small_sigma=8.0, sigma=8.0
+    small_sigma=4.0, sigma=8.0
 )
 ref_env = CompleteEnvironment12(
     env_params,
@@ -148,52 +105,40 @@ ref_env = CompleteEnvironment12(
 env = deepcopy(ref_env)
 a_min = -60
 a_offset = -10
-# a_min = 0 + 1e-9
 action_size = MAX_NUMBER_OF_AGENTS
 env_state_size = ref_env.state_size()
-# actions = db_five(p_min, p_max)
 actions = db_six(p_min, p_max)
-# actions = db_ten(p_min, p_max)
 NUMBER_OF_ACTIONS = len(actions)
-agent_params = DQNAgentParameters(
-    EPSILON_MIN, EPSILON_DECAY, EPSILON_INITIAL, REPLAY_MEMORY_SIZE,
-    BATCH_SIZE, GAMMA
-)
-param_noise = AdaptiveParamNoiseSpec(
-    initial_stddev=INITIAL_STDDEV,
-    desired_action_stddev=DESIRED_ACTION_STDDEV,
-    adaptation_coefficient=ADAPTATION_COEFFICIENT
-)
-agent_params = DQNAgentParameters(
-    EPSILON_MIN, EPSILON_DECAY, EPSILON_INITIAL, REPLAY_MEMORY_SIZE,
-    BATCH_SIZE, GAMMA
-)
+agent_params = DQNAgentParameters(1, 1, 1, 1, 1, 1)
 agents = [ExternalDQNAgent(agent_params, actions)
           for _ in range(MAX_NUMBER_OF_AGENTS)]
 action_range = range(len(actions))
 
 
 def act():
-    action_index = random.choice(action_range)
+    action_index = choice(action_range)
     action = actions[action_index]
     return action, action_index
 
 
-def test():
+def test(start: float, agents: List[ExternalDQNAgent]):
     mue_availability = []
     mue_sinrs = []
     d2d_sinrs = []
     rewards_bag = []
-    for _ in range(TEST_NUM_EPISODES):
+    for ep in range(TEST_NUM_EPISODES):
         env.reset()
         env.build_scenario(agents, motion_model=MOTION_MODEL)
-        obs, _, _, _ = env.step(agents)
+        env.step(agents)
         i = 0
         done = False
         ep_availability = []
         ep_rewards = []
         ep_mue_sinrs = []
         ep_d2d_sinrs = []
+        if ep % PRINT_EVERY == 0:
+            now = (time() - start) / 60
+            print_evaluate3(ep, TEST_NUM_EPISODES, now, len(agents))
         while not done and i < EVAL_STEPS_PER_EPISODE:
             with torch.no_grad():
                 for agent in agents:
@@ -202,8 +147,7 @@ def test():
                     agent.action_index = a_index
             # actions = np.zeros(MAX_NUMBER_OF_AGENTS) + 1e-9
             # db_actions = power_to_db(actions)
-            next_obs, reward, done, _ = env.step(agents)
-            obs = next_obs
+            _, reward, done, _ = env.step(agents)
             ep_availability.append(env.mue.sinr > env.params.sinr_threshold)
             ep_rewards.append(reward)
             ep_mue_sinrs.append(env.mue.sinr)
@@ -222,30 +166,24 @@ def test():
     return all_bags
 
 
-def run():
+if __name__ == '__main__':
     # make data dir
     filename = gen.path_leaf(__file__)
     filename = filename.split('.')[0]
     dir_path = f'data/{ALGO_NAME}/{filename}'
     data_path, _ = gen.make_dir_timestamp(dir_path)
     start = time()
-    # set environment up
-    test_bags = test()
+    results = []
+    for i in AGENTS_RANGE:
+        agents = [
+            ExternalDQNAgent(agent_params, actions)
+            for _ in range(i)
+        ]
+        r = test(start, agents)
+        results.append(r)
     # save stuff
     now = (time() - start) / 60
     data_file_path = f'{data_path}/log.pickle'
-    data = {
-        'test_bags': test_bags,
-        'elapsed_time': now,
-        'eval_every': EVAL_EVERY,
-        'mue_sinr_threshold': sinr_threshold_train,
-    }
-    env.reset()
-    save_with_pickle(env, f'{data_path}/env.pickle')
-    save_with_pickle(data, data_file_path)
+    save_with_pickle(results, data_file_path)
     copyfile(__file__, f'{data_path}/{filename}.py')
     print(f'done. Elapsed time: {now} minutes.')
-
-
-if __name__ == '__main__':
-    run()

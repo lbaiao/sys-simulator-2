@@ -79,11 +79,11 @@ OPTIMIZERS = 'adam'
 NUM_ENVS = 4
 NUM_POOLS = 4
 REWARD_FUNCTION = 'multi_agent_continuous'
-STATES_OPTIONS = ['sinrs', 'positions', 'channels', 'powers']
+STATES_OPTIONS = ['sinrs', 'positions', 'channels']
 MOTION_MODEL = 'random'
 STATES_FUNCTION = 'multi_agent'
 # MAX_STEPS = 1000
-MAX_STEPS = 20000
+MAX_STEPS = 40000
 EVAL_STEPS = 1000
 # MAX_STEPS = 1000
 STEPS_PER_EPISODE = 5
@@ -133,7 +133,7 @@ env_params = EnvironmentParameters(
 channel_to_devices = BANChannel(rnd=CHANNEL_RND)
 channel_to_bs = UrbanMacroNLOSWinnerChannel(
     rnd=CHANNEL_RND, f_c=carrier_frequency, h_bs=bs_height, h_ms=device_height,
-    small_sigma=8.0, sigma=8.0
+    small_sigma=4.0, sigma=8.0
 )
 ref_env = CompleteEnvironment12(
     env_params,
@@ -158,6 +158,7 @@ action_size = MAX_NUMBER_OF_AGENTS
 env_state_size = ref_env.state_size()
 # actions = db_five(p_min, p_max)
 actions = db_six(p_min, p_max)
+# actions = [-90, -60, -40, -30, -20, -10]
 # actions = db_ten(p_min, p_max)
 NUMBER_OF_ACTIONS = len(actions)
 framework = A2CDiscreteFramework(

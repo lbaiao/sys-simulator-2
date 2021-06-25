@@ -69,12 +69,12 @@ DELTA_T = 1e-3
 # q-learning parameters
 # training
 ALGO_NAME = 'dql'
-REWARD_FUNCTION = 'multi_agent_continuous'
+REWARD_FUNCTION = 'multi_agent_reward_2'
 STATES_OPTIONS = ['sinrs', 'positions', 'channels']
 MOTION_MODEL = 'random'
 # MOTION_MODEL = 'no_movement'
 STATES_FUNCTION = 'multi_agent'
-MAX_STEPS = 20000
+MAX_STEPS = 80000
 EVAL_STEPS = 100
 # MAX_STEPS = 1000
 STEPS_PER_EPISODE = 5
@@ -82,14 +82,14 @@ EVAL_STEPS_PER_EPISODE = 10
 REPLAY_INITIAL = 0
 TEST_NUM_EPISODES = 5
 REPLAY_MEMORY_SIZE = int(10E3)
-LEARNING_RATE = 8E-4
+LEARNING_RATE = 2E-4
 HIDDEN_SIZE = 64
-N_HIDDEN_LAYERS = 1
+N_HIDDEN_LAYERS = 2
 BATCH_SIZE = 128
 GAMMA = .5
 EPSILON_INITIAL = 1
 EPSILON_MIN = .01
-EPSILON_DECAY = 1 / (.1 * MAX_STEPS)
+EPSILON_DECAY = 1 / (.5 * MAX_STEPS)
 SOFT_TAU = .05
 ALPHA = .6
 BETA = .4
@@ -132,7 +132,7 @@ env_params = EnvironmentParameters(
 channel_to_devices = BANChannel(rnd=CHANNEL_RND)
 channel_to_bs = UrbanMacroNLOSWinnerChannel(
     rnd=CHANNEL_RND, f_c=carrier_frequency, h_bs=bs_height, h_ms=device_height,
-    small_sigma=8.0, sigma=8.0
+    small_sigma=4.0, sigma=8.0
 )
 ref_env = CompleteEnvironment12(
     env_params,
@@ -155,7 +155,9 @@ action_size = MAX_NUMBER_OF_AGENTS
 env_state_size = ref_env.state_size()
 # actions = db_five(p_min, p_max)
 actions = db_six(p_min, p_max)
+# actions = np.linspace(-90, 0, 10)
 # actions = db_ten(p_min, p_max)
+# actions = [-90, -60, -40, -30, -20, -10]
 NUMBER_OF_ACTIONS = len(actions)
 agent_params = DQNAgentParameters(
     EPSILON_MIN, EPSILON_DECAY, EPSILON_INITIAL, REPLAY_MEMORY_SIZE,
@@ -171,11 +173,6 @@ framework = ExternalDQNFramework(
     LEARNING_RATE
 )
 best_framework = deepcopy(framework)
-param_noise = AdaptiveParamNoiseSpec(
-    initial_stddev=INITIAL_STDDEV,
-    desired_action_stddev=DESIRED_ACTION_STDDEV,
-    adaptation_coefficient=ADAPTATION_COEFFICIENT
-)
 agent_params = DQNAgentParameters(
     EPSILON_MIN, EPSILON_DECAY, EPSILON_INITIAL, REPLAY_MEMORY_SIZE,
     BATCH_SIZE, GAMMA

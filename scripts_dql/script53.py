@@ -183,10 +183,6 @@ param_noise = AdaptiveParamNoiseSpec(
     desired_action_stddev=DESIRED_ACTION_STDDEV,
     adaptation_coefficient=ADAPTATION_COEFFICIENT
 )
-agent_params = DQNAgentParameters(
-    EPSILON_MIN, EPSILON_DECAY, EPSILON_INITIAL, REPLAY_MEMORY_SIZE,
-    BATCH_SIZE, GAMMA
-)
 agents = [ExternalDQNAgent(agent_params, actions) for _ in range(MAX_NUMBER_OF_AGENTS)]
 
 

@@ -36,10 +36,15 @@ TEST_NUM_EPISODES = 1000
 PRINT_EVERY = 100
 AGENTS_RANGE = range(6)[1:]
 # env params
-REWARD_FUNCTION = 'multi_agent_continuous'
+REWARD_FUNCTION = 'simple'
 STATES_OPTIONS = []
 MOTION_MODEL = 'random'
 STATES_FUNCTION = 'multi_agent'
+JAIN_REWARD_PARAMETERS = {
+    'gamma1': 10.0,
+    'gamma2': 1.0,
+    'gamma3': 0.0
+}
 n_mues = 1  # number of mues
 n_d2d = 2  # number of d2d pairs
 n_rb = n_mues   # number of RBs
@@ -99,7 +104,8 @@ ref_env = CompleteEnvironment12(
     reward_function=REWARD_FUNCTION,
     memories_capacity=int(1e4),
     dt=DELTA_T,
-    states_function=STATES_FUNCTION
+    states_function=STATES_FUNCTION,
+    rewards_params=JAIN_REWARD_PARAMETERS
 )
 env = deepcopy(ref_env)
 a_min = -60

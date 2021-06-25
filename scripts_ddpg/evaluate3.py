@@ -17,11 +17,11 @@ ALGO_NAME = 'ddpg'
 BASE_PATH = '/home/lucas/dev/sys-simulator-2'
 AGENTS_RANGE = range(6)[1:]
 MODELS_PATHS = [
-    f'{BASE_PATH}/data/ddpg/script7/20210513-203713/last_model.pt',
-    f'{BASE_PATH}/data/ddpg/script7/20210513-212829/last_model.pt',
-    f'{BASE_PATH}/data/ddpg/script7/20210511-204603/last_model.pt',
-    f'{BASE_PATH}/data/ddpg/script7/20210513-233135/last_model.pt',
-    f'{BASE_PATH}/data/ddpg/script7/20210511-223017/last_model.pt',
+    '/home/lucas/dev/sys-simulator-2/data/ddpg/script8/20210523-200342/last_model.pt',
+    '/home/lucas/dev/sys-simulator-2/data/ddpg/script8/20210522-200418/last_model.pt',
+    '/home/lucas/dev/sys-simulator-2/data/ddpg/script8/20210523-201520/last_model.pt',
+    '/home/lucas/dev/sys-simulator-2/data/ddpg/script8/20210523-203219/last_model.pt',
+    '/home/lucas/dev/sys-simulator-2/data/ddpg/script8/20210523-204818/last_model.pt',
 ]
 # ENVS_PATHS = [
     # f'{BASE_PATH}/data/ddpg/script7/20210509-171944/env.pickle',
@@ -84,11 +84,16 @@ C = 8  # C constant for the improved reward function
 ENVIRONMENT_MEMORY = 2
 MAX_NUMBER_OF_AGENTS = 2
 REWARD_PENALTY = 1.5
-DELTA_T = .5
+DELTA_T = 1e-3
 # q-learning parameters
 # training
-REWARD_FUNCTION = 'jain'
+REWARD_FUNCTION = 'simple'
 STATES_OPTIONS = ['sinrs', 'positions', 'channels']
+JAIN_REWARD_PARAMETERS = {
+    'gamma1': 10.0,
+    'gamma2': 1.0,
+    'gamma3': 0.0
+}
 env_params = EnvironmentParameters(
     rb_bandwidth, None, p_max, noise_power,
     bs_gain, user_gain, sinr_threshold_train,
@@ -112,7 +117,8 @@ ref_env = CompleteEnvironment12(
     reward_function=REWARD_FUNCTION,
     states_options=STATES_OPTIONS,
     memories_capacity=int(1e3),
-    dt=DELTA_T
+    dt=DELTA_T,
+    rewards_params=JAIN_REWARD_PARAMETERS,
 )
 
 

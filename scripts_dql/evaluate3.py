@@ -16,18 +16,18 @@ ALGO_NAME = 'dql'
 BASE_PATH = '/home/lucas/dev/sys-simulator-2'
 AGENTS_RANGE = range(6)[1:]
 MODELS_PATHS = [
-    f'{BASE_PATH}/data/dql/script52/20210515-172025/last_model.pt',
-    f'{BASE_PATH}/data/dql/script52/20210515-143418/last_model.pt',
-    f'{BASE_PATH}/data/dql/script52/20210510-201634/last_model.pt',
-    f'{BASE_PATH}/data/dql/script52/20210516-103139/best_model.pt',
-    f'{BASE_PATH}/data/dql/script52/20210516-113258/best_model.pt',
+    f'{BASE_PATH}/data/dql/script52/20210523-210009/last_model.pt',
+    f'{BASE_PATH}/data/dql/script52/20210523-211603/last_model.pt',
+    f'{BASE_PATH}/data/dql/script52/20210523-213023/last_model.pt',
+    f'{BASE_PATH}/data/dql/script52/20210523-213628/last_model.pt',
+    f'{BASE_PATH}/data/dql/script52/20210523-214607/last_model.pt',    
 ]
 ENVS_PATHS = [
-    f'{BASE_PATH}/data/dql/script52/20210515-172025/env.pickle',
-    f'{BASE_PATH}/data/dql/script52/20210515-143418/env.pickle',
-    f'{BASE_PATH}/data/dql/script52/20210510-201634/env.pickle',
-    f'{BASE_PATH}/data/dql/script52/20210516-103139/env.pickle',
-    f'{BASE_PATH}/data/dql/script52/20210516-113258/env.pickle',
+    f'{BASE_PATH}/data/dql/script52/20210523-210009/env.pickle',
+    f'{BASE_PATH}/data/dql/script52/20210523-211603/env.pickle',
+    f'{BASE_PATH}/data/dql/script52/20210523-213023/env.pickle',
+    f'{BASE_PATH}/data/dql/script52/20210523-213628/env.pickle',
+    f'{BASE_PATH}/data/dql/script52/20210523-214607/env.pickle',
 ]
 # TEST_NUM_EPISODES = 10000
 TEST_NUM_EPISODES = 1000
@@ -45,9 +45,6 @@ data_path, _ = gen.make_dir_timestamp(dir_path)
 if RND_SEED:
     random_seed(SEED)
 torch_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-a_min = -90
-a_max = 60
-a_offset = -10
 frameworks = []
 for p in MODELS_PATHS:
     f = torch.load(p, map_location=torch_device)

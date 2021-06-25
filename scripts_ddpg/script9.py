@@ -63,7 +63,7 @@ SEED = 42
 CHANNEL_RND = True
 C = 8  # C constant for the improved reward function
 ENVIRONMENT_MEMORY = 2
-MAX_NUMBER_OF_AGENTS = 5
+MAX_NUMBER_OF_AGENTS = 2
 REWARD_PENALTY = 1.5
 N_STATES_BINS = 100
 # DELTA_T = 1
@@ -72,7 +72,7 @@ EVAL_DELTA_T = 1
 # q-learning parameters
 # training
 ALGO_NAME = 'ddpg'
-REWARD_FUNCTION = 'simple'
+REWARD_FUNCTION = 'fair'
 STATES_OPTIONS = ['sinrs', 'positions', 'channels']
 PAIRS_DISTRIBUTION = 'normal'
 MOTION_MODEL = 'random'
@@ -295,8 +295,8 @@ def train(start: float, writer: SummaryWriter):
             if step % PRINT_EVERY == 0:
                 now = (time() - start) / 60
                 print_stuff_ddpg(step, now, MAX_STEPS, REPLAY_MEMORY_TYPE)
-            if step % UPDATE_PERTURBERD_EVERY == 0:
-                framework.perturb_actor_parameters(param_noise)
+            # if step % UPDATE_PERTURBERD_EVERY == 0:
+            #     framework.perturb_actor_parameters(param_noise)
             # testing
             if step % EVAL_EVERY != 0:
                 continue

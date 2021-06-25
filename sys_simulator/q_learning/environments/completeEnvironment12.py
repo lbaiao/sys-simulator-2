@@ -131,10 +131,14 @@ class CompleteEnvironment12(RLEnvironment):
             self.reward_function = self.calculate_jain_reward
         elif reward_function == 'multi_agent_continuous':
             self.reward_function = self.multi_agent_continuous_reward
+        elif reward_function == 'multi_agent_reward_2':
+            self.reward_function = self.multi_agent_reward_2
         elif reward_function == 'continuous2':
             self.reward_function = self.continuous_reward2
         elif reward_function == 'simple':
             self.reward_function = self.simple_reward
+        elif reward_function == 'fair':
+            self.reward_function = self.fair_reward
         elif reward_function == 'multi_agent_simple':
             self.reward_function = self.multi_agent_simple_reward
         else:
@@ -919,6 +923,24 @@ class CompleteEnvironment12(RLEnvironment):
                 rewards.append(r)
         return rewards
 
+    def multi_agent_reward_2(self, agents: List[ExternalDQNAgent],
+                                      *kargs, **kwargs):
+        gamma1 = 2.0
+        gamma2 = .1
+        if self.mue.sinr <= self.params.sinr_threshold:
+            r = gamma1 * (self.mue.sinr - self.params.sinr_threshold)
+            rewards = r * np.ones(len(agents))
+        else:
+            rewards = []
+            for a in agents:
+                r = a.d2d_tx.sinr
+                if r < 10:
+                    r = db_to_power(r)
+                else:
+                    r = 10 + gamma2 * r
+                rewards.append(r)
+        return rewards
+
     # def calculate_jain_reward(self, *kargs, **kwargs):
     #     gamma1 = 2.0
     #     gamma2 = 1
@@ -980,6 +1002,17 @@ class CompleteEnvironment12(RLEnvironment):
         gamma1 = self.rewards_params['gamma1']
         gamma2 = self.rewards_params['gamma2']
         sinrs = np.array([p[0].sinr for p in self.d2d_pairs])
+        r1 = gamma1 * np.min([self.mue.sinr, self.params.sinr_threshold])
+        r2 = gamma2 * sinrs.mean()
+        return r1 + r2
+
+    def fair_reward(self, *kargs, **kwargs):
+        d2d_threshold = 40
+        gamma1 = self.rewards_params['gamma1']
+        gamma2 = self.rewards_params['gamma2']
+        sinrs = np.array(
+            [np.min([p[0].sinr, d2d_threshold]) for p in self.d2d_pairs]
+        )
         r1 = gamma1 * np.min([self.mue.sinr, self.params.sinr_threshold])
         r2 = gamma2 * sinrs.mean()
         return r1 + r2

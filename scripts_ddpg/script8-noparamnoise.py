@@ -63,7 +63,7 @@ SEED = 42
 CHANNEL_RND = True
 C = 8  # C constant for the improved reward function
 ENVIRONMENT_MEMORY = 2
-MAX_NUMBER_OF_AGENTS = 5
+MAX_NUMBER_OF_AGENTS = 2
 REWARD_PENALTY = 1.5
 N_STATES_BINS = 100
 # DELTA_T = 1
@@ -105,7 +105,7 @@ GAMMA = .90
 SOFT_TAU = .05
 ALPHA = .6
 BETA = .4
-EXPLORATION = 'perturberd'
+EXPLORATION = 'gauss'
 REPLAY_MEMORY_TYPE = 'standard'
 PRIO_BETA_ITS = int(.8*(MAX_STEPS - REPLAY_INITIAL))
 PRINT_EVERY = int(MAX_STEPS/100)
@@ -352,9 +352,9 @@ def train(start: float, writer: SummaryWriter):
         noise_s = torch.FloatTensor(noise_s).to(torch_device)
         unperturbed_actions = framework.actor(noise_s)
         unperturbed_actions = unperturbed_actions.detach().cpu().numpy()
-        ddpg_dist = ddpg_distance_metric(
-            perturbed_actions, unperturbed_actions)
-        param_noise.adapt(ddpg_dist)
+        # ddpg_dist = ddpg_distance_metric(
+        #     perturbed_actions, unperturbed_actions)
+        # param_noise.adapt(ddpg_dist)
     all_bags = {
         'actor_losses': actor_losses_bag,
         'critic_losses': critic_losses_bag,

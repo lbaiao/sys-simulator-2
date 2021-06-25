@@ -31,7 +31,8 @@ from sys_simulator.q_learning.environments.completeEnvironment12 import (
 # in different positions, and there are different motion models.
 # Single episodes convergence. The states are in linear scale.
 ALGO_NAME = 'a2c'
-DATA_PATH = 'data/a2c/script16/20210518-084353'   # noqa
+# DATA_PATH = 'data/a2c/script17/20210523-140905'   # noqa
+DATA_PATH = 'data/a2c/script16/20210524-222653'
 FRAMEWORK_PATH = f'{DATA_PATH}/last_model.pt'
 ENV_PATH = f'{DATA_PATH}/env.pickle'
 n_mues = 1  # number of mues
@@ -69,7 +70,7 @@ OPTIMIZERS = 'adam'
 NUM_ENVS = 4
 NUM_POOLS = 4
 REWARD_FUNCTION = 'multi_agent_continuous'
-STATES_OPTIONS = ['sinrs', 'positions', 'channels', 'powers']
+STATES_OPTIONS = ['sinrs', 'positions', 'channels']
 MOTION_MODEL = 'forward'
 STATES_FUNCTION = 'multi_agent'
 EVAL_STEPS = 700
@@ -86,6 +87,7 @@ env: CompleteEnvironment12 = load_with_pickle(ENV_PATH)
 env.dt = DELTA_T
 # actions = db_five(p_min, p_max)
 actions = db_six(p_min, p_max)
+# actions = [-90, -60, -40, -30, -20, -10]
 # actions = db_ten(p_min, p_max)
 NUMBER_OF_ACTIONS = len(actions)
 framework: A2CDiscreteFramework = torch.load(FRAMEWORK_PATH)
@@ -154,6 +156,15 @@ def evaluate(start: float, writer: SummaryWriter):
         writer.add_scalars(
             '3. Eval - Transmission powers [dBW]',
             {f'device {i}': a for i, a in enumerate(past_actions)},
+            step
+        )
+        ctbs = {
+            'device 0': env.total_losses['DUE.TX:0']['BS:0'],
+            'device 1': env.total_losses['DUE.TX:1']['BS:0'],
+        }
+        writer.add_scalars(
+            '3. Eval - Channel to BS [dB]',
+            ctbs,
             step
         )
         mue_tx_powers.append(env.mue.tx_power)

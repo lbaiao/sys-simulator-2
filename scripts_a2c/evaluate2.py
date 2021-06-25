@@ -31,7 +31,8 @@ from sys_simulator.q_learning.environments.completeEnvironment12 import (
 # in different positions, and there are different motion models.
 # Single episodes convergence. The states are in linear scale.
 ALGO_NAME = 'a2c'
-DATA_PATH = 'data/a2c/script16/20210518-084353'   # noqa
+# DATA_PATH = 'data/a2c/script16/20210521-133615'   # noqa
+DATA_PATH = 'data/a2c/script16/20210524-222653'   # noqa
 FRAMEWORK_PATH = f'{DATA_PATH}/last_model.pt'
 ENV_PATH = f'{DATA_PATH}/env.pickle'
 n_mues = 1  # number of mues
@@ -86,6 +87,7 @@ env: CompleteEnvironment12 = load_with_pickle(ENV_PATH)
 env.dt = DELTA_T
 # actions = db_five(p_min, p_max)
 actions = db_six(p_min, p_max)
+# actions = [-90, -60, -40, -30, -20, -10]
 # actions = db_ten(p_min, p_max)
 NUMBER_OF_ACTIONS = len(actions)
 framework: A2CDiscreteFramework = torch.load(FRAMEWORK_PATH)

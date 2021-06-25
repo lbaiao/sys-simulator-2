@@ -16,9 +16,9 @@ import torch
 # parameters
 ALGO_NAME = 'ddpg'
 BASE_PATH = '/home/lucas/dev/sys-simulator-2'
-MAX_NUMBER_OF_AGENTS = 2
-MODELS_PATHS =  f'{BASE_PATH}/data/ddpg/script8/20210522-200418/last_model.pt'
-# MODELS_PATHS =  f'{BASE_PATH}/data/ddpg/script8/20210522-163204/last_model.pt'
+MAX_NUMBER_OF_AGENTS = 1
+# MODELS_PATHS =  f'{BASE_PATH}/data/ddpg/script8/20210522-200418/last_model.pt'
+MODELS_PATHS = '/home/lucas/dev/sys-simulator-2/data/ddpg/script8/20210523-192808/last_model.pt'  # noqa
 # TEST_NUM_EPISODES = 10000
 TEST_NUM_EPISODES = 2000
 EVAL_STEPS_PER_EPISODE = 10

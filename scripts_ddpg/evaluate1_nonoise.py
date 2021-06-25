@@ -20,8 +20,8 @@ from torch.utils.tensorboard.writer import SummaryWriter
 # parameters
 ALGO_NAME = 'ddpg'
 # FRAMEWORK_PATH = '/home/lucas/dev/sys-simulator-2/data/ddpg/script8/20210522-200418/last_model.pt'  # noqa
-# FRAMEWORK_PATH = '/home/lucas/dev/sys-simulator-2/data/ddpg/script8-noparamnoise/20210610-121812/last_model.pt'
-FRAMEWORK_PATH = '/home/lucas/dev/sys-simulator-2/data/ddpg/script9/20210613-162227/last_model.pt'   # noqa
+FRAMEWORK_PATH = '/home/lucas/dev/sys-simulator-2/data/ddpg/script9/20210613-184545/last_model.pt'   # noqa
+# FRAMEWORK_PATH = 'D:\\Dev/sys-simulator-2/data/ddpg/script7/20210429-181155/last_model.pt'   # noqa
 n_mues = 1  # number of mues
 n_rb = n_mues   # number of RBs
 carrier_frequency = 2.4  # carrier frequency in GHz
@@ -35,7 +35,7 @@ noise_power = -116  # noise power per RB in dBm
 bs_gain = 17    # macro bs antenna gain in dBi
 user_gain = 4   # user antenna gain in dBi
 sinr_threshold_train = 6  # mue sinr threshold in dB for training
-mue_margin = 6
+mue_margin = 2
 MIN_D2D_PAIR_DISTANCE = 1.5
 MAX_D2D_PAIR_DISTANCE = 15
 # conversions from dBm to dB
@@ -77,7 +77,7 @@ env_params = EnvironmentParameters(
 channel_to_devices = BANChannel(rnd=CHANNEL_RND)
 channel_to_bs = UrbanMacroNLOSWinnerChannel(
     rnd=CHANNEL_RND, f_c=carrier_frequency, h_bs=bs_height, h_ms=device_height,
-    small_sigma=4.0, sigma=8.0
+    small_sigma=0.1, sigma=0.1
 )
 ref_env = CompleteEnvironment12(
     env_params,
@@ -144,6 +144,7 @@ def evaluate(start: float, writer: SummaryWriter):
     d2d_tx_powers = []
     mue_availability = []
     mue_tx_powers = []
+    channels_to_bs = []
     while step < EVAL_STEPS:
         obs, _, _, _ = env.step(surr_agents)
         now = (time() - start) / 60
@@ -176,6 +177,10 @@ def evaluate(start: float, writer: SummaryWriter):
             'device 0': env.total_losses['DUE.TX:0']['BS:0'],
             'device 1': env.total_losses['DUE.TX:1']['BS:0'],
         }
+        channels_to_bs.append((
+            env.total_losses['DUE.TX:0']['BS:0'],
+            env.total_losses['DUE.TX:1']['BS:0'],
+        ))
         writer.add_scalars(
             '3. Eval - Channel to BS [dB]',
             ctbs,
@@ -207,13 +212,13 @@ def evaluate(start: float, writer: SummaryWriter):
     writer.add_figure('3. Eval - Trajectories', traj_figs, step)
     os.system(f'magick convert {svg_path} {eps_path}')
     return mue_availability, mue_sinrs, d2d_sinrs, d2d_tx_powers,\
-        trajectories, mue_tx_powers
+        trajectories, mue_tx_powers, channels_to_bs
 
 
 if __name__ == '__main__':
     start = time()
     mue_availability, mue_sinrs, d2d_sinrs, d2d_tx_powers,\
-        trajectories, mue_tx_powers = evaluate(start, writer)
+        trajectories, mue_tx_powers, channels_to_bs = evaluate(start, writer)
     # save stuff
     data = {
         'mue_availability': mue_availability,
@@ -222,6 +227,7 @@ if __name__ == '__main__':
         'd2d_tx_powers': d2d_tx_powers,
         'trajectories': trajectories,
         'mue_tx_powers': mue_tx_powers,
+        'channels_to_bs': channels_to_bs,
     }
     now = (time() - start) / 60
     data_file_path = f'{data_path}/log.pickle'

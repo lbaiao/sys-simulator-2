@@ -71,11 +71,12 @@ DELTA_T = .5
 # q-learning parameters
 # training
 ALGO_NAME = 'dql'
-DATA_PATH = '/home/lucas/dev/sys-simulator-2/data/dql/script52/20210427-141357'  # noqa
+# DATA_PATH = '/home/lucas/dev/sys-simulator-2/data/dql/script52/20210427-141357'  # noqa
+DATA_PATH = '/home/lucas/dev/sys-simulator-2/data/dql/script52/20210613-083852'  # noqa
 FRAMEWORK_PATH = f'{DATA_PATH}/last_model.pt'
 ENV_PATH = f'{DATA_PATH}/env.pickle'
 REWARD_FUNCTION = 'multi_agent_continuous'
-STATES_OPTIONS = ['sinrs', 'positions', 'channels', 'powers']
+STATES_OPTIONS = ['sinrs', 'positions', 'channels']
 MOTION_MODEL = 'forward'
 STATES_FUNCTION = 'multi_agent'
 EVAL_STEPS = 700
@@ -117,6 +118,7 @@ action_size = MAX_NUMBER_OF_AGENTS
 env_state_size = env.state_size()
 # actions = db_five(p_min, p_max)
 actions = db_six(p_min, p_max)
+# actions = [-90, -60, -40, -30, -20, -10]
 # actions = db_ten(p_min, p_max)
 NUMBER_OF_ACTIONS = len(actions)
 agent_params = DQNAgentParameters(

@@ -1,4 +1,5 @@
 from numpy.random import normal
+import numpy as np
 from math import exp, log
 
 
@@ -14,7 +15,7 @@ class DecayingGaussNoise:
 
     def step(self, t: float):
         scale = self.original_scale*exp(-self.alpha*t/self.T)
-        scale = self.min_decay if scale < self.min_decay else scale
+        scale = np.max([scale, self.min_decay])
         self.scale = scale
         noise = normal(loc=self.loc, scale=scale, size=self.size)
         return noise

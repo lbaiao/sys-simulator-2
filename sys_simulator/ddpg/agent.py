@@ -65,7 +65,8 @@ class Agent:
 
     def gauss_explore(self, obs: ndarray, framework: Framework, **kwargs):
         action = self.call_framework(obs, framework)
-        noise = normal(loc=0, scale=0.05)
+        # noise = normal(loc=0, scale=0.05)
+        noise = kwargs['noise'].reshape(-1, 1)
         action += noise
         return action
 
@@ -96,7 +97,7 @@ class Agent:
         self.nn_output = copy(action)
         framework.actor.train()
         if noise is not None:
-            action = action + noise
+            action = action + noise.reshape(-1, 1)
         return action
 
 

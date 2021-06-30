@@ -1,63 +1,34 @@
-import sys
-
-import os
-lucas_path = os.environ['LUCAS_PATH']
-sys.path.insert(1, lucas_path)
-
-from q_learning.environments.distributedEnvironment import DistributedEnvironment
-from q_learning.environments.actionEnvironment import ActionEnvironment
-from q_learning.environments.environment import RLEnvironment
-from q_learning.environments.distanceEnvironment import DistanceEnvironment
-from q_learning.agents.agent import Agent
-from q_learning.agents.distanceAgent import DistanceAgent
-from q_learning.rewards import dis_reward, centralized_reward
-from parameters.parameters import EnvironmentParameters, TrainingParameters, AgentParameters, LearningParameters
-from general import general as gen
-from plots.plots import plot_spectral_effs
-from typing import List
+# Similar to scratch2, but with the BAN channel
+from sys_simulator.pathloss import pathloss_bs_users
+from sys_simulator import general as gen
+from sys_simulator.plots import plot_positions_actions_pie
+from sys_simulator.q_learning.environments.completeEnvironment5 \
+    import CompleteEnvironment5
+from sys_simulator.dqn.agents.dqnAgent import ExternalDQNAgent
+from sys_simulator.dqn.externalDQNFramework import ExternalDQNFramework
+from sys_simulator.q_learning import rewards
+from sys_simulator.parameters.parameters \
+    import EnvironmentParameters, TrainingParameters, DQNAgentParameters
+from sys_simulator.channels import BANChannel
 from matplotlib import pyplot as plt
-from pprint import pprint
-
+import os
+import torch
 import numpy as np
+import math
 
-def test5(agents: List[Agent], env: ActionEnvironment, policies: np.array, num_episodes: int, episode_steps: int):
-    mue_spectral_effs = list()
-    d2d_spectral_effs = list()    
-    done = False
-    for _ in range(num_episodes):
-        env.reset(agents)
-        done = False
-        obs = [env.get_state(a) for a in agents] 
-        total_reward = 0.0
-        i = 0
-        while not done:            
-            actions_indexes = np.zeros(len(agents), dtype=int)        
-            for m in range(len(agents)):
-                actions_indexes[m] = policies[m][obs[m]]
-                agents[m].set_action(actions_indexes[m])
-            next_obs, rewards, done = env.step(agents)
-            obs = next_obs
-            total_reward += sum(rewards)
-            i +=1
-            if i >= episode_steps:
-                break
-        mue_spectral_effs.append(env.mue_spectral_eff)
-        d2d_spectral_effs.append(env.d2d_spectral_eff)
-    return total_reward, mue_spectral_effs, d2d_spectral_effs
 
-n_mues = 1 # number of mues
+n_mues = 1  # number of mues
 n_d2d = 2  # number of d2d pairs
 n_rb = n_mues   # number of RBs
-bs_radius = 500 #   bs radius in m
-
+bs_radius = 500  # bs radius in m
 rb_bandwidth = 180*1e3  # rb bandwidth in Hz
 d2d_pair_distance = 50  # d2d pair distance in m
 p_max = 23  # max tx power in dBm
 noise_power = -116  # noise power per RB in dBm
 bs_gain = 17    # macro bs antenna gain in dBi
 user_gain = 4   # user antenna gain in dBi
-sinr_threshold = 6  # mue sinr threshold in dB
-
+sinr_threshold_mue = 6  # true mue sinr threshold in dB
+mue_margin = .5e4
 # conversions from dB to pow
 p_max = p_max - 30
 p_max = gen.db_to_power(p_max)
@@ -65,110 +36,83 @@ noise_power = noise_power - 30
 noise_power = gen.db_to_power(noise_power)
 bs_gain = gen.db_to_power(bs_gain)
 user_gain = gen.db_to_power(user_gain)
-sinr_threshold = gen.db_to_power(sinr_threshold)
-
+sinr_threshold_mue = gen.db_to_power(sinr_threshold_mue)
 # q-learning parameters
-# MAX_NUM_EPISODES = 1e5
-MAX_NUM_EPISODES = 1000
-# STEPS_PER_EPISODE = 400
-STEPS_PER_EPISODE = 200 
-EPSILON_MIN = 0.05
-# max_num_steps = MAX_NUM_EPISODES * STEPS_PER_EPISODE
-# MAX_NUM_STEPS = 50
-# EPSILON_DECAY = 4e-2 *  EPSILON_MIN / STEPS_PER_EPISODE
-EPSILON_DECAY = 5e-1 *  EPSILON_MIN / STEPS_PER_EPISODE
-# EPSILON_DECAY = 2 *  EPSILON_MIN / MAX_NUM_STEPS
-ALPHA = 0.5  # Learning rate
-GAMMA = 0.9  # Discount factor
+STEPS_PER_EPISODE = 10
+EPSILON_MIN = 0.01
+EPSILON_DECAY = 100 * EPSILON_MIN / STEPS_PER_EPISODE
+MAX_NUM_EPISODES = int(1.2/EPSILON_DECAY)
+MAX_NUMBER_OF_AGENTS = 20
+ALPHA = 0.05  # Learning rate
+GAMMA = 0.98  # Discount factor
 C = 80  # C constant for the improved reward function
-
+TARGET_UPDATE = 10
+REPLAY_MEMORY_SIZE = 10000
+BATCH_SIZE = 128
 # more parameters
-env_params = EnvironmentParameters(rb_bandwidth, d2d_pair_distance, p_max, noise_power, bs_gain, user_gain, sinr_threshold,
-                                        n_mues, n_d2d, n_rb, bs_radius, c_param=C)
+cwd = os.getcwd()
+# params objects
+env_params = EnvironmentParameters(
+    rb_bandwidth, d2d_pair_distance, p_max, noise_power,
+    bs_gain, user_gain, sinr_threshold_mue, n_mues,
+    n_d2d, n_rb, bs_radius, c_param=C, mue_margin=mue_margin
+)
 train_params = TrainingParameters(MAX_NUM_EPISODES, STEPS_PER_EPISODE)
-agent_params = AgentParameters(EPSILON_MIN, EPSILON_DECAY, 1)
-learn_params = LearningParameters(ALPHA, GAMMA)
-
-actions = [i*p_max/10 + 1e-9 for i in range(11)]
-agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-reward_function5 = dis_reward
-reward_function6 = dis_reward
-reward_function8 = dis_reward
-
-environment5 = ActionEnvironment(env_params, reward_function5)
-environment6 = DistanceEnvironment(env_params, reward_function6)
-environment8 = DistanceEnvironment(env_params, reward_function8)
-
-learned_policies_5 = np.load(f'D:/Dev/sys-simulator-2/models/model5.npy')
-learned_policies_6 = np.load(f'D:/Dev/sys-simulator-2/models/model6.npy')
-learned_policies_8 = np.load(f'D:/Dev/sys-simulator-2/models/script8.npy')
-
-# policy 5 test
-t_agents = [Agent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-total_reward, mue_spectral_effs5, d2d_spectral_effs5 = test5(t_agents, environment5, learned_policies_5, 1000, 5)
-
-# policy 6 test
-t_agents = [DistanceAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-total_reward, mue_spectral_effs6, d2d_spectral_effs6 = test5(t_agents, environment6, learned_policies_6, 1000, 5)
-
-# policy 8 test
-t_agents = [DistanceAgent(agent_params, actions) for i in range(n_d2d)] # 1 agent per d2d tx
-total_reward, mue_spectral_effs8, d2d_spectral_effs8 = test5(t_agents, environment8, learned_policies_8, 1000, 5)
+agent_params = DQNAgentParameters(
+    EPSILON_MIN, EPSILON_DECAY, 1,
+    REPLAY_MEMORY_SIZE, BATCH_SIZE, GAMMA
+)
+# actions, rewards, environment, agent
+actions = torch.tensor([i*0.82*p_max/5/1000 for i in range(5)])
+reward_function = rewards.dis_reward_tensor2
+channel = BANChannel()
+env = CompleteEnvironment5(env_params, reward_function, channel)
+framework = ExternalDQNFramework(agent_params)
+framework.policy_net.load_state_dict(
+    torch.load(f'{cwd}/models/dql/script30.pt')
+)
+reward_function = rewards.dis_reward_tensor
+pairs_positions = [
+    (250, 0),
+    (-250, 0),
+    (0, 250),
+    (0, -250)
+]
+mue_position = (500 / math.sqrt(2), 500 / math.sqrt(2))
+n_agents = len(pairs_positions)
+episode_steps = STEPS_PER_EPISODE
 
 
-mue_spectral_effs5 = np.array(mue_spectral_effs5)
-mue_spectral_effs5 = np.reshape(mue_spectral_effs5, np.prod(mue_spectral_effs5.shape))
-mue_spectral_effs6 = np.array(mue_spectral_effs6)
-mue_spectral_effs6 = np.reshape(mue_spectral_effs6, np.prod(mue_spectral_effs6.shape))
-mue_spectral_effs8 = np.array(mue_spectral_effs8)
-mue_spectral_effs8 = np.reshape(mue_spectral_effs8, np.prod(mue_spectral_effs8.shape))
-
-d2d_spectral_effs5 = np.array(d2d_spectral_effs5)
-d2d_spectral_effs5 = np.reshape(d2d_spectral_effs5, np.prod(d2d_spectral_effs5.shape))
-d2d_spectral_effs6 = np.array(d2d_spectral_effs6)
-d2d_spectral_effs6 = np.reshape(d2d_spectral_effs6, np.prod(d2d_spectral_effs6.shape))
-d2d_spectral_effs8 = np.array(d2d_spectral_effs8)
-d2d_spectral_effs8 = np.reshape(d2d_spectral_effs8, np.prod(d2d_spectral_effs8.shape))
-
-d2d_speffs_avg5 = np.average(d2d_spectral_effs5)
-d2d_speffs_avg6 = np.average(d2d_spectral_effs6)
-d2d_speffs_avg8 = np.average(d2d_spectral_effs8)
-
-mue_success_rate5 = np.average(mue_spectral_effs5 > sinr_threshold)
-mue_success_rate6 = np.average(mue_spectral_effs6 > sinr_threshold)
-mue_success_rate8 = np.average(mue_spectral_effs8 > sinr_threshold)
-
-log = list()
-log.append(f'D2D SPECTRAL EFFICIENCY - SCRIPT 5: {d2d_speffs_avg5}')
-log.append(f'D2D SPECTRAL EFFICIENCY - SCRIPT 6: {d2d_speffs_avg6}')
-log.append(f'D2D SPECTRAL EFFICIENCY - SCRIPT 8: {d2d_speffs_avg8}')
-log.append(f'MUE SUCCESS RATE - SCRIPT 5: {mue_success_rate5}')
-log.append(f'MUE SUCCESS RATE - SCRIPT 6: {mue_success_rate6}')
-log.append(f'MUE SUCCESS RATE - SCRIPT 8: {mue_success_rate8}')
-
-filename = gen.path_leaf(__file__)
-filename = filename.split('.')[0]
-filename = f'{lucas_path}/logs/{filename}.txt'
-file = open(filename, 'w')
-for l in log:
-    file.write(f'{l}\n')
-file.close()
-
-plt.figure(1)
-plt.plot(list(range(len(d2d_spectral_effs5))), d2d_spectral_effs5, '.', label='Script 5')
-plt.plot(list(range(len(d2d_spectral_effs6))), d2d_spectral_effs6, '.', label='Script 6')
-plt.plot(list(range(len(d2d_spectral_effs8))), d2d_spectral_effs8, '.', label='Script 8')
-plt.title('D2D spectral efficiencies')
-plt.legend()
-
-plt.figure(2)
-threshold_eff = np.log2(1 + sinr_threshold) * np.ones(len(mue_spectral_effs5))
-plt.plot(list(range(len(mue_spectral_effs5))), mue_spectral_effs5, '.', label='Script 5')
-plt.plot(list(range(len(mue_spectral_effs6))), mue_spectral_effs6, '.', label='Script 6')
-plt.plot(list(range(len(mue_spectral_effs8))), mue_spectral_effs8, '.', label='Script 8')
-plt.plot(list(range(len(mue_spectral_effs5))), threshold_eff, label='Threshold')    
-
-plt.title('MUE spectral efficiencies')
-plt.legend()
-plt.show()
-
+def run():
+    actions = np.linspace(1e-4, 8e-3, 5)[::-1] * p_max
+    agents = [ExternalDQNAgent(agent_params, actions)
+              for i in range(n_agents)]  # 1 agent per d2d tx
+    env.set_scenario(pairs_positions, mue_position, agents)
+    obs = [env.get_state(a) for a in agents]
+    total_reward = 0.0
+    actions_index = list()
+    for _ in range(episode_steps):
+        actions_index = list()
+        for j, agent in enumerate(agents):
+            aux = agent.act(framework, obs[j].float()).max(1)
+            actions_index.append(aux[1].item())
+            agent.set_action(aux[1].long(), agent.actions[aux[1]])
+        next_obs, rewards, _ = env.step(agents)
+        obs = next_obs
+        total_reward += sum(rewards)
+    d2d_txs, d2d_rxs = zip(*env.d2d_pairs)
+    # D2D interference on the MUE
+    d2d_interferences = [
+        d.tx_power * env.params.user_gain * env.params.bs_gain /
+        pathloss_bs_users(d.distance_to_bs/1000) for d in d2d_txs
+    ]
+    d2d_total_interference = np.sum(d2d_interferences)
+    percentage_interferences = d2d_interferences / d2d_total_interference
+    if d2d_total_interference != 0:
+        plot_positions_actions_pie(
+            env.bs, env.mue, d2d_txs, d2d_rxs,
+            actions_index, percentage_interferences,
+            obs[0][0][4].item(), sinr_threshold_mue,
+            env.reward.item()
+        )
+    plt.show()

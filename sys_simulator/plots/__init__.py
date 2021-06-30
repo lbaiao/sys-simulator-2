@@ -1,0 +1,290 @@
+from math import sqrt, ceil
+from sys_simulator.q_learning.environments.completeEnvironment12 import CompleteEnvironment12
+from typing import Dict, List
+import matplotlib.pyplot as plt
+import numpy as np
+from sys_simulator.devices.devices import base_station, mobile_user, d2d_user
+from sys_simulator.q_learning.environments.environment import RLEnvironment
+import seaborn as sns
+
+
+# Fonts configs
+x_font = {
+    'family': 'serif',
+    'color':  'black',
+    'weight': 'normal',
+    'size': 16,
+}
+y_font = {
+    'family': 'serif',
+    'color':  'black',
+    'weight': 'normal',
+    'size': 16,
+}
+ticks_font = {
+    'fontfamily': 'serif',
+    'fontsize': 13
+}
+legends_font = {
+    'size': 13,
+    'family': 'serif'
+}
+
+
+def plot_positions(bs: base_station, mues: List[mobile_user],
+                   d2d_txs: List[d2d_user], d2d_rxs: List[d2d_user],
+                   plot=True,
+                   **kwargs):
+    bs_x = bs.position[0]
+    bs_y = bs.position[1]
+    mues_x = [i.position[0] for i in mues]
+    mues_y = [i.position[1] for i in mues]
+    d2d_txs_x = [i.position[0] for i in d2d_txs]
+    d2d_txs_y = [i.position[1] for i in d2d_txs]
+    d2d_rxs_x = [i.position[0] for i in d2d_rxs]
+    d2d_rxs_y = [i.position[1] for i in d2d_rxs]
+
+    fig = plt.figure()
+
+    _ = plt.plot(bs_x, bs_y, '*', label='BS')
+    _ = plt.plot(mues_x, mues_y, '*', label='MUEs')
+    _ = plt.plot(d2d_txs_x, d2d_txs_y, 'd', label='D2D TX')
+    _ = plt.plot(d2d_rxs_x, d2d_rxs_y, 'd', label='D2D RX')
+
+    coordinates = [(str(i), d2d_txs_x[i], d2d_txs_y[i])
+                   for i in range(len(d2d_txs))]
+    for c in coordinates:
+        plt.annotate(c[0], (c[1], c[2]))
+
+    patch = plt.Circle(bs.position, bs.radius,
+                       edgecolor='red', facecolor='None',
+                       linewidth=1.0, zorder=10)
+    ax = plt.gca()
+    ax.add_patch(patch)
+    plt.xlim(left=-bs.radius-50)
+    plt.xlim(right=bs.radius+50)
+    plt.ylim(bottom=-bs.radius-50)
+    plt.ylim(top=bs.radius+50)
+    plt.xticks(**ticks_font)
+    plt.yticks(**ticks_font)
+    # plt.title('Nodes')
+    plt.legend(prop=legends_font)
+    if plot:
+        plt.show()
+    else:
+        return fig
+
+
+def plot_trajectories(env: CompleteEnvironment12, 
+                      trajectories: Dict, plot=True, **kwargs):
+    bs = env.bs
+    bs_x = bs.position[0]
+    bs_y = bs.position[1]
+    # plot bs position
+    fig = plt.figure()
+    plt.plot(bs_x, bs_y, '*', label=bs.id)
+    # plot devices trajectories
+    for k in trajectories.keys():
+        traj = trajectories[k]
+        x, y, _ = zip(*traj)
+        plt.plot(x, y, 'd', label=k)
+    # plot circle
+    patch = plt.Circle(bs.position, bs.radius,
+                       edgecolor='red', facecolor='None',
+                       linewidth=1.0, zorder=10)
+    ax = plt.gca()
+    ax.add_patch(patch)
+    plt.xlim(left=-bs.radius-50)
+    plt.xlim(right=bs.radius+50)
+    plt.ylim(bottom=-bs.radius-50)
+    plt.ylim(top=bs.radius+50)
+    plt.xticks(**ticks_font)
+    plt.yticks(**ticks_font)
+    # plt.title('Nodes')
+    plt.legend(prop=legends_font)
+    return fig
+
+
+def plot_spectral_effs(env: RLEnvironment):
+    threshold_eff = \
+        np.log2(1 + env.params.sinr_threshold) * \
+        np.ones(len(env.d2d_spectral_eff))
+    plt.figure()
+    x_axis = range(len(env.d2d_spectral_eff))
+    plt.plot(x_axis, env.d2d_spectral_eff, '.', label='D2D')
+    plt.plot(x_axis, env.mue_spectral_eff, '.', label='MUE')
+    plt.plot(x_axis, threshold_eff, label='Threshold')
+    plt.title('Total spectral efficiencies')
+    plt.legend()
+    plt.show()
+
+
+def plot_positions_and_actions(
+    bs: base_station, mues: List[mobile_user],
+    d2d_txs: List[d2d_user], d2d_rxs: List[d2d_user],
+    actions_indexes: List[int]
+):
+    bs_x = bs.position[0]
+    bs_y = bs.position[1]
+    mues_x = [i.position[0] for i in mues]
+    mues_y = [i.position[1] for i in mues]
+    d2d_txs_x = [i.position[0] for i in d2d_txs]
+    d2d_txs_y = [i.position[1] for i in d2d_txs]
+    d2d_rxs_x = [i.position[0] for i in d2d_rxs]
+    d2d_rxs_y = [i.position[1] for i in d2d_rxs]
+
+    plt.figure()
+
+    _ = plt.plot(bs_x, bs_y, '*', label='BS')
+    _ = plt.plot(mues_x, mues_y, '*', label='MUEs')
+    _ = plt.plot(d2d_txs_x, d2d_txs_y, 'd', label='D2D TX')
+    _ = plt.plot(d2d_rxs_x, d2d_rxs_y, 'd', label='D2D RX')
+
+    coordinates = [
+        (actions_indexes[i], d2d_txs_x[i], d2d_txs_y[i])
+        for i in range(len(d2d_txs))
+    ]
+    for c in coordinates:
+        plt.annotate(c[0], (c[1], c[2]))
+
+    patch = plt.Circle(
+        bs.position, bs.radius, edgecolor='red',
+        facecolor='None', linewidth=1.0, zorder=10
+    )
+    ax = plt.gca()
+    ax.add_patch(patch)
+    plt.xlim(left=-bs.radius-50)
+    plt.xlim(right=bs.radius+50)
+    plt.ylim(bottom=-bs.radius-50)
+    plt.ylim(top=bs.radius+50)
+    plt.title(f'N={len(actions_indexes)}')
+    plt.legend()
+
+
+def pie_plot(values: List[float], title: str):
+    labels = [f'D2D {i}' for i in range(len(values))]
+    _, ax1 = plt.subplots()
+    ax1.pie(values, labels=labels, autopct='%1.1f%%',
+            shadow=True, startangle=90)
+    plt.title(title)
+    # Equal aspect ratio ensures that pie is drawn as a circle.
+    ax1.axis('equal')
+
+
+def plot_positions_actions_pie(
+    bs: base_station, mue: mobile_user, d2d_txs: List[d2d_user],
+    d2d_rxs: List[d2d_user], actions_indexes: List[int], values: List[float],
+    mue_success: int, mue_sinr_threshold: float, reward: float, interferences,
+    tx_labels: List[str], rx_labels: List[str]
+):
+    bs_x = bs.position[0]
+    bs_y = bs.position[1]
+    mues_x = mue.position[0]
+    mues_y = mue.position[1]
+    d2d_txs_x = [i.position[0] for i in d2d_txs]
+    d2d_txs_y = [i.position[1] for i in d2d_txs]
+    d2d_rxs_x = [i.position[0] for i in d2d_rxs]
+    d2d_rxs_y = [i.position[1] for i in d2d_rxs]
+
+    # _, ((ax1, ax2), (ax3, _)) = plt.subplots(2, 2, figsize=(14, 6))
+    _, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(14, 6))
+
+    _ = ax1.plot(bs_x, bs_y, '*', label='BS')
+    _ = ax1.plot(mues_x, mues_y, '*', label='MUEs')
+    _ = ax1.plot(d2d_txs_x, d2d_txs_y, 'd', label='D2D TX')
+    _ = ax1.plot(d2d_rxs_x, d2d_rxs_y, 'd', label='D2D RX')
+
+    coordinates = [
+        (f'({d.id.split(":")[1]},{actions_indexes[i]})',
+            d2d_txs_x[i], d2d_txs_y[i])
+        for i, d in enumerate(d2d_txs)
+    ]
+    for c in coordinates:
+        ax1.annotate(c[0], (c[1], c[2]))
+
+    patch = plt.Circle(
+        bs.position, bs.radius, edgecolor='red',
+        facecolor='None', linewidth=1.0, zorder=10
+    )
+    _ = plt.gca()
+    ax1.add_patch(patch)
+    ax1.set_xlim(left=-bs.radius-50)
+    ax1.set_xlim(right=bs.radius+50)
+    ax1.set_ylim(bottom=-bs.radius-50)
+    ax1.set_ylim(top=bs.radius+50)
+    ax1.set_title(
+        f'N={len(actions_indexes)}, M_S={bool(mue_success)} \
+        (pair_id, action_id)'
+    )
+    ax1.legend()
+
+    labels = [f'D2D {i}' for i in range(len(values))]
+
+    # fig1, ax1 = plt.subplots()
+    ax2.pie(values, labels=labels, autopct='%1.1f%%',
+            shadow=True, startangle=90)
+    ax2.set_title(
+        f'MUE SINR: {float(mue.sinr):.2f} dB | ' +
+        f'min SINR: {float(mue_sinr_threshold):.2f} dB '
+        f'reward: {float(reward):.4f}'
+    )
+    # Equal aspect ratio ensures that pie is drawn as a circle.
+    ax2.set_aspect('equal')
+    ax3.imshow(interferences)
+    # We want to show all ticks...
+    ax3.set_xticks(np.arange(interferences.shape[0]))
+    ax3.set_yticks(np.arange(interferences.shape[1]))
+    # ... and label them with the respective list entries
+    # x_labels = ['BS']
+    # x_labels += [i for i in np.arange(interferences.shape[0] - 1)]
+    # y_labels = ['MUE']
+    # y_labels += [i for i in np.arange(interferences.shape[0] - 1)]
+    y_labels = tx_labels
+    x_labels = rx_labels
+    ax3.set_xticklabels(x_labels)
+    ax3.set_yticklabels(y_labels)
+    # interferences = np.log10(interferences)
+    # Loop over data dimensions and create text annotations.
+    for i in range(interferences.shape[0]):
+        for j in range(interferences.shape[1]):
+            _ = ax3.text(j, i, f'{interferences[i, j]:.2f}',
+                         ha="center", va="center", color="w")
+    ax3.set_title("Received Power [dBW]")
+
+
+def dashboard(
+        bs: base_station, mue: mobile_user,
+        d2d_txs: List[d2d_user], d2d_rxs: List[d2d_user],
+        actions_indexes: List[int], values: List[float],
+        mue_success: int, mue_sinr_threshold: float,
+        reward: float, interferences
+):
+    plot_positions_actions_pie(
+        bs, mue, d2d_txs, d2d_rxs,
+        actions_indexes, values,
+        mue_success, mue_sinr_threshold,
+        reward
+    )
+    sns.heatmap(interferences)
+
+
+def plot_env_states(states: List[np.ndarray], num_bins: int, save_path: str):
+    states = np.array(states)
+    total_plots = states.shape[-1]
+    states = states.reshape(-1, total_plots)
+    n_rows = ceil(sqrt(total_plots))
+    n_cols = ceil(sqrt(total_plots))
+    fig, axs = plt.subplots(n_rows, n_cols, sharey=True, tight_layout=True,
+                           figsize=(10,10))
+    index = 0
+    for i in axs:
+        for j in i:
+            if index < total_plots-1:
+                n, _, _ = j.hist(states[:, index], density=True, bins=num_bins)
+                index += 1
+            else:
+                break
+        if index >= total_plots-1:
+            break
+    plt.savefig(save_path)
+

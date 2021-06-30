@@ -1,0 +1,12 @@
+# This file contain some nice hyperparams for the scripts. 
+# These were obtained empirically.
+
+
+script2
+C = 80  # C constant for the improved reward function
+    MAX_NUMBER_OF_AGENTS = 10
+    NUM_ACTIONS = 5
+    HIDDEN_SIZE = 256
+    LEARNING_RATE = 3e-2
+    BETA = 2e-2
+    MAX_NUM_EPISODES = int(2700 * .2)
